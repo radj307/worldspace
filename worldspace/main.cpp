@@ -1,4 +1,16 @@
-#include "world.h"
+/**
+ * Project "worldspace"
+ * Wrapper for a matrix of tiles that can be used for simple games. Contains built-in console output functions, but can be used as a backend for graphical applications.
+ * by radj307
+ * 
+ *	  [File Inheritance Structure]
+ *			   <Coord.h>
+ *			   v	  v
+ *		 <actor.h>   <cell.h>
+ *			   v      v
+ *			   <game.h>
+ */
+#include "game.h"
 #include "sys.h"
 #include "opt.h"
 
@@ -29,30 +41,30 @@ struct GLOBAL : public WorldAttributes {
  * @param argv	- From main()
  * @returns GLOBAL
  */
-inline GLOBAL interpret(int argc, const char* argv[])
+inline GLOBAL interpret(int argc, char* argv[])
 {
 	GLOBAL glob(false, false, 25, 25);
 
-	opt::list args(argc, argv);
-	for ( auto it = args.com.begin(); it != args.com.end(); it++ ) {
-		if ( (*it).checkName("world") ) {
-			if ( (*it).checkOpt("tiles") && (*it).checkParam("unhide") )
+	opt::list args(argc, argv, "world:,debug");
+	for ( auto it = args._commands.begin(); it != args._commands.end(); it++ ) {
+		if ( (*it).checkName("world") && (*it)._hasArg ) {
+			if ( (*it).checkArg("showalltiles") ) {
 				glob._override_known_tiles = true;
-			else if ( (*it).checkOpt("size") ) {
-				std::string* ptr = &(*it)._param;				// make a local pointer to command param
-				int index_of_divider = (*ptr).find(',');		// find comma
-				if ( index_of_divider != std::string::npos ) {	// if comma was found
+			}
+			else if ( ((*it)._arg.size() >= 6) && ((*it)._arg.substr(0, (*it)._arg.find('=')) == "size") ) {
+				if ( (*it)._arg.find(':') != std::string::npos ) {
+					std::string str{ ((*it)._arg.substr(((*it)._arg.find('=') + 1), (*it)._arg.size())) };
 					try {
-						glob._cellSize._x = std::stoi(ptr->substr(0, index_of_divider));
-						glob._cellSize._y = std::stoi(ptr->substr(index_of_divider + 1, (ptr->size() - 1)));
+						size_t index_of_colon{ str.find(':') };
+						glob._cellSize = Coord(std::stoi(str.substr(0, index_of_colon)), std::stoi(str.substr(index_of_colon + 1)));
+					} catch ( std::exception &ex ) {
+						sys::msg(sys::warning, "Argument for world size threw exception: " + std::string(ex.what()));
 					}
-					catch ( std::exception & const except ) {	// catch stoi exceptions
-						sys::msg(sys::warning, "Interpreting world size argument threw exception: " + std::string(except.what()) + " -- Using default: (" + std::to_string(glob._cellSize._x) + "/" + std::to_string(glob._cellSize._y) + ")");
-					}
-				}												// else do nothing
+				}
 			}
 		}
-		if ( (*it).checkName("debug") ) {
+		if ( (*it).checkName("debug") && !(*it)._hasArg ) {
+			glob._override_known_tiles = true;
 			glob._debug_msg = true;
 		}
 	}
@@ -60,9 +72,13 @@ inline GLOBAL interpret(int argc, const char* argv[])
 	return glob;
 }
 
-int main(int argc, const char* argv[])
+int main(int argc, char* argv[])
 {
+	GLOBAL settings{ interpret(argc, argv) };
 
+	Cell c(settings._cellSize, settings._override_known_tiles);
+	Gamespace g(c);
+	g._world.display();
 
 	return 0;
 }

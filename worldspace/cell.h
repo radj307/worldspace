@@ -1,16 +1,15 @@
+/**
+ * world.h
+ * Represents the game world.
+ * Contains the Cell class, and the Tile struct.
+ * by radj307
+ */
 #pragma once
 #include <iostream>
 #include <vector>
 #include <sstream>
 #include "xRand.h"
-
-struct Coord {
-	size_t _y;	// VERTICAL
-	size_t _x;	// HORIZONTAL
-	Coord(size_t x, size_t y) : _y(y), _x(x) {}
-	Coord(const Coord& pos) : _y(pos._y), _x(pos._x) {}
-	Coord(Coord&& pos) noexcept : _y(std::move(pos._y)), _x(std::move(pos._x)) {}
-};
+#include "Coord.h"
 
 struct Tile : public Coord {
 	enum class display {
@@ -35,12 +34,17 @@ struct Tile : public Coord {
 
 class Cell {
 	Tile error;
-	// a vector of 
+	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
 
 protected:
 
-	// build horizontal, then vertical
+	/**
+	 * generate(bool)
+	 * Generates the matrix
+	 * 
+	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
+	 */
 	inline void generate(bool override_known_tiles)
 	{
 		if ( _sizeV > 5 && _sizeH > 5 ) {
@@ -66,14 +70,24 @@ protected:
 	}
 
 public:
+	// The Cell's Vertical & Horizontal size
 	const unsigned int _sizeV, _sizeH;
 
+	/** CONSTRUCTOR **
+	 * Cell(Coord, bool)
+	 * 
+	 * @param cellSize				- The size of the cell
+	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
+	 */
 	Cell(Coord cellSize, bool override_known_tiles = false) : _sizeH(cellSize._x), _sizeV(cellSize._y)
 	{
 		generate(override_known_tiles);
 	}
 
-	// display horizontal for each vertical
+	/**
+	 * display()
+	 * Print the cell to the console as it is known to the player.
+	 */
 	inline void display()
 	{
 		std::stringstream buf;
@@ -86,7 +100,13 @@ public:
 		std::cout << buf.rdbuf();
 	}
 
-	// discovers a square of radius size around the given pos
+	/**
+	 * discover(Coord, const int)
+	 * Allows the player to see a square part of the map.
+	 * 
+	 * @param pos		- The center-point
+	 * @param radius	- The distance away from the center-point that will also be discovered.
+	 */
 	inline void discover(Coord pos, const int radius = 1)
 	{
 		for ( unsigned int y = (pos._y - radius); y <= (pos._y + radius); y++ ) {
@@ -97,7 +117,10 @@ public:
 		}
 	}
 
-	// discovers the whole map
+	/**
+	 * discover()
+	 * Allows the player to see the entire map.
+	 */
 	inline void discover()
 	{
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
@@ -107,7 +130,15 @@ public:
 		}
 	}
 
-	inline Tile& get(Coord pos, const bool findByIndex = false)
+
+	/**
+	 * get(Coord, const bool)
+	 * Returns a reference to the target tile.
+	 * 
+	 * @param pos			- The target tile
+	 * @param findByIndex	- (Default: false) Whether to search the matrix from pos (0,0 - true) or (1,1 - false)
+	 */
+	inline Tile &get(Coord pos, const bool findByIndex = false)
 	{
 		switch ( findByIndex ) {
 		case true:
