@@ -10,6 +10,7 @@
  *			   v      v
  *			   <game.h>
  */
+#include <mutex>
 #include "game.h"
 #include "sys.h"
 #include "opt.h"
@@ -30,6 +31,7 @@ struct WorldAttributes {
  */
 struct GLOBAL : public WorldAttributes {
 	bool _debug_msg;
+	std::string _import_filename{};
 	GLOBAL(bool debug, bool override_hidden, unsigned int horizontalSize, unsigned int verticalSize) : WorldAttributes(override_hidden, horizontalSize, verticalSize), _debug_msg(debug) {}
 };
 
@@ -45,7 +47,7 @@ inline GLOBAL interpret(int argc, char* argv[])
 {
 	GLOBAL glob(false, false, 25, 25);
 
-	opt::list args(argc, argv, "world:,debug");
+	opt::list args(argc, argv, "world:,debug,file:");
 	for ( auto it = args._commands.begin(); it != args._commands.end(); it++ ) {
 		if ( (*it).checkName("world") && (*it)._hasArg ) {
 			if ( (*it).checkArg("showalltiles") ) {
@@ -63,7 +65,10 @@ inline GLOBAL interpret(int argc, char* argv[])
 				}
 			}
 		}
-		if ( (*it).checkName("debug") && !(*it)._hasArg ) {
+		else if ( (*it).checkName("file") && (*it)._hasArg ) {
+			glob._import_filename = (*it)._arg;
+		}
+		else if ( (*it).checkName("debug") && !(*it)._hasArg ) {
 			glob._override_known_tiles = true;
 			glob._debug_msg = true;
 		}
@@ -72,13 +77,69 @@ inline GLOBAL interpret(int argc, char* argv[])
 	return glob;
 }
 
+static const int __FRAMETIME_MS = 30;
+static const char __BLANK_KEY = ' ';
+char mem{ __BLANK_KEY };	// player's last key press
+bool ready{ false };
+
+inline void reset_state()
+{
+	mem = __BLANK_KEY;
+	ready = true;
+}
+
+void play()
+{
+	const int timeout = 100;
+	for ( char input{}; input != 'q'; ) {
+		if ( ready ) {
+			mem = std::tolower(_getch());
+		}
+		else sys::sleep(__FRAMETIME_MS / 2);
+	}
+}
+
 int main(int argc, char* argv[])
 {
-	GLOBAL settings{ interpret(argc, argv) };
+	/*
+	TODO:
+	Implement the windows console API functions from cls.h to remove flickering
+	*/
+	GLOBAL g{ interpret(argc, argv) };
 
-	Cell c(settings._cellSize, settings._override_known_tiles);
-	Gamespace g(c);
-	g._world.display();
+	Cell cell(g._import_filename, g._override_known_tiles);
+	Gamespace game(cell);
 
+	std::thread player(play);
+	ready = true;
+
+	// hide the cursor
+	sys::hideCursor();
+
+	for ( bool kill{ false }; !kill; ) {
+	//	sys::cls();
+
+		switch ( mem ) {
+		case __BLANK_KEY:break;
+		case 'q':
+			reset_state();
+			sys::msg(sys::log, "Kill request received. Shutting down.");
+			kill = true;
+			break;
+		default:
+			game.movePlayer(mem);
+			reset_state();
+			break;
+		}
+
+		game.display();
+		sys::sleep(__FRAMETIME_MS);
+
+		// do enemy turn
+
+	}
+	player.join();
+
+	sys::msg(sys::log, "done");	
 	return 0;
 }

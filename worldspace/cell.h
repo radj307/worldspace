@@ -10,30 +10,146 @@
 #include <sstream>
 #include "xRand.h"
 #include "Coord.h"
+#include "file.h"
 
+/**
+ * struct Tile : public Coord
+ * Represents a single position in the matrix of a cell
+ */
 struct Tile : public Coord {
+	/**
+	 * enum class display
+	 * Defines valid tile types/display characters.
+	 * Remember to add new entries to vector __VALID_TILES below
+	 */
 	enum class display {
 		none = '?',
 		empty = '_',
 		wall = '#',
+		hole = 'O',
 	};
-	display _char;
+	// the display character
+	display _display;
+	// if this tile is known to the player or not
 	bool _isKnown;
-	Tile(display as, int xPos, int yPos, bool isKnownOverride = false) : Coord(xPos, yPos), _char(as), _isKnown(isKnownOverride) {}
-	Tile() : Coord(-1, -1), _char(display::none), _isKnown(true) {}
+	bool _canMove;
 
+	/** CONSTRUCTOR **
+	 * Tile(Tile::display, int, int, bool)  
+	 * 
+	 * @param as				- This tile's type (display character)
+	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
+	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
+	 * @param isKnownOverride	- When true, this tile is visible to the player.
+	 */
+	Tile(display as, int xPos, int yPos, bool isKnownOverride = false) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride) 
+	{
+		// set canMove bool
+		switch ( _display ) {
+		case display::none:
+			_canMove = false;
+			break;
+		case display::wall:
+			_canMove = false;
+			break;
+		default:
+			_canMove = true;
+			break;
+		}
+	}
+	/** CONSTRUCTOR **
+	 * Tile()
+	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
+	 */
+	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false) {}
+
+	bool operator==(Tile &o)
+	{
+		if ( _display == o._display )
+			return true;
+		return false;
+	}
+	bool operator!=(Tile &o)
+	{
+		if ( _display != o._display )
+			return true;
+		return false;
+	}
+	bool operator==(Tile::display o)
+	{
+		if ( _display == o )
+			return true;
+		return false;
+	}
+	bool operator!=(Tile::display o)
+	{
+		if ( _display != o )
+			return true;
+		return false;
+	}
+
+	// Stream insertion operator
 	friend inline std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
 		if ( t._isKnown )
-			os << char(t._char) << ' ';
+			os << char(t._display) << ' ';
 		else
 			os << ' ' << ' ';
 		return os;
 	}
 };
+static const std::vector<Tile::display> __VALID_TILES{ Tile::display::none, Tile::display::empty, Tile::display::wall, Tile::display::hole };
+static Tile __TILE_ERROR;
+
+/**
+ * importMatrix(string, bool)
+ * Imports a tile matrix from the specified file
+ * 
+ * @param filename				- The target file to load
+ * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
+ * @returns vector<vector<Tile>>
+ */
+std::vector<std::vector<Tile>> importMatrix(std::string filename, bool override_known_tiles = false)
+{
+	std::vector<std::vector<Tile>> matrix{};
+
+	if ( file::exists(filename) ) {
+		std::stringstream content{ file::readToStream(filename) };
+
+		content.seekg(0, std::ios::end);				// send sstream to the end
+		int content_size = static_cast<int>(content.tellg());  // find the size of received stringstream
+		content.seekg(0, std::ios::beg);				// send sstream back to the beginning
+
+		// check if content is not empty
+		if ( content_size > 0 ) {
+			std::string line{};
+			// iterate through file content by line
+			for ( unsigned int y = 0; std::getline(content, line); y++ ) {
+				std::vector<Tile> row;
+				// remove whitespace
+				line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+				// iterate through line
+				for ( unsigned int x = 0; x < line.size(); x++ ) {
+					bool isValid{ false };
+					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); it++ ) {
+						if ( line.at(x) == char(*it) )
+							isValid = true;
+					}
+					if ( isValid )	row.push_back(Tile(static_cast<Tile::display>(line.at(x)), x, y, override_known_tiles));
+					else			row.push_back(Tile(Tile::display::none, x, y, override_known_tiles));
+				}
+				matrix.push_back(row);
+				line.clear();
+			}
+		}
+		//else throw std::exception::exception("The target file is empty!");
+	}
+	//else throw std::exception::exception("The target file does not exist!");
+
+	return matrix;
+}
 
 class Cell {
-	Tile error;
 	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
 
@@ -50,16 +166,15 @@ protected:
 		if ( _sizeV > 5 && _sizeH > 5 ) {
 			tRand rng;
 
-			for ( unsigned int y = 0; y < _sizeV; y++ ) {
+			for ( int y = 0; y < _sizeV; y++ ) {
 				std::vector<Tile> _row;
-				for ( unsigned int x = 0; x < _sizeH; x++ ) {
+				for ( int x = 0; x < _sizeH; x++ ) {
 					// make walls on all edges
 					if ( (x == 0 || x == (_sizeH - 1)) || (y == 0 || y == (_sizeV - 1)) )
 						_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
 					else { // not an edge
-						if ( rng.get(100u, 0u) < 10 ) {
+						if ( rng.get(100u, 0u) < 7 ) // 7:100 chance of a wall tile that isn't on an edge
 							_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
-						}
 						else
 							_row.push_back(Tile(Tile::display::empty, x, y, override_known_tiles));
 					}
@@ -71,18 +186,30 @@ protected:
 
 public:
 	// The Cell's Vertical & Horizontal size
-	const unsigned int _sizeV, _sizeH;
+	const int _sizeV, _sizeH;
+	// Functor that checks if a given tile is within the cell boundaries
+	checkBounds isValidPos;
 
 	/** CONSTRUCTOR **
 	 * Cell(Coord, bool)
+	 * Generate a new cell with the given size parameters
 	 * 
 	 * @param cellSize				- The size of the cell
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(Coord cellSize, bool override_known_tiles = false) : _sizeH(cellSize._x), _sizeV(cellSize._y)
+	Cell(Coord cellSize, bool override_known_tiles = false) : _sizeH((signed)cellSize._x), _sizeV((signed)cellSize._y), isValidPos(Coord(_sizeH, _sizeV))
 	{
 		generate(override_known_tiles);
 	}
+
+	/** CONSTRUCTOR **
+	 * Cell(string, bool)
+	 * Load a cell from a specified file
+	 * 
+	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
+	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
+	 */
+	Cell(std::string filename, bool override_known_tiles = false) : _matrix(importMatrix(filename, override_known_tiles)), _sizeH((file::exists(filename)) ? (_matrix.at(0).size()) : (0)), _sizeV((file::exists(filename)) ? (_matrix.size()) : (0)), isValidPos(Coord(_sizeH, _sizeV)) {}
 
 	/**
 	 * display()
@@ -101,24 +228,49 @@ public:
 	}
 
 	/**
-	 * discover(Coord, const int)
-	 * Allows the player to see a square part of the map.
+	 * display(Coord, const int)
+	 * Print a section of the cell to the console.
 	 * 
-	 * @param pos		- The center-point
-	 * @param radius	- The distance away from the center-point that will also be discovered.
+	 * @param pos
+	 * @param radius
 	 */
-	inline void discover(Coord pos, const int radius = 1)
+	inline void display(Coord pos, const int radius)
 	{
-		for ( unsigned int y = (pos._y - radius); y <= (pos._y + radius); y++ ) {
-			for ( unsigned int x = (pos._x - radius); x <= (pos._x + radius); x++ ) {
-				if ( (y >= 0 && y < _matrix.size()) && (x >= 0 && x < _matrix.at(y).size()) )
-					_matrix.at(y).at(x)._isKnown = true;
+		std::stringstream buf;
+		// iterate vertical
+		for ( int y = (signed)(pos._y - radius); y < (signed)(pos._y + radius); y++ ) { 
+			// counter for number of chars added
+			int doNewline{ 0 };
+			// iterate horizontal
+			for ( int x = (signed)(pos._x - radius); x < (signed)(pos._x + radius); x++ ) { 
+				// check if this pos exists
+				if ( isValidPos(x, y) ) { 
+					buf << _matrix.at(y).at(x);
+					doNewline++;
+				}
 			}
+			// check if a newline should be inserted
+			if ( doNewline )
+				buf << std::endl;
 		}
+		std::cout << buf.rdbuf();
 	}
 
 	/**
-	 * discover()
+	 * display(Coord)
+	 * Returns the character
+	 *
+	 * @param pos	- Target position
+	 */
+	inline char getDisplayChar(Coord pos)
+	{
+		if ( isValidPos(pos) )
+			return char(get(pos)._display);
+		return{ NULL };
+	}
+
+	/**
+	 * discover()  
 	 * Allows the player to see the entire map.
 	 */
 	inline void discover()
@@ -130,28 +282,71 @@ public:
 		}
 	}
 
+	/**
+	 * discover(Coord, const int)  
+	 * Allows the player to see a square part of the map.
+	 * 
+	 * @param pos		- The center-point
+	 * @param radius	- The distance away from the center-point that will also be discovered.
+	 */
+	inline void discover(Coord pos, const int radius = 1)
+	{
+		for ( unsigned int y = (pos._y - radius); y <= (pos._y + radius); y++ ) {
+			for ( unsigned int x = (pos._x - radius); x <= (pos._x + radius); x++ ) {
+				if ( isValidPos(x, y) )
+					_matrix.at(y).at(x)._isKnown = true;
+			}
+		}
+	}
 
 	/**
-	 * get(Coord, const bool)
+	 * sstream()  
+	 * Returns the entire matrix as a stringstream for file export/import
+	 * 
+	 * @returns stringstream
+	 */
+	std::stringstream sstream()
+	{
+		std::stringstream buf;
+		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
+			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
+				buf << *x;
+			}
+			buf << std::endl;
+		}
+		return buf;
+	}
+
+	/**
+	 * get(Coord, const bool)  
 	 * Returns a reference to the target tile.
 	 * 
 	 * @param pos			- The target tile
-	 * @param findByIndex	- (Default: false) Whether to search the matrix from pos (0,0 - true) or (1,1 - false)
 	 */
-	inline Tile &get(Coord pos, const bool findByIndex = false)
+	inline Tile &get(Coord pos)
 	{
-		switch ( findByIndex ) {
-		case true:
-			if ( (pos._x >= 0 && pos._x < _sizeH) && (pos._y >= 0 && pos._y < _sizeV) ) {
-				return _matrix.at(pos._y).at(pos._x);
-			}
-			else break;
-		default:
-			if ( (pos._x >= 0 && pos._x <= _sizeH) && (pos._y >= 0 && pos._y <= _sizeV) ) {
-				return _matrix.at(pos._y - 1).at(pos._x - 1);
-			}
-			else break;
-		}
-		return error;
+		if ( isValidPos(pos) )
+			return _matrix.at(pos._y).at(pos._x);
+		return __TILE_ERROR;
+	}
+
+	inline Tile &get(int x, int y)
+	{
+		if ( isValidPos(x, y) )
+			return _matrix.at(y).at(x);
+		return __TILE_ERROR;
 	}
 };
+
+/**
+ * exportCell(string, Cell&)
+ * Exports a given cell to a file
+ * 
+ * @param filename	- The name of the output file
+ * @param cell		- A ref to the target cell
+ * @returns bool	- true when successful, false when failed.
+ */
+bool exportCell(std::string filename, Cell &cell)
+{
+	return file::write(filename, cell.sstream(), file::save_type::overwrite);
+}
