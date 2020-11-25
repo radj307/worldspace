@@ -13,9 +13,9 @@
  * @param y	- Vertical index
  */
 struct Coord {
-	size_t _y;	// VERTICAL
-	size_t _x;	// HORIZONTAL
-	Coord(size_t x, size_t y) : _y(y), _x(x) {}
+	int _y;	// VERTICAL
+	int _x;	// HORIZONTAL
+	Coord(int x, int y) : _y(y), _x(x) {}
 	Coord(const Coord &pos) : _y(pos._y), _x(pos._x) {}
 
 	bool operator==(const Coord &o)
@@ -56,7 +56,7 @@ struct checkBounds {
 	 * @param minPosX	- (Def: 0) The minimum allowed X index.
 	 * @param minPosY	- (Def: 0) The minimum allowed Y index.
 	 */
-	checkBounds(const size_t maxPosX, const size_t maxPosY, const size_t minPosX = 0, const size_t minPosY = 0) : _maxPos(maxPosX, maxPosY), _minPos(minPosX, minPosY) {}
+	checkBounds(const int maxPosX, const int maxPosY, const int minPosX = 0, const int minPosY = 0) : _maxPos(maxPosX, maxPosY), _minPos(minPosX, minPosY) {}
 
 	/**
 	 * operator()  
@@ -78,7 +78,7 @@ struct checkBounds {
 	 * @param x			- Target X (horizontal) position to check
 	 * @param y			- Target Y (vertical) position to check
 	 */
-	bool operator()(size_t x, size_t y) const
+	bool operator()(int x, int y) const
 	{
 		if ( (y >= 0 && y < _maxPos._y) && (x >= 0 && x < _maxPos._x) )
 			return true;

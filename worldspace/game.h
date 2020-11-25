@@ -19,19 +19,17 @@ struct Frame {
 	// This frame's buffer
 	std::vector<std::vector<char>> _frame;
 
-	Coord _origin;
-
 	/** CONSTRUCTOR
 	 * Frame()  
 	 * Instantiate a blank frame.
 	 */
-	Frame() : _frame(), _origin(0, 0) {}
+	Frame() : _frame() {}
 
 	/** CONSTRUCTOR
 	 * Frame(vector<vector<char>>)
 	 * Instantiate a pre-made frame
 	 */
-	Frame(std::vector<std::vector<char>> coutFrame, Coord origin) : _frame(coutFrame), _origin(origin) {}
+	Frame(std::vector<std::vector<char>> coutFrame) : _frame(coutFrame) {}
 
 	/**
 	 * getSize()
@@ -41,7 +39,7 @@ struct Frame {
 	 */
 	Coord getSize()
 	{
-		size_t Y{ 0 }, X{ 0 };
+		int Y{ 0 }, X{ 0 };
 		for ( auto y = _frame.begin(); y != _frame.end(); y++ ) {
 			Y++;
 			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
@@ -57,14 +55,12 @@ struct Frame {
 	 */
 	inline void draw()
 	{
-		sys::setCursorPos(_origin._x, _origin._y);
 		int lineCount{ 0 };
 		for ( auto y = _frame.begin(); y != _frame.end(); y++ ) {
 			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
 				std::cout << (*x) << ' ';
 			}
 			lineCount++;
-			sys::setCursorPos(_origin._x, _origin._y + lineCount);
 		}
 	}
 
@@ -135,7 +131,7 @@ class Gamespace {
 	{
 		tRand rng;
 		int i = 0;
-		for ( Coord pos{ rng.get((unsigned)_world._sizeH - 1, 1u), rng.get((unsigned)_world._sizeV - 1, 1u) }; _world.get(pos)._canMove; pos = Coord(rng.get((unsigned)_world._sizeH - 1, 1u), rng.get((unsigned)_world._sizeV - 1, 1u)) ) {
+		for ( Coord pos{ rng.get(_world._sizeH - 1, 1), rng.get(_world._sizeV - 1, 1) }; _world.get(pos)._canMove; pos = Coord(rng.get(_world._sizeH - 1, 1), rng.get(_world._sizeV - 1, 1)) ) {
 			_hostile.push_back(Enemy(Coord(rng.get(_world._sizeH - 1, 1), rng.get(_world._sizeV - 1, 1)), 'Y'));
 			i++;
 			if ( i >= count )
@@ -150,8 +146,9 @@ public:
 	// player position ptr
 	Coord *_playerPos{ nullptr };
 
-	Gamespace(Cell &worldspace, GameRules &ruleset, Coord resolution) : _world(worldspace), _ruleset(ruleset), _player(Coord(1, 1), '$'), _playerPos(&_player._myPos)
+	Gamespace(Cell &worldspace, GameRules &ruleset, Coord resolution) : _world(worldspace), _ruleset(ruleset), _player(Coord(1, 1), '$', 3), _playerPos(&_player._myPos)
 	{
+		//_world.discover(_player._myPos, _player._discoveryRange);
 		// create some enemies
 		populateHostileVec(10);
 		Coord windowSize(_world._sizeH + (_world._sizeH / 4), _world._sizeV + (_world._sizeV / 4));
@@ -218,6 +215,7 @@ public:
 				break;
 			}
 		}
+		return rc;
 	}
 
 	/**
@@ -260,7 +258,11 @@ public:
 	 */
 	void movePlayer(char dir)
 	{
-		move(&_player, dir);
+		// if move was successful
+		if ( move(&_player, dir) ) {
+			// player specific post-movement functions
+			_world.discover(_player._myPos, _player._discoveryRange);
+		}
 	}
 
 	/**
@@ -287,24 +289,27 @@ public:
 	 * 
 	 * @returns Frame
 	 */
-	inline Frame getFrame(Coord origin = Coord(0, 0))
+	inline Frame getFrame()
 	{
 		std::vector<std::vector<char>> buffer;
 		for ( int y = 0; y < _world._sizeV; y++ ) {
 			std::vector<char> row;
 			for ( int x = 0; x < _world._sizeH; x++ ) {
 				Coord pos{ Coord(x, y) };
-				ActorBase *ptr{ getActorAt(pos) };
-				if ( ptr != nullptr ) { // actor exists at position
-					row.push_back(char(ptr->_display_char));
+				if ( _world.get(pos)._isKnown ) {
+					ActorBase *ptr{ getActorAt(pos) };
+					if ( ptr != nullptr ) { // actor exists at position
+						row.push_back(char(ptr->_display_char));
+					}
+					else {
+						row.push_back(char(_world.get(pos)._display));
+					}
 				}
-				else {
-					row.push_back(char(_world.get(pos)._display));
-				}
+				else row.push_back(char(' '));
 			}
 			buffer.push_back(row);
 		}
-		return{ buffer, origin };
+		return{ buffer };
 	}
 
 	/**
@@ -341,31 +346,36 @@ public:
 			Frame next = getFrame();
 			for ( size_t y = 0; y < next._frame.size(); y++ ) {
 				for ( size_t x = 0; x < next._frame.at(y).size(); x++ ) {
-					ActorBase* ptr = getActorAt(Coord(x, y)); // set a pointer to actor at this pos if they exist
-					if ( ptr != nullptr ) {
-						sys::setCursorPos((x * 2), y);
-						switch ( ptr->_isPlayer ) {
-						case true:
-							std::cout << termcolor::green << next._frame.at(y).at(x) << ' ' << termcolor::reset;
-							break;
-						default:
-							std::cout << termcolor::red << next._frame.at(y).at(x) << ' ' << termcolor::reset;
-							break;
+					if ( _world.get(x, y)._isKnown ) {
+						ActorBase* ptr = getActorAt(Coord(x, y)); // set a pointer to actor at this pos if they exist
+						if ( ptr != nullptr ) {
+							sys::setCursorPos((x * 2), y);
+							switch ( ptr->_isPlayer ) {
+							case true:
+								std::cout << termcolor::green << next._frame.at(y).at(x) << ' ' << termcolor::reset;
+								break;
+							default:
+								std::cout << termcolor::red << next._frame.at(y).at(x) << ' ' << termcolor::reset;
+								break;
+							}
 						}
-						
+						else {
+							try {
+								// check if this character has been updated between frames
+								if ( next._frame.at(y).at(x) != _last._frame.at(y).at(x) ) {
+									// set the cursor position to target. (x is multiplied by 2 because every other column is blank space)
+									sys::setCursorPos((x * 2), y);
+									// print next frame's character to position, followed by a blank space.
+									std::cout << next._frame.at(y).at(x) << ' ';
+								} // else continue
+							} catch ( std::exception &ex ) { // Catch possible vector subscript exceptions (out of range)
+								sys::msg(sys::error, "\"" + std::string(ex.what()) + "\" thrown in display() at position: (" + std::to_string(y) + ", " + std::to_string(x) + ")");
+							}
+						}
 					}
 					else {
-						try {
-							// check if this character has been updated between frames
-							if ( next._frame.at(y).at(x) != _last._frame.at(y).at(x) ) {
-								// set the cursor position to target. (x is multiplied by 2 because every other column is blank space)
-								sys::setCursorPos((x * 2), y);
-								// print next frame's character to position, followed by a blank space.
-								std::cout << next._frame.at(y).at(x) << ' ';
-							} // else continue
-						} catch ( std::exception &ex ) { // Catch possible vector subscript exceptions (out of range)
-							sys::msg(sys::error, "\"" + std::string(ex.what()) + "\" thrown in display() at position: (" + std::to_string(y) + ", " + std::to_string(x) + ")");
-						}
+						sys::setCursorPos((x * 2), y);
+						std::cout << "  ";
 					}
 				}
 			}

@@ -71,7 +71,5 @@ struct Player : public ActorBase {
 
 // enemy actor
 struct Enemy : public ActorBase {
-	int _timesMoved{ 0 };
-
 	Enemy(Coord myPos, char myDisplayChar) : ActorBase(myPos, myDisplayChar, false, 100u, 100u, 100u) {}
 };

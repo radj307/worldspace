@@ -234,17 +234,17 @@ public:
 	 * Print a section of the cell to the console.
 	 * 
 	 * @param pos
-	 * @param radius
+	 * @param diameter
 	 */
-	inline void display(Coord pos, const int radius)
+	inline void display(Coord pos, const int diameter)
 	{
 		std::stringstream buf;
 		// iterate vertical
-		for ( int y = (signed)(pos._y - radius); y < (signed)(pos._y + radius); y++ ) { 
+		for ( int y = (signed)(pos._y - diameter); y < (signed)(pos._y + diameter); y++ ) { 
 			// counter for number of chars added
 			int doNewline{ 0 };
 			// iterate horizontal
-			for ( int x = (signed)(pos._x - radius); x < (signed)(pos._x + radius); x++ ) { 
+			for ( int x = (signed)(pos._x - diameter); x < (signed)(pos._x + diameter); x++ ) { 
 				// check if this pos exists
 				if ( isValidPos(x, y) ) { 
 					buf << _matrix.at(y).at(x);
@@ -289,12 +289,12 @@ public:
 	 * Allows the player to see a square part of the map.
 	 * 
 	 * @param pos		- The center-point
-	 * @param radius	- The distance away from the center-point that will also be discovered.
+	 * @param diameter	- The distance away from the center-point that will also be discovered.
 	 */
-	inline void discover(Coord pos, const int radius = 1)
+	inline void discover(Coord pos, const int diameter = 1)
 	{
-		for ( unsigned int y = (pos._y - radius); y <= (pos._y + radius); y++ ) {
-			for ( unsigned int x = (pos._x - radius); x <= (pos._x + radius); x++ ) {
+		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ ) {
+			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ ) {
 				if ( isValidPos(x, y) )
 					_matrix.at(y).at(x)._isKnown = true;
 			}
@@ -332,6 +332,13 @@ public:
 		return __TILE_ERROR;
 	}
 
+	/**
+	 * get(Coord, const bool)
+	 * Returns a reference to the target tile.
+	 *
+	 * @param x				- The target tile's x index
+	 * @param y				- The target tile's y index
+	 */
 	inline Tile &get(int x, int y)
 	{
 		if ( isValidPos(x, y) )
