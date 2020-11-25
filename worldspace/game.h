@@ -18,37 +18,53 @@
 struct Frame {
 	// This frame's buffer
 	std::vector<std::vector<char>> _frame;
-	checkBounds *_isValidPos{ nullptr };
+
+	Coord _origin;
 
 	/** CONSTRUCTOR
 	 * Frame()  
 	 * Instantiate a blank frame.
 	 */
-	Frame() : _frame() {}
+	Frame() : _frame(), _origin(0, 0) {}
 
 	/** CONSTRUCTOR
 	 * Frame(vector<vector<char>>)
 	 * Instantiate a pre-made frame
 	 */
-	Frame(std::vector<std::vector<char>> coutFrame) : _frame(coutFrame), _isValidPos((coutFrame.size() > 0) ? (new checkBounds(coutFrame.at(0).size(), coutFrame.size())) : ( nullptr )) {}
+	Frame(std::vector<std::vector<char>> coutFrame, Coord origin) : _frame(coutFrame), _origin(origin) {}
 
-	~Frame()
+	/**
+	 * getSize()
+	 * Returns the size of this frame's character matrix
+	 * 
+	 * @returns Coord
+	 */
+	Coord getSize()
 	{
-		if ( _isValidPos != nullptr )
-			delete _isValidPos;
+		size_t Y{ 0 }, X{ 0 };
+		for ( auto y = _frame.begin(); y != _frame.end(); y++ ) {
+			Y++;
+			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
+				X++;
+			}
+		}
+		return{ X, Y };
 	}
 
 	/**
 	 * draw()
-	 * Draws this frame to the console.
+	 * Draws this frame to the console at it's origin point.
 	 */
 	inline void draw()
 	{
+		sys::setCursorPos(_origin._x, _origin._y);
+		int lineCount{ 0 };
 		for ( auto y = _frame.begin(); y != _frame.end(); y++ ) {
 			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
 				std::cout << (*x) << ' ';
 			}
-			std::cout << std::endl;
+			lineCount++;
+			sys::setCursorPos(_origin._x, _origin._y + lineCount);
 		}
 	}
 
@@ -65,6 +81,12 @@ struct Frame {
 	}
 };
 
+struct GameRules {
+	unsigned int trap_damage{ 20 };			// the amount of health an actor loses when they step on a trap
+	bool trap_damage_is_percentage{ true };	// whether the trap_damage amount is a percentage of the actor's max health
+
+};
+
 class Gamespace {
 	// Has the frame already been printed to the console?
 	bool _initFrame{ false };
@@ -75,19 +97,159 @@ class Gamespace {
 	Player _player;
 	std::vector<Enemy> _hostile;
 
+	/**
+	 * playerStatDisplay()  
+	 * The player statistics bar
+	 */
+	void playerStatDisplay()
+	{
+		std::string header = "Player Stats";
+		// { (((each box length) + (4 for bar edges & padding)) * (number of stat bars)) }
+		const int lineLength = 28;// (10 + 4) * 2;
+		Coord targetDisplayPos{ Coord(((_world._sizeH * 2) / 4) - 1, _world._sizeV + (_world._sizeV / 10)) };
+		sys::setCursorPos(targetDisplayPos._x + ((lineLength / 2) - (header.size() / 2)), targetDisplayPos._y);
+		std::cout << header;
+		// move to next line
+		sys::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 1);
+
+		std::cout << '[' << termcolor::red;
+		for ( unsigned int i = 0; i < 10; i ++ ) {
+			if ( i < (_player._health / 10) )	std::cout << '@';
+			else								std::cout << ' ';
+		}
+		std::cout << termcolor::reset << "]  [" << termcolor::green;
+		for ( unsigned int i = 0; i < 10; i++ ) {
+			if ( i < (_player._stamina / 10) )	std::cout << '@';
+			else								std::cout << ' ';
+		}
+		std::cout << termcolor::reset << ']';
+	}
+
+	/**
+	 * populateHostileVec(const int)
+	 * Create a number of hostiles with random attributes
+	 * 
+	 * @param count	- The number of hostiles to generate
+	 */
+	void populateHostileVec(const int count)
+	{
+		tRand rng;
+		int i = 0;
+		for ( Coord pos{ rng.get((unsigned)_world._sizeH - 1, 1u), rng.get((unsigned)_world._sizeV - 1, 1u) }; _world.get(pos)._canMove; pos = Coord(rng.get((unsigned)_world._sizeH - 1, 1u), rng.get((unsigned)_world._sizeV - 1, 1u)) ) {
+			_hostile.push_back(Enemy(Coord(rng.get(_world._sizeH - 1, 1), rng.get(_world._sizeV - 1, 1)), 'Y'));
+			i++;
+			if ( i >= count )
+				break;
+		}
+	}
+
 public:
 	// worldspace cell
 	Cell &_world;
+	GameRules &_ruleset;
+	// player position ptr
+	Coord *_playerPos{ nullptr };
 
-	Gamespace(Cell &worldspace) : _world(worldspace), _player(Coord(1, 1), '$')
+	Gamespace(Cell &worldspace, GameRules &ruleset, Coord resolution) : _world(worldspace), _ruleset(ruleset), _player(Coord(1, 1), '$'), _playerPos(&_player._myPos)
 	{
-		// DEBUG -- MOVE THIS TO A FUNCTION LATER
-		_hostile.push_back(Enemy(Coord(2,2),'%'));
-		_hostile.push_back(Enemy(Coord(5,5),'%'));
+		// create some enemies
+		populateHostileVec(10);
+		Coord windowSize(_world._sizeH + (_world._sizeH / 4), _world._sizeV + (_world._sizeV / 4));
+		// move the window, and change its size
+		MoveWindow(GetConsoleWindow(), 10, 10, 800, 600, TRUE);
+		// hide the cursor
+		sys::hideCursor();
+	}
 
-		// init last frame
-		_last = getFrame();
-		_last.draw();
+	/**
+	 * move(ActorBase*, char)
+	 * Attempts to move the target actor to an adjacent tile, and processes trap logic.
+	 * 
+	 * @param actor	- A pointer to the target actor
+	 * @param dir	- (w = up / s = down / a = left / d = right) all other characters are ignored.
+	 */
+	inline bool move(ActorBase* actor, char dir)
+	{
+		bool rc{ false };
+		Tile *tile{ nullptr };
+		switch ( dir ) {
+		case 'W':
+		case 'w':
+			tile = &_world.get(actor->_myPos._x, actor->_myPos._y - 1);
+			if ( (*tile != __TILE_ERROR) && (tile->_canMove) ) {
+				actor->_myPos._y--;
+				rc = true;
+			}
+			break;
+		case 'S':
+		case 's':
+			tile = &_world.get(actor->_myPos._x, actor->_myPos._y + 1);
+			if ( (*tile != __TILE_ERROR) && (tile->_canMove) ) {
+				actor->_myPos._y++;
+				rc = true;
+			}
+			break;
+		case 'A':
+		case 'a':
+			tile = &_world.get(actor->_myPos._x - 1, actor->_myPos._y);
+			if ( (*tile != __TILE_ERROR) && (tile->_canMove) ) {
+				actor->_myPos._x--;
+				rc = true;
+			}
+			break;
+		case 'D':
+		case 'd':
+			tile = &_world.get(actor->_myPos._x + 1, actor->_myPos._y);
+			if ( (*tile != __TILE_ERROR) && (tile->_canMove) ) {
+				actor->_myPos._x++;
+				rc = true;
+			}
+			break;
+		default:return false; // if the given char does not match a direction, return to avoid processing the trap logic twice.
+		}
+		// if this tile is a trap
+		if ( _world.get(actor->_myPos)._isTrap ) {
+			switch ( _ruleset.trap_damage_is_percentage ) {
+			case true:
+				actor->_health -= (actor->_MAX_HEALTH * (static_cast<float>(_ruleset.trap_damage) / 100.0f));
+				break;
+			default:
+				actor->_health -= _ruleset.trap_damage;
+				break;
+			}
+		}
+	}
+
+	/**
+	 * hostileTurn()
+	 * Iterates the list of enemies and makes them perform a random action.
+	 */
+	void hostileTurn()
+	{
+		tRand rng;
+		// iterate the hostile vectors
+		for ( auto it = _hostile.begin(); it != _hostile.end(); it++ ) {
+			ActorBase* ptr = &*it;
+			switch ( rng.get(50u, 0u) ) {
+			case 0:
+			case 1:
+				move(&*it, 'w'); // move up
+				break;
+			case 2:
+			case 3:
+				move(&*it, 's'); // move down
+				break;
+			case 4:
+			case 5:
+				move(&*it, 'a'); // move left
+				break;
+			case 6:
+			case 7:
+				move(&*it, 'd'); // move right
+				break;
+			default:break;
+			}
+		}
 	}
 
 	/**
@@ -98,34 +260,7 @@ public:
 	 */
 	void movePlayer(char dir)
 	{
-		Tile *tile{ nullptr };
-		switch ( dir ) {
-		case 'W':
-		case 'w':
-			tile = &_world.get(_player._myPos._x, _player._myPos._y - 1);
-			if ( (*tile != __TILE_ERROR) && (tile->_canMove) )
-				_player._myPos._y--;
-			break;
-		case 'S':
-		case 's':
-			tile = &_world.get(_player._myPos._x, _player._myPos._y + 1);
-			if ( (*tile != __TILE_ERROR) && (tile->_canMove) )
-				_player._myPos._y++;
-			break;
-		case 'A':
-		case 'a':
-			tile = &_world.get(_player._myPos._x - 1, _player._myPos._y);
-			if ( (*tile != __TILE_ERROR) && (tile->_canMove) )
-				_player._myPos._x--;
-			break;
-		case 'D':
-		case 'd':
-			tile = &_world.get(_player._myPos._x + 1, _player._myPos._y);
-			if ( (*tile != __TILE_ERROR) && (tile->_canMove) )
-				_player._myPos._x++;
-			break;
-		default:break;
-		}
+		move(&_player, dir);
 	}
 
 	/**
@@ -147,52 +282,14 @@ public:
 	}
 
 	/**
-	 * getFrame(Coord, const int)
-	 * Returns a new frame centered on the given position.
-	 * 
-	 * @param pos	 - The center point
-	 * @param radius - The number of tiles in each direction to include.
-	 * @returns Frame
-	 */
-	inline Frame getFrame(Coord pos, const int radius)
-	{
-		Frame f;
-		// iterate vertical
-		for ( int y = (signed)(pos._y - radius); y < (signed)(pos._y + radius); y++ ) {
-			std::vector<char> row;
-			// counter for number of chars added
-			int doNewline{ 0 };
-			// iterate horizontal
-			for ( int x = (signed)(pos._x - radius); x < (signed)(pos._x + radius); x++ ) {
-				// check if this pos exists
-				if ( _world.isValidPos(x, y) ) {
-					Coord pos{ Coord(x, y) };
-					ActorBase *ptr{ getActorAt(pos) };
-					if ( ptr != nullptr ) { // actor exists at position
-						row.push_back(char(ptr->_display_char));
-					}
-					else {
-						row.push_back(char(_world.get(pos)._display));
-					}
-					doNewline++;
-				}
-			}
-			// check if a newline should be inserted
-			if ( doNewline )
-				f._frame.push_back(row);
-		}
-		return f;
-	}
-
-	/**
 	 * getFrame()
 	 * Returns a new frame of the entire cell
 	 * 
 	 * @returns Frame
 	 */
-	inline Frame getFrame()
+	inline Frame getFrame(Coord origin = Coord(0, 0))
 	{
-		Frame f;
+		std::vector<std::vector<char>> buffer;
 		for ( int y = 0; y < _world._sizeV; y++ ) {
 			std::vector<char> row;
 			for ( int x = 0; x < _world._sizeH; x++ ) {
@@ -205,9 +302,9 @@ public:
 					row.push_back(char(_world.get(pos)._display));
 				}
 			}
-			f._frame.push_back(row);
+			buffer.push_back(row);
 		}
-		return f;
+		return{ buffer, origin };
 	}
 
 	/**
@@ -216,20 +313,18 @@ public:
 	 */
 	void initFrame()
 	{
-		_last = getFrame();	// set the last frame
-		_last.draw();		// draw frame
-		_initFrame = true;	// set init frame boolean
-	}
-
-	/**
-	 * initFrame(Coord, const int)
-	 * Initializes the frame display with a small part of the cell
-	 */
-	void initFrame(Coord pos, const int radius)
-	{
-		_last = getFrame(pos, radius);	// set the last frame
-		_last.draw();					// draw frame
-		_initFrame = true;				// set init frame boolean
+		if ( !_initFrame ) {
+			if ( _world._sizeH > 0 && _world._sizeV > 0 ) {
+				sys::cls();
+				_last = getFrame();	// set the last frame
+				_last.draw();		// draw frame
+				_initFrame = true;	// set init frame boolean
+			}
+			else {
+				sys::msg(sys::error, "CELL IS EMPTY", "Press any key to exit...");
+				exit(1);
+			}
+		}
 	}
 
 	/**
@@ -246,22 +341,38 @@ public:
 			Frame next = getFrame();
 			for ( size_t y = 0; y < next._frame.size(); y++ ) {
 				for ( size_t x = 0; x < next._frame.at(y).size(); x++ ) {
-					try {
-						// check if this character has been updated between frames
-						if ( next._frame.at(y).at(x) != _last._frame.at(y).at(x) ) {
-							// set the cursor position to target. (x is multiplied by 2 because every other column is blank space)
-							sys::setCursorPos((x * 2), y);
-							// print next frame's character to position, followed by a blank space.
-							std::cout << next._frame.at(y).at(x) << ' ';
-						} // else continue
-					} catch ( std::exception &ex ) { // Catch possible vector subscript exceptions (out of range)
-						sys::msg(sys::error, "\"" + std::string(ex.what()) + "\" thrown in display() at position: (" + std::to_string(y) + ", " + std::to_string(x) + ")");
+					ActorBase* ptr = getActorAt(Coord(x, y)); // set a pointer to actor at this pos if they exist
+					if ( ptr != nullptr ) {
+						sys::setCursorPos((x * 2), y);
+						switch ( ptr->_isPlayer ) {
+						case true:
+							std::cout << termcolor::green << next._frame.at(y).at(x) << ' ' << termcolor::reset;
+							break;
+						default:
+							std::cout << termcolor::red << next._frame.at(y).at(x) << ' ' << termcolor::reset;
+							break;
+						}
+						
+					}
+					else {
+						try {
+							// check if this character has been updated between frames
+							if ( next._frame.at(y).at(x) != _last._frame.at(y).at(x) ) {
+								// set the cursor position to target. (x is multiplied by 2 because every other column is blank space)
+								sys::setCursorPos((x * 2), y);
+								// print next frame's character to position, followed by a blank space.
+								std::cout << next._frame.at(y).at(x) << ' ';
+							} // else continue
+						} catch ( std::exception &ex ) { // Catch possible vector subscript exceptions (out of range)
+							sys::msg(sys::error, "\"" + std::string(ex.what()) + "\" thrown in display() at position: (" + std::to_string(y) + ", " + std::to_string(x) + ")");
+						}
 					}
 				}
 			}
 			// set the last frame to this frame.
 			_last = next;
 		}
-		else initFrame();
+		else sys::pause("ERROR: EXIT PROGRAM! The frame was not initialized");
+		playerStatDisplay();
 	}
 };

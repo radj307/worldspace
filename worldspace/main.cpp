@@ -12,132 +12,89 @@
  */
 #include <mutex>
 #include "game.h"
-#include "sys.h"
-#include "opt.h"
-
-/**
- * WorldAttributes
- * Contains all settings used by world generation process.
- */
-struct WorldAttributes {
-	Coord _cellSize;
-	bool _override_known_tiles;
-	WorldAttributes(bool override_hidden, unsigned int horizontalSize, unsigned int verticalSize) : _override_known_tiles(override_hidden), _cellSize(Coord(horizontalSize, verticalSize)) {}
-};
-
-/**
- * GLOBAL <- WorldAttributes
- * Contains all global settings, and derived world attribute settings.
- */
-struct GLOBAL : public WorldAttributes {
-	bool _debug_msg;
-	std::string _import_filename{};
-	GLOBAL(bool debug, bool override_hidden, unsigned int horizontalSize, unsigned int verticalSize) : WorldAttributes(override_hidden, horizontalSize, verticalSize), _debug_msg(debug) {}
-};
-
-/**
- * GLOBAL interpret(int, const char*[])
- * Returns a GLOBALS instance with parsed command line arguments
- * 
- * @param argc	- From main()
- * @param argv	- From main()
- * @returns GLOBAL
- */
-inline GLOBAL interpret(int argc, char* argv[])
-{
-	GLOBAL glob(false, false, 25, 25);
-
-	opt::list args(argc, argv, "world:,debug,file:");
-	for ( auto it = args._commands.begin(); it != args._commands.end(); it++ ) {
-		if ( (*it).checkName("world") && (*it)._hasArg ) {
-			if ( (*it).checkArg("showalltiles") ) {
-				glob._override_known_tiles = true;
-			}
-			else if ( ((*it)._arg.size() >= 6) && ((*it)._arg.substr(0, (*it)._arg.find('=')) == "size") ) {
-				if ( (*it)._arg.find(':') != std::string::npos ) {
-					std::string str{ ((*it)._arg.substr(((*it)._arg.find('=') + 1), (*it)._arg.size())) };
-					try {
-						size_t index_of_colon{ str.find(':') };
-						glob._cellSize = Coord(std::stoi(str.substr(0, index_of_colon)), std::stoi(str.substr(index_of_colon + 1)));
-					} catch ( std::exception &ex ) {
-						sys::msg(sys::warning, "Argument for world size threw exception: " + std::string(ex.what()));
-					}
-				}
-			}
-		}
-		else if ( (*it).checkName("file") && (*it)._hasArg ) {
-			glob._import_filename = (*it)._arg;
-		}
-		else if ( (*it).checkName("debug") && !(*it)._hasArg ) {
-			glob._override_known_tiles = true;
-			glob._debug_msg = true;
-		}
-	}
-
-	return glob;
-}
+#include "interpret.h"
 
 static const int __FRAMETIME_MS = 30;
 static const char __BLANK_KEY = ' ';
-char mem{ __BLANK_KEY };	// player's last key press
-bool ready{ false };
+struct memory {
+	char key{ __BLANK_KEY };	// player's last key press
+	bool ready{ false };			// ready to receive input when true
 
-inline void reset_state()
-{
-	mem = __BLANK_KEY;
-	ready = true;
-}
+	inline void reset_state()
+	{
+		key = __BLANK_KEY;
+		ready = true;
+	}
+};
+memory mem;
 
 void play()
 {
 	const int timeout = 100;
-	for ( char input{}; input != 'q'; ) {
-		if ( ready ) {
-			mem = std::tolower(_getch());
-		}
-		else sys::sleep(__FRAMETIME_MS / 2);
+	for ( char input{}; input != 'q';  ) {
+		mem.key = std::tolower(_getch());
+		mem.ready = false;
 	}
 }
 
-int main(int argc, char* argv[])
+inline void run_game(Gamespace& game)
 {
-	/*
-	TODO:
-	Implement the windows console API functions from cls.h to remove flickering
-	*/
-	GLOBAL g{ interpret(argc, argv) };
+	typedef std::chrono::high_resolution_clock HRT;
+	typedef std::chrono::seconds s;
 
-	Cell cell(g._import_filename, g._override_known_tiles);
-	Gamespace game(cell);
+	// set the ready var to allow player movement
+	mem.ready = true;
 
-	std::thread player(play);
-	ready = true;
+	game.initFrame(); // initialize the display
 
-	// hide the cursor
-	sys::hideCursor();
-
-	for ( bool kill{ false }; !kill; ) {
-	//	sys::cls();
-
-		switch ( mem ) {
+	for ( auto timeOfLastHostileTurn = HRT::now();; ) {
+		switch ( mem.key ) {
 		case __BLANK_KEY:break;
 		case 'q':
-			reset_state();
+			std::cout << std::endl << std::endl;
 			sys::msg(sys::log, "Kill request received. Shutting down.");
-			kill = true;
-			break;
+			return;
 		default:
-			game.movePlayer(mem);
-			reset_state();
+			game.movePlayer(mem.key);
+			mem.reset_state();
 			break;
 		}
 
 		game.display();
 		sys::sleep(__FRAMETIME_MS);
 
-		// do enemy turn
-
+		// do enemy turn if it has been at least 1 second since the last one
+		if ( (HRT::now() - timeOfLastHostileTurn) > s(1) ) {
+			game.hostileTurn();
+			timeOfLastHostileTurn = HRT::now();
+		}
 	}
+}
+// commandline to load from file:
+//-file 20x20.txt
+int main(int argc, char* argv[], char* envp[])
+{
+	/*
+	TODO:
+		stop actors from stacking; add a check in the game::move function
+		add attack function when 2 actors collide
+	*/
+	// Interpret commandline arguments
+	GLOBAL g{ interpret(argc, argv) };
+
+	//Cell cell(g._import_filename, g._override_known_tiles);
+	Cell cell(g._cellSize, g._override_known_tiles);
+	GameRules rules;
+	rules.trap_damage = 20;
+	rules.trap_damage_is_percentage = true;
+	Gamespace game(cell, rules, g._resolution);
+
+	// start a second thread to process player input
+	std::thread player(play);
+	
+	run_game(game);
+
+	// rejoin the player input thread
 	player.join();
 
 	sys::msg(sys::log, "done");	

@@ -32,7 +32,8 @@ struct Tile : public Coord {
 	display _display;
 	// if this tile is known to the player or not
 	bool _isKnown;
-	bool _canMove;
+	bool _canMove{ true };
+	bool _isTrap{ false };
 
 	/** CONSTRUCTOR **
 	 * Tile(Tile::display, int, int, bool)  
@@ -52,9 +53,10 @@ struct Tile : public Coord {
 		case display::wall:
 			_canMove = false;
 			break;
-		default:
-			_canMove = true;
+		case display::hole:
+			_isTrap = true;
 			break;
+		default:break;
 		}
 	}
 	/** CONSTRUCTOR **
@@ -142,10 +144,7 @@ std::vector<std::vector<Tile>> importMatrix(std::string filename, bool override_
 				line.clear();
 			}
 		}
-		//else throw std::exception::exception("The target file is empty!");
 	}
-	//else throw std::exception::exception("The target file does not exist!");
-
 	return matrix;
 }
 
@@ -173,8 +172,11 @@ protected:
 					if ( (x == 0 || x == (_sizeH - 1)) || (y == 0 || y == (_sizeV - 1)) )
 						_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
 					else { // not an edge
-						if ( rng.get(100u, 0u) < 7 ) // 7:100 chance of a wall tile that isn't on an edge
+						unsigned int rand = rng.get(100u, 0u);
+						if ( rand < 7 ) // 7:100 chance of a wall tile that isn't on an edge
 							_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
+						else if ( rand > 7 && rand < 9 )
+							_row.push_back(Tile(Tile::display::hole, x, y, override_known_tiles));
 						else
 							_row.push_back(Tile(Tile::display::empty, x, y, override_known_tiles));
 					}

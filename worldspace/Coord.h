@@ -18,9 +18,15 @@ struct Coord {
 	Coord(size_t x, size_t y) : _y(y), _x(x) {}
 	Coord(const Coord &pos) : _y(pos._y), _x(pos._x) {}
 
-	bool operator==(Coord &o)
+	bool operator==(const Coord &o)
 	{
 		if ( _y == o._y && _x == o._x )
+			return true;
+		return false;
+	}
+	bool operator!=(const Coord &o)
+	{
+		if ( _y != o._y && _x != o._x )
 			return true;
 		return false;
 	}

@@ -23,8 +23,9 @@ struct ActorBase : public ActorMaxStats {
 	Coord _myPos;
 	char _display_char;
 	const bool _isPlayer;
+	bool _dead;
 
-	ActorBase(Coord& myPos, char myDisplayChar, bool isPlayer, const int myMaxHealth, const int myMaxStamina, const int myMaxDamage) : ActorMaxStats(myMaxHealth, myMaxStamina, myMaxDamage), _myPos(myPos), _display_char(myDisplayChar), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _isPlayer(isPlayer)  {}
+	ActorBase(Coord& myPos, char myDisplayChar, bool isPlayer, const int myMaxHealth, const int myMaxStamina, const int myMaxDamage) : ActorMaxStats(myMaxHealth, myMaxStamina, myMaxDamage), _myPos(myPos), _display_char(myDisplayChar), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _isPlayer(isPlayer), _dead(false)  {}
 	virtual ~ActorBase() {}
 
 	// decrement y by 1
@@ -47,7 +48,7 @@ struct ActorBase : public ActorMaxStats {
 	{
 		_myPos._x++;
 	}
-
+	// stream insertion operator
 	friend inline std::ostream &operator<<(std::ostream &os, ActorBase &a)
 	{
 		os << a._display_char << ' ';
@@ -56,22 +57,21 @@ struct ActorBase : public ActorMaxStats {
 };
 
 // human player
-class Player : public ActorBase {
-	
+struct Player : public ActorBase {
+	const int _discoveryRange;
 
-public:
-	Player(Coord myPos, char myDisplayChar) : ActorBase(myPos, myDisplayChar, true, 100u, 100u, 100u) {}
+	Player(Coord myPos, char myDisplayChar, const int discoveryRange = 5) : ActorBase(myPos, myDisplayChar, true, 100u, 100u, 100u), _discoveryRange(discoveryRange) {}
 
 	friend inline std::ostream &operator<<(std::ostream &os, Player &p)
 	{
-		os << termcolor::green << p._display_char << termcolor::reset << ' ';
+		os << p._display_char << ' ';
 		return os;
 	}
 };
 
 // enemy actor
-class Enemy : public ActorBase {
+struct Enemy : public ActorBase {
+	int _timesMoved{ 0 };
 
-public:
 	Enemy(Coord myPos, char myDisplayChar) : ActorBase(myPos, myDisplayChar, false, 100u, 100u, 100u) {}
 };
