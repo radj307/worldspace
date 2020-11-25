@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+#include <Windows.h>
 #include "xRand.h"
 #include "Coord.h"
 #include "file.h"
@@ -17,6 +18,17 @@
  * Represents a single position in the matrix of a cell
  */
 struct Tile : public Coord {
+	// Windows console text colors
+	enum class color {
+		white = 0x0001 | 0x0002 | 0x0004,
+		grey = 0,
+		yellow = 0x0002 | 0x0004,
+		red = 0x0004,
+		magenta = 0x0001 | 0x0004,
+		blue = 0x0001,
+		cyan = 0x0001 | 0x0002,
+		green = 0x0002,
+	}; color _myColor{ color::white };
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
@@ -32,8 +44,8 @@ struct Tile : public Coord {
 	display _display;
 	// if this tile is known to the player or not
 	bool _isKnown;
-	bool _canMove{ true };
-	bool _isTrap{ false };
+	bool _canMove;
+	bool _isTrap;
 
 	/** CONSTRUCTOR **
 	 * Tile(Tile::display, int, int, bool)  
@@ -43,9 +55,9 @@ struct Tile : public Coord {
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(display as, int xPos, int yPos, bool isKnownOverride = false) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride) 
+	Tile(display as, int xPos, int yPos, bool isKnownOverride = false) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
 	{
-		// set canMove bool
+		// check if tile attributes are correct
 		switch ( _display ) {
 		case display::none:
 			_canMove = false;
@@ -63,7 +75,7 @@ struct Tile : public Coord {
 	 * Tile()
 	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
 	 */
-	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false) {}
+	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false) {}
 
 	bool operator==(Tile &o)
 	{
@@ -93,6 +105,8 @@ struct Tile : public Coord {
 	// Stream insertion operator
 	friend inline std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
+		if ( t._myColor != color::white )
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<int>(t._myColor)); // set text color to 
 		if ( t._isKnown )
 			os << char(t._display) << ' ';
 		else
@@ -272,31 +286,52 @@ public:
 	}
 
 	/**
-	 * discover()  
-	 * Allows the player to see the entire map.
+	 * modVis(bool)  
+	 * Modifies the visibility of all tiles in the cell.
+	 * 
+	 * @param to		- ( true = visible ) ( false = invisible )
 	 */
-	inline void discover()
+	inline void modVis(bool to)
 	{
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
 			for ( auto x = y->begin(); x != y->end(); x++ ) {
-				x->_isKnown = true;
+				x->_isKnown = to;
 			}
 		}
 	}
 
 	/**
-	 * discover(Coord, const int)  
-	 * Allows the player to see a square part of the map.
+	 * modVis(bool, Coord, const int)  
+	 * Modifies the visibility of an area around a given center-point in the cell.
 	 * 
+	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
 	 * @param diameter	- The distance away from the center-point that will also be discovered.
 	 */
-	inline void discover(Coord pos, const int diameter = 1)
+	inline void modVis(bool to, Coord pos, const int diameter = 3)
 	{
 		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ ) {
 			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ ) {
 				if ( isValidPos(x, y) )
-					_matrix.at(y).at(x)._isKnown = true;
+					_matrix.at(y).at(x)._isKnown = to;
+			}
+		}
+	}
+
+	/**
+	 * modVis(bool, Coord, Coord)
+	 * Modifies the visibility of a specified area in the cell.
+	 *
+	 * @param to		- ( true = visible ) ( false = invisible )
+	 * @param minPos	- The top-left corner of the target area
+	 * @param maxPos	- The bottom-right corner of the target area
+	 */
+	inline void modVis(bool to, Coord minPos, Coord maxPos)
+	{
+		for ( int y = minPos._y; y <= maxPos._y; y++ ) {
+			for ( int x = minPos._x; x <= maxPos._x; x++ ) {
+				if ( isValidPos(x, y) )
+					_matrix.at(y).at(x)._isKnown = to;
 			}
 		}
 	}
