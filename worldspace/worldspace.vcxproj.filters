@@ -16,6 +16,9 @@
     <Filter Include="implementation">
       <UniqueIdentifier>{8210e396-d896-4bda-bf30-aa62cb1b98d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="threads">
+      <UniqueIdentifier>{bef68e7b-a838-478f-9411-2e1039140ca4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -42,6 +45,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="item.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="threaded.h">
+      <Filter>threads</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

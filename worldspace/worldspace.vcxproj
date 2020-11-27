@@ -147,11 +147,13 @@
   <ItemGroup>
     <ClInclude Include="actor.h" />
     <ClInclude Include="Coord.h" />
+    <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="cell.h" />
     <ClInclude Include="interpret.h" />
     <ClInclude Include="item.h" />
     <ClInclude Include="settings.h" />
+    <ClInclude Include="threaded.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

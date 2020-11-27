@@ -19,15 +19,9 @@ struct Coord {
 	Coord(long x, long y) : _y(y), _x(x) {}
 	Coord(const Coord &pos) : _y(pos._y), _x(pos._x) {}
 
-	bool operator==(const Coord &o)
+	inline bool operator==(const Coord &o)
 	{
-		if ( _y == o._y && _x == o._x )
-			return true;
-		return false;
-	}
-	bool operator!=(const Coord &o)
-	{
-		if ( _y != o._y && _x != o._x )
+		if ( (_y == o._y) && (_x == o._x) )
 			return true;
 		return false;
 	}
@@ -39,14 +33,18 @@ struct Coord {
  */
 struct checkDistance {
 	// Returns the distance in tiles from pos1 to pos2
-	long operator()(Coord pos1, Coord pos2)
+	long operator()(Coord pos1, Coord pos2, bool positiveOnly = true)
 	{
-		return{ abs((pos1._x - pos2._x) + (pos1._y - pos2._y)) };
+		if ( positiveOnly )
+			return{ (abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y)) };
+		else return{ (pos1._x - pos2._x) + (pos1._y - pos2._y) };
 	}
 	// Returns the distance in tiles from pos1 to pos2
-	long operator()(long pos1X, long pos1Y, long pos2X, long pos2Y)
+	long operator()(long pos1X, long pos1Y, long pos2X, long pos2Y, bool positiveOnly = true)
 	{
-		return{ abs((pos1X - pos2X) + (pos1Y - pos2Y)) };
+		if ( positiveOnly )
+			return{ (abs(pos1X - pos2X) + abs(pos1Y - pos2Y)) };
+		else return{ (pos1X - pos2X) + (pos1Y - pos2Y) };
 	}
 };
 
@@ -67,14 +65,18 @@ struct checkDistanceFrom {
 	checkDistanceFrom(Coord* followThis) : _follow(followThis) {}
 
 	// Returns the distance in tiles from the given pos
-	long operator()(Coord pos)
+	long operator()(Coord pos, bool positiveOnly = true)
 	{
-		return{ abs((_follow->_x - pos._x) + (_follow->_y - pos._y)) };
+		if ( positiveOnly )
+			return{ (abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y)) };
+		else return{ (_follow->_x - pos._x) + (_follow->_y - pos._y) };
 	}
 	// Returns the distance in tiles from the given pos
-	long operator()(long posX, long posY)
+	long operator()(long posX, long posY, bool positiveOnly = true)
 	{
-		return{ abs((_follow->_x - posX) + (_follow->_y - posY)) };
+		if ( positiveOnly )
+			return{ (abs(_follow->_x - posX) + abs(_follow->_y - posY)) };
+		else return{ (_follow->_x - posX) + (_follow->_y - posY) };
 	}
 };
 

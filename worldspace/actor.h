@@ -10,12 +10,11 @@
 #include "termcolor/termcolor.hpp"
 
 struct ActorMaxStats {
-	 unsigned int _MAX_HEALTH;
-	 unsigned int _MAX_STAMINA;
-	 unsigned int _MAX_DAMAGE;
+	 int _MAX_HEALTH;
+	 int _MAX_STAMINA;
+	 int _MAX_DAMAGE;
 
-	ActorMaxStats( int health,  int stamina,  int damage) : _MAX_HEALTH(health), _MAX_STAMINA(stamina), _MAX_DAMAGE(damage) {}
-//	ActorMaxStats( ActorMaxStats& o) : _MAX_HEALTH(o._MAX_HEALTH), _MAX_STAMINA(o._MAX_STAMINA), _MAX_DAMAGE(o._MAX_DAMAGE) {}
+	ActorMaxStats( unsigned int health, unsigned int stamina, unsigned int damage) : _MAX_HEALTH(health), _MAX_STAMINA(stamina), _MAX_DAMAGE(damage) {}
 };
 
 // stats & specs of all actors -- parent struct
@@ -40,32 +39,19 @@ struct ActorBase : public ActorMaxStats {
 	char _display_char;
 	// this actor's current stats
 	bool _dead;
-	unsigned int _health, _stamina;
+	int _health, _stamina;
 
 	ActorBase( std::string myName, Coord& myPos, char myDisplayChar, color myColor, bool isPlayer,  int myMaxHealth,  int myMaxStamina,  int myMaxDamage) : ActorMaxStats(myMaxHealth, myMaxStamina, myMaxDamage), _name(myName), _myPos(myPos), _display_char(myDisplayChar), _myColor(myColor), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _isPlayer(isPlayer), _dead(false)  {}
-//	ActorBase( ActorBase& o) : ActorMaxStats(o), _name(o._name), _myPos(o._myPos), _display_char(o._display_char), _myColor(o._myColor), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _isPlayer(o._isPlayer), _dead(o._dead)  {}
 	virtual ~ActorBase() {}
 
 	// decrement y by 1
-	void moveU()
-	{
-		_myPos._y--;
-	}
+	void moveU() { _myPos._y--; }
 	// increment y by 1
-	void moveD()
-	{
-		_myPos._y++;
-	}
+	void moveD() { _myPos._y++; }
 	// decrement x by 1
-	void moveL()
-	{
-		_myPos._x--;
-	}
+	void moveL() { _myPos._x--; }
 	// increment x by 1
-	void moveR()
-	{
-		_myPos._x++;
-	}
+	void moveR() { _myPos._x++; }
 
 	// stream insertion operator
 	friend inline std::ostream& operator<<(std::ostream &os, ActorBase &a)
@@ -94,7 +80,7 @@ struct Player : public ActorBase {
 
 // enemy actor
 struct Enemy : public ActorBase {
-	Enemy(std::string myName, Coord myPos, char myDisplayChar, color myColor) : ActorBase(myName, myPos, myDisplayChar, myColor, false, 10u, 100u, 100u) {}
-//	Enemy( Enemy& e) : ActorBase(e) {}
+	int _aggro{ 0 };
+	Enemy(std::string myName, Coord myPos, char myDisplayChar, color myColor) : ActorBase(myName, myPos, myDisplayChar, myColor, false, 100u, 100u, 20u) {}
 	~Enemy() {}
 };

@@ -55,7 +55,7 @@ struct Tile : public Coord {
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(display as, int xPos, int yPos, bool isKnownOverride = false) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	Tile(display as, int xPos, int yPos, bool makeWallsVisible, bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
 	{
 		// check if tile attributes are correct
 		switch ( _display ) {
@@ -63,6 +63,8 @@ struct Tile : public Coord {
 			_canMove = false;
 			break;
 		case display::wall:
+			if ( makeWallsVisible )
+				_isKnown = true;
 			_canMove = false;
 			break;
 		case display::hole:
@@ -125,7 +127,7 @@ static Tile __TILE_ERROR;
  * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
  * @returns vector<vector<Tile>>
  */
-std::vector<std::vector<Tile>> importMatrix(std::string filename, bool override_known_tiles = false)
+std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWallsVisible = true, bool override_known_tiles = false)
 {
 	std::vector<std::vector<Tile>> matrix{};
 
@@ -151,8 +153,8 @@ std::vector<std::vector<Tile>> importMatrix(std::string filename, bool override_
 						if ( line.at(x) == char(*it) )
 							isValid = true;
 					}
-					if ( isValid )	row.push_back(Tile(static_cast<Tile::display>(line.at(x)), x, y, override_known_tiles));
-					else			row.push_back(Tile(Tile::display::none, x, y, override_known_tiles));
+					if ( isValid )	row.push_back(Tile(static_cast<Tile::display>(line.at(x)), x, y, makeWallsVisible, override_known_tiles));
+					else			row.push_back(Tile(Tile::display::none, x, y, makeWallsVisible, override_known_tiles));
 				}
 				matrix.push_back(row);
 				line.clear();
@@ -174,7 +176,7 @@ protected:
 	 * 
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	inline void generate(bool override_known_tiles)
+	inline void generate(bool makeWallsVisible, bool override_known_tiles)
 	{
 		if ( _sizeV > 5 && _sizeH > 5 ) {
 			tRand rng;
@@ -184,15 +186,15 @@ protected:
 				for ( int x = 0; x < _sizeH; x++ ) {
 					// make walls on all edges
 					if ( (x == 0 || x == (_sizeH - 1)) || (y == 0 || y == (_sizeV - 1)) )
-						_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
+						_row.push_back(Tile(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles));
 					else { // not an edge
 						unsigned int rand = rng.get(100u, 0u);
 						if ( rand < 7 ) // 7:100 chance of a wall tile that isn't on an edge
-							_row.push_back(Tile(Tile::display::wall, x, y, override_known_tiles));
+							_row.push_back(Tile(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles));
 						else if ( rand > 7 && rand < 9 )
-							_row.push_back(Tile(Tile::display::hole, x, y, override_known_tiles));
+							_row.push_back(Tile(Tile::display::hole, x, y, makeWallsVisible, override_known_tiles));
 						else
-							_row.push_back(Tile(Tile::display::empty, x, y, override_known_tiles));
+							_row.push_back(Tile(Tile::display::empty, x, y, makeWallsVisible, override_known_tiles));
 					}
 				}
 				_matrix.push_back(_row);
@@ -204,7 +206,7 @@ public:
 	// The Cell's Vertical & Horizontal size
 	const int _sizeV, _sizeH;
 	// Functor that checks if a given tile is within the cell boundaries
-	checkBounds isValidPos;
+	checkBounds isValidPos; // function syntax is used to emulate a member function
 
 	/** CONSTRUCTOR **
 	 * Cell(Coord, bool)
@@ -213,9 +215,9 @@ public:
 	 * @param cellSize				- The size of the cell
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(Coord cellSize, bool override_known_tiles = false) : _sizeH((signed)cellSize._x), _sizeV((signed)cellSize._y), isValidPos(Coord(_sizeH, _sizeV))
+	Cell(Coord cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _sizeH((signed)cellSize._x), _sizeV((signed)cellSize._y), isValidPos(Coord(_sizeH, _sizeV))
 	{
-		generate(override_known_tiles);
+		generate(makeWallsVisible, override_known_tiles);
 	}
 
 	/** CONSTRUCTOR **
@@ -225,7 +227,11 @@ public:
 	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(std::string filename, bool override_known_tiles = false) : _matrix(importMatrix(filename, override_known_tiles)), _sizeH((file::exists(filename)) ? (_matrix.at(0).size()) : (0)), _sizeV((file::exists(filename)) ? (_matrix.size()) : (0)), isValidPos(Coord(_sizeH, _sizeV)) {}
+	Cell(std::string filename, bool makeWallsVisible = true, bool override_known_tiles = false) : 
+		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
+		_sizeH((file::exists(filename)) ? (_matrix.at(0).size()) : (0)), 
+		_sizeV((file::exists(filename)) ? (_matrix.size()) : (0)), 
+		isValidPos(Coord(_sizeH, _sizeV)) {}
 
 	/**
 	 * display()
@@ -293,11 +299,9 @@ public:
 	 */
 	inline void modVis(bool to)
 	{
-		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
-			for ( auto x = y->begin(); x != y->end(); x++ ) {
+		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ )
+			for ( auto x = y->begin(); x != y->end(); x++ )
 				x->_isKnown = to;
-			}
-		}
 	}
 
 	/**
@@ -310,12 +314,10 @@ public:
 	 */
 	inline void modVis(bool to, Coord pos, const int diameter = 3)
 	{
-		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ ) {
-			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ ) {
+		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ )
+			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ )
 				if ( isValidPos(x, y) )
 					_matrix.at(y).at(x)._isKnown = to;
-			}
-		}
 	}
 
 	/**
@@ -328,12 +330,10 @@ public:
 	 */
 	inline void modVis(bool to, Coord minPos, Coord maxPos)
 	{
-		for ( int y = minPos._y; y <= maxPos._y; y++ ) {
-			for ( int x = minPos._x; x <= maxPos._x; x++ ) {
+		for ( int y = minPos._y; y <= maxPos._y; y++ )
+			for ( int x = minPos._x; x <= maxPos._x; x++ )
 				if ( isValidPos(x, y) )
 					_matrix.at(y).at(x)._isKnown = to;
-			}
-		}
 	}
 
 	/**
@@ -346,9 +346,8 @@ public:
 	{
 		std::stringstream buf;
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
-			for ( auto x = (*y).begin(); x != (*y).end(); x++ ) {
+			for ( auto x = (*y).begin(); x != (*y).end(); x++ )
 				buf << *x;
-			}
 			buf << std::endl;
 		}
 		return buf;
