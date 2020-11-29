@@ -1,0 +1,41 @@
+### OVERVIEW ###
+
+	This project is designed to act as a game framework, or backend for graphical applications.
+	It relies on object matrices, and can be easily modified for any related purpose.
+	It contains everything for a basic console-based game, and will automatically launch an example game when compiled & run.
+
+	For using with graphical-based game engines, take the "cell.h" file & modify the Tile struct to fit your needs.
+
+	This project uses multi-threading
+
+
+### FILES ###
+
+	The file inheritance structure is as follows:
+
+			  (Coord.h)
+				v	v
+		(actor.h)	(cell.h)
+				v	v
+			  (game.h)
+				  v
+		   (FrameBuffer.h)	(settings.h)
+					  v		  v
+					(threaded.h)
+						  v
+				     (main.cpp)
+
+	(Coord.h)		// Contains a wrapper for an x/y position. Also contains functors for finding the distance between 2 points in tiles.
+	(actor.h)		// Contains actor objects, which represent game characters
+	(cell.h)		// Contains Tiles, and Cells. Cells represent the worldspace/a part of the worldspace, they contain a matrix of tiles.
+	(game.h)		// Contains the Gamespace class, which contains a cell, actors, and functions related to running a game.
+	(FrameBuffer.h)	// Contains the Frame, and FrameBuffer classes. Frame represents a single char matrix displayed to the console. FrameBuffer is a wrapper for Frame that contains a Gamespace reference, and related display functions using a double-buffered update system to prevent flickering.
+	(settings.h)	// Contains global settings and world attributes to be parsed from the commandline.
+	(threaded.h)	// Contains 3 threads & functions to operate them. There is a thread for player input, for enemy actions, and for displaying to the console.
+	(main.cpp)		// Contains main() and interpret() to parse commandline arguments.
+
+### CLASSES ###
+
+	The class inheritance structure is as follows:
+
+	(I don't want to write this right now)

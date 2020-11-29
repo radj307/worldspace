@@ -9,6 +9,7 @@
 #include <vector>
 #include <sstream>
 #include <Windows.h>
+#include "WinAPI.h"
 #include "xRand.h"
 #include "Coord.h"
 #include "file.h"
@@ -18,17 +19,6 @@
  * Represents a single position in the matrix of a cell
  */
 struct Tile : public Coord {
-	// Windows console text colors
-	enum class color {
-		white = 0x0001 | 0x0002 | 0x0004,
-		grey = 0,
-		yellow = 0x0002 | 0x0004,
-		red = 0x0004,
-		magenta = 0x0001 | 0x0004,
-		blue = 0x0001,
-		cyan = 0x0001 | 0x0002,
-		green = 0x0002,
-	}; color _myColor{ color::white };
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
@@ -40,15 +30,16 @@ struct Tile : public Coord {
 		wall = '#',
 		hole = 'O',
 	};
-	// the display character
-	display _display;
-	// if this tile is known to the player or not
-	bool _isKnown;
-	bool _canMove;
-	bool _isTrap;
+
+	display _display;								// the display character
+	WinAPI::color _myColor{ WinAPI::color::white };	// The color of the display character
+	bool _isKnown;									// true if this tile is known to the player
+	bool _canMove;									// true if this tile allows actors to move to it
+	bool _isTrap;									// true if this tile is a trap, and will damage actors when stepped on.
 
 	/** CONSTRUCTOR **
 	 * Tile(Tile::display, int, int, bool)  
+	 * Construct a tile with the default color. (white)
 	 * 
 	 * @param as				- This tile's type (display character)
 	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
@@ -73,12 +64,42 @@ struct Tile : public Coord {
 		default:break;
 		}
 	}
+
+	/** CONSTRUCTOR **
+	 * Tile(Tile::display, int, int, bool)
+	 * Construct a tile with a defined color.
+	 *
+	 * @param as				- This tile's type (display character)
+	 * @param color				- This tile's color when inserted into a stream.
+	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
+	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
+	 * @param isKnownOverride	- When true, this tile is visible to the player.
+	 */
+	Tile(display as, WinAPI::color color, int xPos, int yPos, bool makeWallsVisible, bool isKnownOverride) : Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	{
+		// check if tile attributes are correct
+		switch ( _display ) {
+		case display::none:
+			_canMove = false;
+			break;
+		case display::wall:
+			if ( makeWallsVisible )
+				_isKnown = true;
+			_canMove = false;
+			break;
+		case display::hole:
+			_isTrap = true;
+			break;
+		default:break;
+		}
+	}
 	/** CONSTRUCTOR **
 	 * Tile()
 	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
 	 */
 	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false) {}
 
+	// comparison operators
 	bool operator==(Tile &o)
 	{
 		if ( _display == o._display )
@@ -107,12 +128,14 @@ struct Tile : public Coord {
 	// Stream insertion operator
 	friend inline std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
-		if ( t._myColor != color::white )
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<int>(t._myColor)); // set text color to 
-		if ( t._isKnown )
+		if ( t._myColor != WinAPI::color::white ) // if this tile has a color, set it
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<int>(t._myColor));
+		if ( t._isKnown ) // if this tile is known, insert its char
 			os << char(t._display) << ' ';
-		else
+		else // if this tile is not known, insert a blank
 			os << ' ' << ' ';
+		// reset color
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0);
 		return os;
 	}
 };
@@ -124,10 +147,11 @@ static Tile __TILE_ERROR;
  * Imports a tile matrix from the specified file
  * 
  * @param filename				- The target file to load
+ * @param makeWallsVisible		- When true, wall tiles will always be visible.
  * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
  * @returns vector<vector<Tile>>
  */
-std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWallsVisible = true, bool override_known_tiles = false)
+std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWallsVisible, bool override_known_tiles)
 {
 	std::vector<std::vector<Tile>> matrix{};
 
@@ -135,7 +159,7 @@ std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWalls
 		std::stringstream content{ file::readToStream(filename) };
 
 		content.seekg(0, std::ios::end);				// send sstream to the end
-		int content_size = static_cast<int>(content.tellg());  // find the size of received stringstream
+		int content_size{ static_cast<int>(content.tellg()) };  // find the size of received stringstream
 		content.seekg(0, std::ios::beg);				// send sstream back to the beginning
 
 		// check if content is not empty
@@ -171,21 +195,21 @@ class Cell {
 protected:
 
 	/**
-	 * generate(bool)
-	 * Generates the matrix
+	 * generate(bool, bool)
+	 * Generates the tile matrix using RNG
 	 * 
+	 * @param makeWallsVisible		- When true, wall tiles will always be visible.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
 	inline void generate(bool makeWallsVisible, bool override_known_tiles)
 	{
-		if ( _sizeV > 5 && _sizeH > 5 ) {
+		if ( _max._y > 5 && _max._x > 5 ) {
 			tRand rng;
-
-			for ( int y = 0; y < _sizeV; y++ ) {
+			for ( int y = 0; y < _max._y; y++ ) {
 				std::vector<Tile> _row;
-				for ( int x = 0; x < _sizeH; x++ ) {
+				for ( int x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
-					if ( (x == 0 || x == (_sizeH - 1)) || (y == 0 || y == (_sizeV - 1)) )
+					if ( (x == 0 || x == (_max._x - 1)) || (y == 0 || y == (_max._y - 1)) )
 						_row.push_back(Tile(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles));
 					else { // not an edge
 						unsigned int rand = rng.get(100u, 0u);
@@ -203,8 +227,8 @@ protected:
 	}
 
 public:
-	// The Cell's Vertical & Horizontal size
-	const int _sizeV, _sizeH;
+	// The Cell's Vertical & Horizontal size as a Coord
+	const Coord _max;
 	// Functor that checks if a given tile is within the cell boundaries
 	checkBounds isValidPos; // function syntax is used to emulate a member function
 
@@ -215,7 +239,7 @@ public:
 	 * @param cellSize				- The size of the cell
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(Coord cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _sizeH((signed)cellSize._x), _sizeV((signed)cellSize._y), isValidPos(Coord(_sizeH, _sizeV))
+	Cell(Coord cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _max(cellSize._x, cellSize._y), isValidPos(_max)
 	{
 		generate(makeWallsVisible, override_known_tiles);
 	}
@@ -229,9 +253,8 @@ public:
 	 */
 	Cell(std::string filename, bool makeWallsVisible = true, bool override_known_tiles = false) : 
 		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
-		_sizeH((file::exists(filename)) ? (_matrix.at(0).size()) : (0)), 
-		_sizeV((file::exists(filename)) ? (_matrix.size()) : (0)), 
-		isValidPos(Coord(_sizeH, _sizeV)) {}
+		_max((file::exists(filename)) ? (_matrix.at(0).size()) : (0), (file::exists(filename)) ? (_matrix.size()) : (0)),
+		isValidPos(_max) {}
 
 	/**
 	 * display()
@@ -379,17 +402,17 @@ public:
 			return _matrix.at(y).at(x);
 		return __TILE_ERROR;
 	}
-};
 
-/**
- * exportCell(string, Cell&)
- * Exports a given cell to a file
- * 
- * @param filename	- The name of the output file
- * @param cell		- A ref to the target cell
- * @returns bool	- true when successful, false when failed.
- */
-bool exportCell(std::string filename, Cell &cell)
-{
-	return file::write(filename, cell.sstream(), file::save_type::overwrite);
-}
+	/**
+	 * exportCell(string)
+	 * Exports this cell to a file.
+	 *
+	 * @param filename	- The name of the output file
+	 * @param saveAs	- Whether to overwrite or append to file if it already exists.
+	 * @returns bool	- true when successful, false when failed.
+	 */
+	inline bool exportToFile(std::string filename, file::save_type saveAs = file::save_type::overwrite)
+	{
+		return file::write(filename, sstream(), saveAs);
+	}
+};

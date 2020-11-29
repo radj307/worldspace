@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
@@ -13,45 +9,54 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="implementation">
-      <UniqueIdentifier>{8210e396-d896-4bda-bf30-aa62cb1b98d7}</UniqueIdentifier>
+    <Filter Include="util">
+      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
     </Filter>
-    <Filter Include="threads">
-      <UniqueIdentifier>{bef68e7b-a838-478f-9411-2e1039140ca4}</UniqueIdentifier>
+    <Filter Include="game implementation">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="game-related">
+      <UniqueIdentifier>{1c93fc7f-b492-4a28-b68c-9d0882d0160b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>game implementation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="game.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="actor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Coord.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cell.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="settings.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="interpret.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="item.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="threaded.h">
-      <Filter>threads</Filter>
     </ClInclude>
     <ClInclude Include="FrameBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WinAPI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="settings.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
+    <ClInclude Include="threaded.h">
+      <Filter>game implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="item.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
+    <ClInclude Include="game.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
+    <ClInclude Include="cell.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
+    <ClInclude Include="actor.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DOCUMENTATION.txt">
+      <Filter>util</Filter>
+    </Text>
   </ItemGroup>
 </Project>

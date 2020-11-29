@@ -150,10 +150,13 @@
     <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="cell.h" />
-    <ClInclude Include="interpret.h" />
     <ClInclude Include="item.h" />
     <ClInclude Include="settings.h" />
     <ClInclude Include="threaded.h" />
+    <ClInclude Include="WinAPI.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DOCUMENTATION.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

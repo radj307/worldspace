@@ -6,11 +6,12 @@
 #pragma once
 #include <atomic>	// for thread-safe variables
 #include <future>
-#include "game.h"
-#include "interpret.h"
+#include "FrameBuffer.h"
+#include "opt.h"
+#include "sys.h"
 
 static const std::chrono::milliseconds __MS_CLOCK_SYNC{ 30 }; // synchronizes the amount of time each thread sleeps
-static const unsigned int __NPC_CYCLE_WAIT_MULT{ 5 }; // each NPC action occurs every clock cycle multiplied by this
+static const unsigned int __NPC_CYCLE_WAIT_MULT{ 8 }; // each NPC action occurs every clock cycle multiplied by this
 static const char __BLANK_KEY = '\\'; // key press that does not perform any player action. Used to reset key presses.
 // wrapper for atomic vars
 struct memory {
@@ -21,7 +22,7 @@ struct memory {
 
 	inline void reset_key()
 	{
-		key = __BLANK_KEY;
+		key.store(__BLANK_KEY);
 	}
 };
 // instantiate shared memory
@@ -59,14 +60,20 @@ int play(Gamespace& game, GLOBAL& g)
 				mem.pause.store(true);
 				std::this_thread::sleep_for(__MS_CLOCK_SYNC); // wait until the consoleDisplay function is 100% paused
 				sys::cls();
-				game._initFrame = false;
 				sys::setCursorPos(5, 3);
 				std::cout << termcolor::cyan << mem.pause_msg << termcolor::reset;
 				break;
 			default: // player pressed a different key, process it
 				std::scoped_lock<std::mutex> lock(mutx); // lock the mutex
-				if ( game.actionPlayer(mem.key.load()) == 1 )
+				switch ( game.actionPlayer(mem.key.load()) ) {
+				case 0:
 					mem.kill.store(true);
+					return -1;
+				case 2:
+					mem.kill.store(true);
+					return 0;
+				default:break;
+				}
 				mem.reset_key();
 				break;
 			}
@@ -74,7 +81,7 @@ int play(Gamespace& game, GLOBAL& g)
 		else if ( mem.key.load() == 'p' ) { mem.pause.store(false); sys::cls(); }
 		// else do nothing
 	}
-	return -1;
+	return 2;
 }
 /**
  * npc(Gamespace&)
@@ -87,11 +94,13 @@ void npc(Gamespace& game)
 {
 	// loop until shared memory's kill flag is true
 	while ( !mem.kill.load() ) {
+		std::this_thread::sleep_for(__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT);
 		if ( !mem.pause.load() ) {
 			std::scoped_lock<std::mutex> lock(mutx); // lock the mutex
 			game.actionHostile(); // do hostile action cycle
+		//	game.actionNeutral();
 		}
-		std::this_thread::sleep_for(__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT);
+		else std::this_thread::sleep_for(std::chrono::seconds(1) - (__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT));
 	}
 }
 /**
@@ -103,7 +112,11 @@ void npc(Gamespace& game)
  */
 void consoleDisplay(Gamespace& game)
 {
-	while ( !mem.kill.load() ) {
+	typedef std::chrono::high_resolution_clock T;
+	// create a frame buffer with the given gamespace ref
+	FrameBuffer fb(game, Coord(3,3));
+	fb.initConsole(); // set the console window's size & position
+	for ( T::time_point tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
 		if ( !mem.pause.load() ) {
 			std::this_thread::sleep_for(__MS_CLOCK_SYNC / 2);
 			// flush the cout buffer
@@ -111,9 +124,17 @@ void consoleDisplay(Gamespace& game)
 			// lock the mutex
 			std::scoped_lock<std::mutex> lock(mutx);
 			// display the gamespace
-			game.display();
-		} // else wait for 1 second on each loop
-		else std::this_thread::sleep_for(std::chrono::seconds(1));
+			fb.display();
+			if ( (T::now() - tLastRegenCycle) >= std::chrono::seconds(1) ) {
+				game.regenAll();
+				tLastRegenCycle = T::now();
+			}
+		}
+		else { // the game is paused
+			// set the frame-buffer's initialized flag to false, causing the frame to be reinitialized on unpause
+			fb._initialized = false;
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
 	}
 }
 
@@ -125,11 +146,8 @@ void consoleDisplay(Gamespace& game)
  * @param argv	- From main()
  * @returns int	- ( -1 = Player lost ) ( 0 = Player won ) ( 1 = Player exited ) ( 2 = Undefined termination )
  */
-inline int game(int argc, char* argv[])
+inline int game(GLOBAL& settings)
 {
-	// Interpret commandline arguments
-	GLOBAL settings{ interpret(argc, argv) };
-
 	GameRules rules; // define ruleset
 	//rules.trap_damage_is_percentage = false;
 
@@ -172,7 +190,7 @@ void process_game_over(int winStateCode)
 		break;
 	default:break; // undefined return val
 	}
-	sys::sleep(1500);
+	sys::sleep(1000);
 	sys::pause("\n\tPress any key to exit....");
 	return;
 }
