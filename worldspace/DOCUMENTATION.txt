@@ -15,11 +15,11 @@
 
 			  (Coord.h)
 				v	v
-		(actor.h)	(cell.h)
-				v	v
-			  (game.h)
+		(actor.h) (cell.h) (settings.h)
+				v	 v
+			      (game.h)
 				  v
-		   (FrameBuffer.h)	(settings.h)
+		   (FrameBuffer.h)	
 					  v		  v
 					(threaded.h)
 						  v

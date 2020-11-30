@@ -4,10 +4,10 @@
  * by radj307
  */
 #pragma once
+#include <mutex>
 #include <atomic>	// for thread-safe variables
 #include <future>
 #include "FrameBuffer.h"
-#include "opt.h"
 #include "sys.h"
 
 static const std::chrono::milliseconds __MS_CLOCK_SYNC{ 30 }; // synchronizes the amount of time each thread sleeps
@@ -97,8 +97,7 @@ void npc(Gamespace& game)
 		std::this_thread::sleep_for(__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT);
 		if ( !mem.pause.load() ) {
 			std::scoped_lock<std::mutex> lock(mutx); // lock the mutex
-			game.actionHostile(); // do hostile action cycle
-		//	game.actionNeutral();
+			game.actionHostile();
 		}
 		else std::this_thread::sleep_for(std::chrono::seconds(1) - (__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT));
 	}
@@ -114,8 +113,8 @@ void consoleDisplay(Gamespace& game)
 {
 	typedef std::chrono::high_resolution_clock T;
 	// create a frame buffer with the given gamespace ref
-	FrameBuffer fb(game, Coord(3,3));
-	fb.initConsole(); // set the console window's size & position
+	FrameBuffer_Gamespace gameBuffer(game, Coord(3, 3));
+	gameBuffer.initConsole(); // set the console window's size & position
 	for ( T::time_point tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
 		if ( !mem.pause.load() ) {
 			std::this_thread::sleep_for(__MS_CLOCK_SYNC / 2);
@@ -124,15 +123,15 @@ void consoleDisplay(Gamespace& game)
 			// lock the mutex
 			std::scoped_lock<std::mutex> lock(mutx);
 			// display the gamespace
-			fb.display();
+			gameBuffer.display();
 			if ( (T::now() - tLastRegenCycle) >= std::chrono::seconds(1) ) {
-				game.regenAll();
+				game.apply_passive();
 				tLastRegenCycle = T::now();
 			}
 		}
 		else { // the game is paused
 			// set the frame-buffer's initialized flag to false, causing the frame to be reinitialized on unpause
-			fb._initialized = false;
+			gameBuffer._initialized = false;
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 	}

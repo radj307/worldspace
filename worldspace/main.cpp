@@ -15,11 +15,14 @@
 			add a text feedback area to the stat display?
 			add another stat display box for text feedback?
 		notification area for general notifications, that are removed after x seconds
+		IMPROVE LEVEL UPS -- Player stat bar algorithm, some kind of notification. (player color flashes? area around player changes color temporarily? additional Level display at the bottom?)
 
 	[BACKBURNER]
 		implement items
  */
+#include <mutex>
 #include "threaded.h"
+#include "opt.h"
 
 inline GLOBAL interpret(int argc, char* argv[]);
 

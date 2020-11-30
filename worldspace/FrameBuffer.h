@@ -1,5 +1,6 @@
 #pragma once
-#include "game.h"
+#include "Gamespace.h"
+#include "group.hpp"
 
 /**
  * struct Frame
@@ -141,10 +142,10 @@ struct Frame {
 };
 
 /**
- * struct FrameBuffer
+ * struct FrameBuffer_Gamespace
  * Double-Buffered console rendering using the Frame struct.
  */
-struct FrameBuffer {
+struct FrameBuffer_Gamespace {
 	// The initialized flag, this is set to true once the frame has already been drawn to the console.
 	bool _initialized{ false };
 	// The last frame printed to the console. (Or the currently displayed frame if this frame-buffer is currently running.)
@@ -155,13 +156,13 @@ struct FrameBuffer {
 	Gamespace& _game;
 
 	/** CONSTRUCTOR **
-	 * FrameBuffer(Cell&, Coord, vector<ActorBase*>)
+	 * FrameBuffer_Gamespace(Cell&, Coord, vector<ActorBase*>)
 	 *
 	 * @param cell	 - Ref to a cell
 	 * @param origin - Display origin point, measured in chars. This is the top-left corner.
 	 * @param vec	 - A vector of pointers to actors
 	 */
-	FrameBuffer(Gamespace& gamespace, Coord origin) : _game(gamespace), _origin(origin) {}
+	FrameBuffer_Gamespace(Gamespace& gamespace, Coord origin) : _game(gamespace), _origin(origin) {}
 
 	/**
 	 * getFrame()
@@ -179,7 +180,7 @@ struct FrameBuffer {
 				if ( _game.getTile(pos)._isKnown ) {
 					ActorBase *ptr{ _game.getActorAt(pos) };
 					if ( ptr != nullptr ) // actor exists at position
-						row.push_back(char(ptr->_char));
+						row.push_back(char(ptr->getChar()));
 					else
 						row.push_back(char(_game.getTile(pos)._display));
 				}
@@ -265,7 +266,7 @@ struct FrameBuffer {
 			_last = next;
 		}
 		else initFrame(_origin);
-		_game.playerStatDisplay();
+		playerStatDisplay();
 	}
 
 	/**
@@ -289,5 +290,67 @@ struct FrameBuffer {
 
 		// hide the cursor
 		WinAPI::visibleCursor(false);
+	}
+
+
+	/**
+	 * playerStatDisplay()
+	 * The player statistics bar
+	 */
+	inline void playerStatDisplay()
+	{
+		const std::string HEADER{ "Player Stats" };
+
+		// { (((each box length) + (4 for bar edges & padding)) * (number of stat bars)) }
+		int lineLength = 28;// (10 + 4) * 2;
+
+		// calculate the position to display at
+		Coord targetDisplayPos{ ((_origin._x + _game.getCellSize()._x) * 2 / 4), ((_origin._y + _game.getCellSize()._y) + (_game.getCellSize()._y / 10)) };
+		WinAPI::setCursorPos(targetDisplayPos._x + ((lineLength / 2) - (HEADER.size() / 2)), targetDisplayPos._y);
+		std::cout << HEADER;
+
+		// next line
+		WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 1);
+
+		// calculate the step value for _game.getPlayer() health
+		int segment{ static_cast<int>(_game.getPlayer().getHealth() / 10) };
+
+		// Print the health bar
+		std::cout << '[' << termcolor::red;
+		for ( int i = 0; i < 10; i++ ) {
+			if ( i < segment && segment != 0 )
+				std::cout << '@';
+			else std::cout << ' ';
+		}
+		// Print health/stamina bar buffer
+		std::cout << termcolor::reset << "]  [" << termcolor::green;
+
+		// calculate the step value for _game.getPlayer() stamina
+		segment = { static_cast<int>(_game.getPlayer().getStamina() / 10) };
+
+		// Print the stamina bar
+		for ( int i = 0; i < 10; i++ ) {
+			if ( i < segment && segment != 0 )
+				std::cout << '@';
+			else std::cout << ' ';
+		}
+		// Print stamina bar end buffer
+		std::cout << termcolor::reset << ']';
+
+		// Set the cursor position to the next line
+		WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 2);
+
+		// get health/stamina values
+		int health{ _game.getPlayer().getHealth() }, stamina{ _game.getPlayer().getStamina() };
+
+		// Print health values
+		std::cout << "Health: " << termcolor::red << health << termcolor::reset;
+		if ( health < 10 )	 std::cout << ' ';
+		if ( health < 100 )	 std::cout << ' ';
+
+		// Print stamina values
+		std::cout << "\tStamina: " << termcolor::green << stamina << termcolor::reset;
+		if ( stamina < 10 )	 std::cout << ' ';
+		if ( stamina < 100 ) std::cout << ' ';
 	}
 };
