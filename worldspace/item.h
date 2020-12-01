@@ -5,6 +5,7 @@
  */
 #pragma once
 #include <string>
+#include <utility>
 
 // (virtual) item attributes
 struct ItemAttributes {
@@ -12,34 +13,35 @@ struct ItemAttributes {
 	const std::string _desc; // this item's description
 	const int _uses;		 // how many times this item can be used before running out. (0 = infinite)
 
-	ItemAttributes(const std::string myName, const std::string myDescription, const int myMaxUseCount) : _name(myName), _desc(myDescription), _uses(myMaxUseCount) {}
-	virtual ~ItemAttributes() {}
+	ItemAttributes(std::string myName, std::string myDescription, const int myMaxUseCount) : _name(std::move(
+		myName)), _desc(std::move(myDescription)), _uses(myMaxUseCount) {}
+	virtual ~ItemAttributes() = default;
 };
 
 // (virtual) item base
-struct ItemBase : public ItemAttributes {
+struct ItemBase : ItemAttributes {
 
-	ItemBase(const std::string myName, const std::string myDescription, const int myMaxUseCount = 0) : ItemAttributes(myName, myDescription, myMaxUseCount) {}
-	virtual ~ItemBase() {}
+	ItemBase(const std::string& myName, const std::string& myDescription, const int myMaxUseCount = 0) : ItemAttributes(myName, myDescription, myMaxUseCount) {}
+	virtual ~ItemBase() = default;
 
 	virtual int function(...) = 0;
 };
 
-struct Weapon : public ItemBase {
+struct Weapon : ItemBase {
 	const float _min_damage, _max_damage;
 
-	Weapon(const std::string myName, const std::string myDescription, const float myMinDamage, const float myMaxDamage) : ItemBase(myName, myDescription, 0), _min_damage(myMinDamage), _max_damage(myMaxDamage) {}
+	Weapon(const std::string& myName, const std::string& myDescription, const float myMinDamage, const float myMaxDamage) : ItemBase(myName, myDescription, 0), _min_damage(myMinDamage), _max_damage(myMaxDamage) {}
 };
 
-struct InstantPotion : public ItemBase {
+struct InstantPotion : ItemBase {
 	const float _amount;
 };
-struct DurationPotion : public ItemBase {
+struct DurationPotion : ItemBase {
 	const float _amountPerSecond;
 	const float _duration_s;
 };
 
-struct InstantPotionHealth : public InstantPotion {
+struct InstantPotionHealth : InstantPotion {
 
 
 };

@@ -4,48 +4,49 @@
  * by radj307
  */
 #pragma once
-#include <mutex>
 #include <atomic>	// for thread-safe variables
-#include <future>
+#include <future>	// for capturing thread return values
+#include <mutex>	// for mutexes & scoped locks
+
 #include "FrameBuffer.h"
 #include "sys.h"
 
 static const std::chrono::milliseconds __MS_CLOCK_SYNC{ 30 }; // synchronizes the amount of time each thread sleeps
 static const unsigned int __NPC_CYCLE_WAIT_MULT{ 8 }; // each NPC action occurs every clock cycle multiplied by this
 static const char __BLANK_KEY = '\\'; // key press that does not perform any player action. Used to reset key presses.
-// wrapper for atomic vars
-struct memory {
-	std::atomic<char> key{ __BLANK_KEY };	// player's last key press
-	std::atomic<bool> kill{ false };		// thread kill flag
-	std::atomic<bool> pause{ false };		// pause game flag
-	const std::string pause_msg{ "GAME PAUSED" };
 
-	inline void reset_key()
+// Shared Memory Object
+struct memory {
+	std::atomic<char> key{ __BLANK_KEY };			// player's last key press
+	std::atomic<bool> kill{ false };				// thread kill flag
+	std::atomic<bool> pause{ false };				// pause game flag
+	std::atomic<int> win{ -2 };
+	const std::string pause_msg{ "GAME PAUSED" };	// Message to show when paused
+
+	// Resets the key var to default (unpressed) state.
+	void reset_key()
 	{
 		key.store(__BLANK_KEY);
 	}
 };
 // instantiate shared memory
-memory mem;
+inline memory mem;
 
-// create a mutex to prevent actor actions during the frame draw cycle
-std::mutex mutx;
+// create a mutex to prevent critical section overlap
+inline std::mutex mutx;
 
-// Threaded functions:
 /**
- * play(Gamespace&, GLOBAL&)
+ * game_thread_player(Gamespace&, GLOBAL&)
  * Processes player input
  * Loops until the shared memory's kill flag is true
  *
  * @param game	- Reference to the associated gamespace, passed with std::ref()
- * @param g		- Reference to the global settings, passed with std::ref()
- * @returns int	- ( 1 = Player wants to exit ) ( -1 = Kill flag received from another source, such as if player died. )
  */
-int play(Gamespace& game, GLOBAL& g)
+inline void game_thread_player(Gamespace& game)
 {
-	for ( char input{}; input != 'q' && !mem.kill.load(); ) {
+	for (const auto input{__BLANK_KEY}; !mem.kill.load(); ) {
 		// getch waits until key press, no need to sleep this thread.
-		mem.key = std::tolower(_getch());
+		mem.key.store(static_cast<char>(_getch()));
 		// if game is not paused
 		if ( !mem.pause.load() ) {
 			// switch player keypress
@@ -53,12 +54,12 @@ int play(Gamespace& game, GLOBAL& g)
 			case __BLANK_KEY:break; // player has not pressed a key since last key was processed
 			case 'q': // player pressed the exit game key
 				mem.kill.store(true);
-				std::cout << std::endl << std::endl;
-				sys::msg(sys::log, "Kill request received. Shutting down.");
-				return 1;
+				//std::cout << std::endl << std::endl;
+				//sys::msg(sys::log, "Kill request received. Shutting down.");
+				return;
 			case 'p': // player pressed the pause game key
 				mem.pause.store(true);
-				std::this_thread::sleep_for(__MS_CLOCK_SYNC); // wait until the consoleDisplay function is 100% paused
+				std::this_thread::sleep_for(__MS_CLOCK_SYNC); // wait until the game_thread_display function is 100% paused
 				sys::cls();
 				sys::setCursorPos(5, 3);
 				std::cout << termcolor::cyan << mem.pause_msg << termcolor::reset;
@@ -68,10 +69,11 @@ int play(Gamespace& game, GLOBAL& g)
 				switch ( game.actionPlayer(mem.key.load()) ) {
 				case 0:
 					mem.kill.store(true);
-					return -1;
+					return;
 				case 2:
 					mem.kill.store(true);
-					return 0;
+					mem.win.store(0);
+					return;
 				default:break;
 				}
 				mem.reset_key();
@@ -81,41 +83,40 @@ int play(Gamespace& game, GLOBAL& g)
 		else if ( mem.key.load() == 'p' ) { mem.pause.store(false); sys::cls(); }
 		// else do nothing
 	}
-	return 2;
+//	return 2;
 }
 /**
- * npc(Gamespace&)
+ * game_thread_npc(Gamespace&)
  * Processes non-player turns.
  * Loops until the shared memory's kill flag is true
  *
  * @param game	- Reference to the associated gamespace, passed with std::ref()
  */
-void npc(Gamespace& game)
+inline void game_thread_npc(Gamespace& game)
 {
 	// loop until shared memory's kill flag is true
 	while ( !mem.kill.load() ) {
 		std::this_thread::sleep_for(__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT);
 		if ( !mem.pause.load() ) {
-			std::scoped_lock<std::mutex> lock(mutx); // lock the mutex
-			game.actionHostile();
+			game.actionAllNPC();
+			//game.actionHostile();
 		}
 		else std::this_thread::sleep_for(std::chrono::seconds(1) - (__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT));
 	}
 }
 /**
- * consoleDisplay(Gamespace&)
+ * game_thread_display(Gamespace&)
  * Displays the gamespace to the console every half clock cycle
  * Loops until the shared memory's kill flag is true
  *
  * @param game	- Reference to the associated gamespace, passed with std::ref()
  */
-void consoleDisplay(Gamespace& game)
+inline void game_thread_display(Gamespace& game)
 {
 	typedef std::chrono::high_resolution_clock T;
 	// create a frame buffer with the given gamespace ref
 	FrameBuffer_Gamespace gameBuffer(game, Coord(3, 3));
-	gameBuffer.initConsole(); // set the console window's size & position
-	for ( T::time_point tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
+	for (auto tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
 		if ( !mem.pause.load() ) {
 			std::this_thread::sleep_for(__MS_CLOCK_SYNC / 2);
 			// flush the cout buffer
@@ -124,56 +125,41 @@ void consoleDisplay(Gamespace& game)
 			std::scoped_lock<std::mutex> lock(mutx);
 			// display the gamespace
 			gameBuffer.display();
+			// Apply passive effects every second
 			if ( (T::now() - tLastRegenCycle) >= std::chrono::seconds(1) ) {
 				game.apply_passive();
 				tLastRegenCycle = T::now();
 			}
+			// Check if the player won
+			if ( game._allEnemiesDead ) {
+				mem.win.store(0);
+				mem.kill.store(true);
+				return;
+			}
+			// check if the player died
+			else if ( game.getPlayer().isDead() ) {
+				mem.win.store(-1);
+				mem.kill.store(true);
+				return;
+			}
 		}
 		else { // the game is paused
 			// set the frame-buffer's initialized flag to false, causing the frame to be reinitialized on unpause
-			gameBuffer._initialized = false;
+			gameBuffer.deinitialize();
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 	}
 }
 
 /**
- * game(int, char*[])
- * Controls all threaded game functions. When this function returns, the game is over.
- *
- * @param argc	- From main()
- * @param argv	- From main()
- * @returns int	- ( -1 = Player lost ) ( 0 = Player won ) ( 1 = Player exited ) ( 2 = Undefined termination )
- */
-inline int game(GLOBAL& settings)
-{
-	GameRules rules; // define ruleset
-	//rules.trap_damage_is_percentage = false;
-
-	Gamespace thisGame(settings, rules); // create the gamespace
-	// start a thread to process player actions
-	std::future<int> winState{ std::async(std::launch::async, &play, std::ref(thisGame), std::ref(settings)) };
-	std::thread display(&consoleDisplay, std::ref(thisGame)); // start a thread to process display functions
-	std::thread enemy(&npc, std::ref(thisGame));			  // start a thread to process enemy actions
-
-	display.join();
-	enemy.join();
-
-	if ( !mem.kill.load() )
-		return 2;
-	return winState.get(); // return the win/lose state to main
-}
-
-/**
  * process_game_over(int)
- * This function is used to receive the return code from the game() function, and print a message to the screen indicating the winstate.
+ * Prints a game over message to the console with win/lose status.
  *
- * @param winStateCode	- Received from game()
+ * @param winStateCode	- ( -1 = Player Loses ) ( 0 = Player Wins ) ( 1 = Player exited ) ( Other = Undefined )
  */
-void process_game_over(int winStateCode)
+inline void process_game_over(const int winStateCode)
 {
 	sys::cls();
-	   // switch the win/lose state after game is over
 	switch ( winStateCode ) {
 	case -1: // player lost the game
 		std::cout << termcolor::red << "You lost!" << termcolor::reset << std::endl;
@@ -184,12 +170,26 @@ void process_game_over(int winStateCode)
 	case 1: // player exited the game
 		std::cout << termcolor::cyan << "Game Over." << termcolor::reset << std::endl;
 		break;
-	case 2: // undefined shutdown
+	default: // undefined
 		std::cout << termcolor::red << "The game did not shut down correctly, exiting...." << termcolor::reset << std::endl;
 		break;
-	default:break; // undefined return val
 	}
 	sys::sleep(1000);
-	sys::pause("\n\tPress any key to exit....");
 	return;
+}
+
+inline void game_start(GLOBAL settings)
+{
+	GameRules rules; // define ruleset
+	Gamespace thisGame(settings, rules); // create the gamespace
+
+	std::thread player(&game_thread_player, std::ref(thisGame));
+	std::thread display(&game_thread_display, std::ref(thisGame));
+	std::thread enemy(&game_thread_npc, std::ref(thisGame));
+
+	player.join();
+	display.join();
+	enemy.join();
+
+	process_game_over(mem.win.load());
 }

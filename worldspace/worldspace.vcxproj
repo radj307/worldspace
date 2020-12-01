@@ -151,15 +151,18 @@
     <ClInclude Include="actor.h" />
     <ClInclude Include="Coord.h" />
     <ClInclude Include="FrameBuffer.h" />
+    <ClInclude Include="GameRules.h" />
     <ClInclude Include="Gamespace.h" />
     <ClInclude Include="cell.h" />
     <ClInclude Include="item.h" />
+    <ClInclude Include="game_query.h" />
     <ClInclude Include="settings.h" />
-    <ClInclude Include="threaded.h" />
+    <ClInclude Include="game_threads.h" />
     <ClInclude Include="WinAPI.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt" />
+    <Text Include="log.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

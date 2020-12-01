@@ -5,50 +5,10 @@
  * by radj307
  */
 #pragma once
-#include "cell.h"
 #include "actor.h"
+#include "cell.h"
+#include "GameRules.h"
 #include "settings.h"
-#include "WinAPI.h"
-
-/**
- * struct GameRules
- * Gamespace requires an instance of GameRules to construct, these are generic settings that may be used by a game to allow user-customization.
- */
-struct GameRules {
-	// CELL / WORLD
-	bool _walls_always_visible{ true };		// When true, wall tiles are always visible to the player.
-
-	// TRAPS
-	int _trap_dmg{ 20 };					// the amount of health an actor loses when they step on a trap
-	bool _trap_percentage{ true };			// whether the _trap_dmg amount is static, or a percentage of max health
-
-	// ATTACKS
-	int _attack_cost_stamina{ 15 };			// The amount of stamina used when attacking.
-
-	// PLAYER
-	ActorTemplate _player_template{ ActorStats(1, 100, 100, 45, 4), '$', WinAPI::color::green };
-
-	// ENEMIES
-	std::vector<ActorTemplate> _enemy_template{
-		{ ActorStats(1, 40, 40, 10, 3), 'Y', WinAPI::color::yellow },
-		{ ActorStats(2, 50, 50, 15, 4), 'T', WinAPI::color::red },
-		{ ActorStats(3, 50, 50, 20, 5), 'T', WinAPI::color::magenta },
-	};
-	int
-		_enemy_count{ 10 },					// how many enemies are present when the game starts
-		_enemy_move_chance{ 4 },			// 1 in (this) chance of a hostile moving each cycle (range is 0-this)
-		_enemy_aggro_distance{ 4 },			// Determines from how far away enemies notice the player and become aggressive
-		_enemy_aggro_duration{ 6 };			// Determines how long enemies will remain aggressive
-
-	// LEVELS
-	int _level_up_kills{ 2 };
-	int _level_up_mult{ 2 };	// Multiplier for the level up kills threshold, this is applied after every level
-
-	// PASSIVE EFFECTS
-	int
-		_regen_health{ 5 },
-		_regen_stamina{ 10 };
-};
 
 /**
  * class Gamespace
@@ -58,7 +18,7 @@ class Gamespace {
 	// worldspace cell
 	Cell _world;
 	// Reference to the game's ruleset
-	GameRules &_ruleset;
+	GameRules& _ruleset;
 	// Randomization engine
 	tRand _rng;
 
@@ -66,123 +26,224 @@ class Gamespace {
 	Player _player;
 	// generic enemies
 	std::vector<Enemy> _hostile;
-	// When this is true, the player wins.
-	bool _allEnemiesDead{ false };
+	// neutral actors
+	std::vector<Neutral> _neutral;
 
 	/**
-	 * generateEnemies(const int)
-	 * Create a number of hostiles with random attributes
-	 * 
-	 * @param count	- The number of hostiles to generate
+	 * findValidSpawn()
+	 * Returns the coordinate of a valid NPC spawn position. The player must already be initialized.
+	 *
+	 * @returns Coord
 	 */
-	inline void generateEnemies(const int count)
+	Coord findValidSpawn(const bool isPlayer = false)
 	{
-		int i = 0;
-		for ( Coord pos{ _rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1) }; i < count; pos = Coord(_rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1)) ) {
-			if ( _world.get(pos)._canMove && !_world.get(pos)._isTrap ) {
-				unsigned int sel{ _rng.get(100u, 0u) };
-
-				if ( sel <= 50 )
-					sel = 0;
-				else if ( sel <= 80 )
-					sel = 1;
-				else if ( sel <= 100 )
-					sel = 2;
-
-				_hostile.push_back({ "Enemy", pos, _ruleset._enemy_template.at(sel) });
-				i++;
-			}
+		// calculate max possible valid positions, set it as max
+		const int MAX_CHECKS{(_world._max._x - 2) * (_world._max._y - 2)};
+		// loop
+		for (auto i{0}; i < MAX_CHECKS; i++) {
+			// Get a random position
+			Coord pos{_rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1)};
+			// Check if this pos is valid
+			if ((_world.get(pos)._canMove) && !(_world.get(pos)._isTrap) && (isPlayer) ? (true) : (getActorAt(pos) == nullptr) && (_player.getDist(pos) >= _ruleset._enemy_aggro_distance + _player._visRange)) return pos;
 		}
+		// Else return invalid coord
+		return Coord(-1, -1);
+	}
+
+	template <class Actor = NPC>
+	std::vector<Actor> generate(const int count, std::vector<ActorTemplate>& templates)
+	{
+		std::vector<Actor> v;
+		for (auto i{0}; i < count; i++) {
+			unsigned int sel{0};
+
+			for (auto it{static_cast<signed>(templates.size() - 1)}; it >= 0; it--) {
+				const auto rand{_rng.get(100u, 0u)};
+				if (rand <= templates.at(it)._chance) {
+					sel = it;
+					break;
+				}
+			}
+			v.push_back({findValidSpawn(), templates.at(sel)});
+		}
+		return v;
 	}
 
 	/**
-	 * isAfraid(Enemy*)
+	 * apply_to_all(void(Gamespace::*)(ActorBase*))
+	 * Applies a Gamespace function to all actors.
+	 * Function must: Return void, and take 1 parameter of type ActorBase*
+	 *
+	 * @param func	- A void function that takes only one ActorBase* parameter.
+	 */
+	void apply_to_all(void (Gamespace::*func)(ActorBase*) const)
+	{
+		// Apply to player
+		(this->*func)(&_player);
+		// Apply to enemies
+		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) (this->*func)(&*it);
+		// Apply to neutrals
+		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) (this->*func)(&*it);
+	}
+
+	/**
+	 * apply_to_npc(void(Gamespace::*)(ActorBase*))
+	 * Applies a Gamespace function to all NPC actors.
+	 * Function must: Return void, and take 1 parameter of type ActorBase*
+	 *
+	 * @param func	- A void function that takes only one ActorBase* parameter.
+	 */
+	void apply_to_npc(void (Gamespace::*func)(NPC*))
+	{
+		// Apply to enemies
+		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) (this->*func)(&*it);
+		// Apply to neutrals
+		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) (this->*func)(&*it);
+	}
+
+	/**
+	 * get_all()
+	 * Returns a vector of pointers containing all actors in the game.
+	 *
+	 * @returns vector<ActorBase*>
+	 */
+	std::vector<ActorBase*> get_all()
+	{
+		std::vector<ActorBase*> allActors;
+		allActors.push_back(&_player);
+		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.push_back(&*it);
+		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.push_back(&*it);
+		return allActors;
+	}
+
+	/**
+	 * get_all_npc()
+	 * Returns a vector of pointers containing all NPC actors in the game.
+	 *
+	 * @returns vector<NPC*>
+	 */
+	std::vector<NPC*> get_all_npc()
+	{
+		std::vector<NPC*> allActors;
+		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.push_back(&*it);
+		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.push_back(&*it);
+		return allActors;
+	}
+
+	/**
+	 * isAfraid(ActorBase*)
 	 * Returns true if the given enemy's stats are too low to proceed with an attack on the player
-	 * 
-	 * @param e		 - Pointer to an Enemy instance
+	 *
+	 * @param a		 - Pointer to an Enemy instance
 	 * @returns bool - ( true = Enemy is afraid, run away ) ( false = Enemy is not afraid, proceed with attack )
 	 */
-	inline bool isAfraid(ActorBase* a)
+	bool isAfraid(ActorBase* a) const
 	{
-		if ( a != nullptr && ((a->getHealth() < (a->getMaxHealth() / 4)) || (a->getStamina() < _ruleset._attack_cost_stamina)) ) 
-			return true;
+		if (a != nullptr && ((a->getHealth() < (a->getMaxHealth() / 4)) || (a->getStamina() < _ruleset._attack_cost_stamina))) return true;
 		return false;
 	}
 
 	/**
 	 * regen(ActorBase*)
 	 * Increases an actor's stats by the relevant value in ruleset.
-	 * 
+	 *
 	 * @param a	- Pointer to an actor
 	 */
-	inline void regen(ActorBase* a)
+	void regen(ActorBase* a) const
 	{
-		if ( a != nullptr ) {
+		if (a != nullptr) {
 			a->modHealth(_ruleset._regen_health);
 			a->modStamina(_ruleset._regen_stamina);
 		}
 	}
 
-	inline void level_up(ActorBase* a)
+	/**
+	 * level_up(ActorBase*)
+	 * Checks if the given actor has enough kills to level up, then increments their level if they do.
+	 *
+	 * @param a	- Pointer to a target actor
+	 */
+	void level_up(ActorBase* a) const
 	{
-		if ( (a != nullptr) && (a->getKills() >= ((a->getLevel() * _ruleset._level_up_mult) * _ruleset._level_up_kills)) )
+		// return if nullptr was passed
+		if (a != nullptr && _ruleset.canLevelUp(a)) {
 			a->addLevel();
+		}
 	}
 
 	/**
 	 * intToDir(int)
 	 * Converts an integer to a direction char. Used by NPCs to select a movement direction consistent with the player controls.
-	 * 
+	 *
 	 * @param i			- ( 0 = 'w'/up ) ( 1 = 's'/down ) ( 2 = 'a'/left ) ( 3 = 'd'/right ) ( other = ' ' )
 	 * @returns char	- w/a/s/d
 	 */
-	inline char intToDir(int i)
+	static char intToDir(const int i)
 	{
-		switch ( i ) {
-		case 0:return 'w';
-		case 1:return 's';
-		case 2:return 'a';
-		case 3:return 'd';
-		default:return ' ';
+		switch (i) {
+		case 0: return 'w';
+		case 1: return 's';
+		case 2: return 'a';
+		case 3: return 'd';
+		default: return ' ';
 		}
 	}
 
 	/**
-	 * getDirTo(Coord, Coord)
+	 * floor(int&)
+	 * Round an integer to between (-1) and (1)
+	 *
+	 * @param in	- Reference of large/unknown integral to round.
+	 */
+	static int floor(const int in)
+	{
+		if ( in != 0 ) {
+			if ( in < -1 ) return -1;
+			else if ( in > 1 ) return 1;
+		}
+		return 0;
+	}
+
+	/**
+	 * getDir(Coord, Coord)
 	 * Returns a direction char from a start point and end point.
-	 * 
-	 * @param pos		- The starting/current position
+	 *
+	 * @param actor		- The starting/current position
 	 * @param target	- The target position
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	inline char getDirTo(Coord pos, Coord target, bool invert = false)
+	auto getDir(ActorBase* actor, const Coord& target, const bool invert = false) -> char
 	{
-		int distX{ pos._x - target._x }, distY{ pos._y - target._y };
-		// reduce large X distances to -1 or 1
-		if ( distX < -1 )		distX = -1;
-		else if ( distX > 1 )	distX = 1;
-		// reduce large Y distances to -1 or 1
-		if ( distY < -1 )		distY = -1;
-		else if ( distY > 1 )	distY = 1;
+		int // Get distance to target
+			distX{ floor(actor->pos()._x - target._x) },
+			distY{ floor(actor->pos()._y - target._y) };
+		auto dir{ ' ' };
 		// select a direction
-		if ( distX == 0 && !invert )		return { (distY < 0) ? ('s') : ('w') }; // check if X-axis is aligned
-		else if ( distY == 0 && !invert )	return { (distX < 0) ? ('d') : ('a') }; // check if Y-axis is aligned
-		else if ( distX == 0 && invert )	return { (distY < 0) ? ('w') : ('s') }; // check if X-axis is aligned (inverted)
-		else if ( distY == 0 && invert )	return { (distX < 0) ? ('a') : ('d') }; // check if Y-axis is aligned (inverted)
-		else { // neither axis is aligned, select a random direction
-			switch ( _rng.get(1, 0) ) {
-			case 0: // move on Y-axis
-				if ( !invert )				return { (distY < 0) ? ('s') : ('w') };
-				else						return { (distY < 0) ? ('w') : ('s') };
+		if (distX == 0 && !invert) dir = (distY < 0) ? ('s') : ('w'); // check if X-axis is aligned
+		if (distY == 0 && !invert) dir = (distX < 0) ? ('d') : ('a'); // check if Y-axis is aligned
+		// select an inverted direction
+		if (distX == 0 && invert) dir = (distY < 0) ? ('w') : ('s'); // check if X-axis is aligned (inverted)
+		if (distY == 0 && invert) dir = (distX < 0) ? ('a') : ('d'); // check if Y-axis is aligned (inverted)
+		// neither axis is aligned, select a random direction
+		switch ( _rng.get(1, 0) ) {
+		case 0: // move on Y-axis
+			if ( !invert ) {
+				dir = (distY < 0) ? ('s') : ('w');
 				break;
-			case 1: // move on X-axis
-				if ( !invert )				return { (distX < 0) ? ('d') : ('a') };
-				else						return { (distX < 0) ? ('a') : ('d') };
-				break;
-			default:return(' ');
 			}
+			dir = (distY < 0) ? ('w') : ('s');
+			break;
+		case 1: // move on X-axis
+			if ( !invert ) {
+				dir = (distX < 0) ? ('d') : ('a');
+				break;
+			}
+			dir = (distX < 0) ? ('a') : ('d');
+			break;
+		default:break;
 		}
+		return dir;
 	}
 
 	/**
@@ -192,19 +253,20 @@ class Gamespace {
 	 * @param pos	 - Target position
 	 * @returns bool - ( false = cannot move ) ( true = can move )
 	 */
-	inline bool canMove(Coord pos)
+	bool canMove(const Coord& pos)
 	{
 		return ((_world.get(pos)._canMove && getActorAt(pos) == nullptr) ? (true) : (false));
 	}
+
 	/**
 	 * canMove(int, int)
 	 * Returns true if the target position can be moved to.
-	 * 
+	 *
 	 * @param posX	 - Target X position
 	 * @param posY	 - Target Y position
 	 * @returns bool - ( false = cannot move ) ( true = can move )
 	 */
-	inline bool canMove(int posX, int posY)
+	bool canMove(const int posX, const int posY)
 	{
 		return ((_world.get(posX, posY)._canMove && getActorAt(posX, posY) == nullptr) ? (true) : (false));
 	}
@@ -217,12 +279,39 @@ class Gamespace {
 	 * @param dir	 - (w = up / s = down / a = left / d = right) all other characters are ignored.
 	 * @returns bool - ( true = moved successfully ) ( false = did not move )
 	 */
-	inline bool move(ActorBase* actor, char dir)
+	bool move(ActorBase* actor, const char dir)
+	{
+		auto did_move{false};
+		if (actor != nullptr) {
+			auto* target{getActorAt(actor->getPosDir(dir))}; // declare a pointer to potential attack target
+
+			if (target != nullptr) { }
+
+			// If the actor killed someone with an attack, move them to the target tile.
+			if (target != nullptr && (attack(actor, target) == 1 && canMove(target->pos()))) {
+				actor->moveDir(dir);
+				did_move = true;
+			}
+			// Else move randomly
+			else if (canMove(actor->getPosDir(dir))) {
+				actor->moveDir(dir);
+				did_move = true;
+			}
+			// Calculate trap damage if applicable
+			if (_world.get(actor->pos())._isTrap) {
+				if (_ruleset._trap_percentage) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
+				else actor->modHealth(-_ruleset._trap_dmg);
+			}
+		}
+		return did_move;
+	}
+	// old move function
+	/*bool move(ActorBase* actor, char dir)
 	{
 		if ( actor != nullptr ) {
-			bool didMove{ false }; // boolean to 
+			auto did_move{ false }; // boolean to
 			ActorBase* target{ nullptr }; // declare a pointer to potential attack target
-			int attackCode{ 0 }; // integer to hold the return val of potential attack
+			auto attackCode{ 0 }; // integer to hold the return val of potential attack
 			switch ( dir ) {
 			case 'W':
 			case 'w':
@@ -231,7 +320,7 @@ class Gamespace {
 					attackCode = attack(actor, target);
 				else if ( attackCode == 1 || canMove(actor->pos()._x, actor->pos()._y - 1) ) {
 					actor->moveU();
-					didMove = true;
+					did_move = true;
 				}
 				break;
 			case 'S':
@@ -241,7 +330,7 @@ class Gamespace {
 					attackCode = attack(actor, target);
 				else if ( attackCode == 1 || canMove(actor->pos()._x, actor->pos()._y + 1) ) {
 					actor->moveD();
-					didMove = true;
+					did_move = true;
 				}
 				break;
 			case 'A':
@@ -251,7 +340,7 @@ class Gamespace {
 					attackCode = attack(actor, target);
 				else if ( attackCode == 1 || canMove(actor->pos()._x - 1, actor->pos()._y) ) {
 					actor->moveL();
-					didMove = true;
+					did_move = true;
 				}
 				break;
 			case 'D':
@@ -261,10 +350,10 @@ class Gamespace {
 					attackCode = attack(actor, target);
 				else if ( attackCode == 1 || canMove(actor->pos()._x + 1, actor->pos()._y) ) {
 					actor->moveR();
-					didMove = true;
+					did_move = true;
 				}
 				break;
-			default:return didMove; // if the given char does not match a direction, return to avoid processing the trap logic twice.
+			default:return did_move; // if the given char does not match a direction, return to avoid processing the trap logic twice.
 			}
 			// if this tile is a trap
 			if ( _world.get(actor->pos())._isTrap ) {
@@ -277,118 +366,99 @@ class Gamespace {
 					break;
 				}
 			}
-			return didMove;
+			return did_move;
 		}
 		else throw std::exception("Cannot move() a nullptr!");
-	}
-
+	}*/
+	
 	/**
 	 * attack(ActorBase*, ActorBase*)
 	 * Allows an actor to attack another actor.
-	 * 
+	 *
 	 * @param attacker	- A pointer to the attacking actor
 	 * @param target	- A pointer to the actor being attacked
 	 * @returns int		- ( -1 = param was nullptr ) ( 0 = success, target is still alive ) ( 1 = success, target killed )
 	 */
-	inline int attack(ActorBase* attacker, ActorBase* target)
+	int attack(ActorBase* attacker, ActorBase* target)
 	{
-		if ( attacker != nullptr && target != nullptr ) {
+		if (attacker != nullptr && target != nullptr) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
-			int dmg = _rng.get(attacker->getMaxDamage(), (attacker->getMaxDamage() / 6));
+			const auto dmg = _rng.get(attacker->getMaxDamage(), (attacker->getMaxDamage() / 6));
 			// if actor has enough stamina
-			if ( attacker->getStamina() >= _ruleset._attack_cost_stamina )
-				target->modHealth(-dmg);
-			// if actor has stamina, but not enough for a full attack
-			else if ( attacker->getStamina() )
-				target->modHealth(-(dmg / 2));
-			// actor is out of stamina
+			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) target->modHealth(-dmg);
+				// if actor has stamina, but not enough for a full attack
+			else if (attacker->getStamina()) target->modHealth(-(dmg / 2));
+				// actor is out of stamina
 			else {
 				target->modHealth(-(dmg / 4));
 				attacker->modHealth(-(dmg / 12));
 			}
 			attacker->modStamina(-_ruleset._attack_cost_stamina);
-			// check if target died, and return
-			if ( target->isDead() ) {
-				attacker->addKill();
-				return 1;
-			}
-			else return 0;
+			// check if target died, add a kill to attacker
+			if (target->isDead()) attacker->addKill();
+				// else set target as hostile to attacker
+			else target->setRelationship(attacker->faction(), true);
+			return target->isDead();
 		}
-		else return -1;
+		return -1;
+	}
+
+	void actionNPC(NPC* npc)
+	{
+		if (npc->isAggro()) {
+			ActorBase* target{npc->getTarget()};
+			if (target != nullptr) move(&*npc, getDir(&*npc, target->pos(), isAfraid(&*npc)));
+			npc->decrementAggro();
+		}
+		else {
+			if (_player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
+				npc->setTarget(&_player);
+				npc->modAggro(_ruleset._enemy_aggro_duration);
+				move(&*npc, getDir(&*npc, _player.pos(), isAfraid(&*npc)));
+			}
+			else if (_rng.get(_ruleset._enemy_move_chance, 0) == 0) move(&*npc, intToDir(_rng.get(3, 0)));
+		}
 	}
 
 public:
-	/** CONSTRUCTOR **  
-	 * Gamespace(GLOBAL&, GameRules&)  
+	// When this is true, the player wins.
+	bool _allEnemiesDead{false};
+
+	/** CONSTRUCTOR **
+	 * Gamespace(GLOBAL&, GameRules&)
 	 * Creates a new gamespace with the given settings.
-	 * 
+	 *
 	 * @param settings	- A ref to the global settings structure
 	 * @param ruleset	- A ref to the ruleset structure
 	 */
-	Gamespace(GLOBAL& settings, GameRules &ruleset) : _ruleset(ruleset), _world((settings._import_filename.size() > 0) ? (Cell{ settings._import_filename, ruleset._walls_always_visible, settings._override_known_tiles }) : (Cell{ settings._cellSize, ruleset._walls_always_visible, settings._override_known_tiles })), _player("Player", Coord(1, 1), ruleset._player_template)
+	Gamespace(GLOBAL& settings, GameRules& ruleset)
+		: _world((!settings._import_filename.empty()) ? (Cell{settings._import_filename, ruleset._walls_always_visible, settings._override_known_tiles}) : (Cell{settings._cellSize, ruleset._walls_always_visible, settings._override_known_tiles})), _ruleset(ruleset), _player(findValidSpawn(true), ruleset._player_template), _hostile(generate<Enemy>(ruleset._enemy_count, ruleset._enemy_template)), _neutral(generate<Neutral>(ruleset._neutral_count, ruleset._neutral_template))
 	{
 		_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
-		generateEnemies(ruleset._enemy_count); // create an amount of enemies specified by the ruleset
-	//	generateNeutral(10);
 	}
 
-	/**
-	 * actionHostile()
-	 * Iterates the list of enemies and makes them perform a random action.
-	 * Hostiles will follow the player when nearby, and run away if their stamina is too low
-	 * 
-	 * Note that this function does NOT clean up dead enemies, which is done from FrameBuffer::display()
-	 */
-	void actionHostile()
+	void actionAllNPC()
 	{
-		for ( auto it = _hostile.begin(); it < _hostile.end(); it++ ) {
-			// Check if this enemy is NOT dead:
-			if ( !(&*it)->isDead() ) {
-				// if this enemy is aggravated:
-				if ( (&*it)->isAggro() ) {
-					// This enemy moves
-					move(&*it, getDirTo((&*it)->pos(), _player.pos(), isAfraid(&*it)));
-					// decrease aggression
-					(&*it)->decrementAggro();
-				}
-
-				// else this enemy is not aggravated:
-				else {
-					// If the player is within aggravation distance:
-					if ( _player.getDist((&*it)->pos()) <= _ruleset._enemy_aggro_distance ) {
-						// This enemy becomes aggravated
-						(&*it)->modAggro(_ruleset._enemy_aggro_duration);
-						// This enemy moves
-						move(&*it, getDirTo((&*it)->pos(), _player.pos(), isAfraid(&*it)));
-					}
-					
-					// Else, roll for move check:
-					else if (_rng.get(_ruleset._enemy_move_chance, 0) == 0)
-						// Move randomly
-						move(&*it, intToDir(_rng.get(3, 0)));
-				}
-			}
-		}
+		apply_to_npc(&Gamespace::actionNPC);
 	}
 
 	/**
 	 * actionPlayer(char)
 	 * Moves the player in a given direction, if possible.
-	 * 
-	 * @param dir	- 'w' for up, 's' for down, 'a' for left, 'd' for right. Anything else is ignored.
+	 *
+	 * @param key	- 'w' for up, 's' for down, 'a' for left, 'd' for right. Anything else is ignored.
 	 * @returns int	- ( 0 = player is dead ) ( 1 = normal execution ) ( 2 = all enemies are dead )
 	 */
-	int actionPlayer(char key)
+	int actionPlayer(const char key)
 	{
 		// if not dead and move was successful
-		if ( !_player.isDead() && move(&_player, key) ) { // player specific post-movement functions
+		if (!_player.isDead() && move(&_player, key)) {
+			// player specific post-movement functions
 			_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
 		}
 		// 2nd check to cover both possible cases, where player is dead after moving, or if the first if statement failed
-		if ( _player.isDead() )
-			return 0;
-		else if ( _allEnemiesDead )
-			return 2;
+		if (_player.isDead()) return 0;
+		if (_allEnemiesDead) return 2;
 		return 1;
 	}
 
@@ -396,16 +466,10 @@ public:
 	 * apply_passive()
 	 * Iterates through all actors and applies passive effects set by the current ruleset.
 	 */
-	inline void apply_passive()
+	void apply_passive()
 	{
-		// regen player
-		regen(&_player);
-		level_up(&_player);
-		// regen all hostiles
-		for ( auto it = _hostile.begin(); it != _hostile.end(); it++ ) {
-			level_up(&*it);
-			regen(&*it);
-		}
+		apply_to_all(&Gamespace::regen);
+		apply_to_all(&Gamespace::level_up);
 	}
 
 	/**
@@ -413,13 +477,18 @@ public:
 	 * Removes dead hostiles from the game.
 	 * This function is used by FrameBuffer::display()
 	 */
-	inline void cleanupDead()
+	void cleanupDead()
 	{
-		for ( size_t it = 0; it < _hostile.size(); it++ )
-			if ( _hostile.at(it).isDead() )
-				_hostile.erase(_hostile.begin() + it);
-		if ( _hostile.size() == 0 )
-			_allEnemiesDead = true;
+		// erase dead enemies
+		//	for ( size_t it = 0; it < _hostile.size(); it++ )
+		for (auto it{static_cast<int>(_hostile.size()) - 1}; it >= 0; it--)
+			if (_hostile.at(it).isDead()) _hostile.erase(_hostile.begin() + it);
+		// erase dead neutrals
+		//for ( size_t it = 0; it < _neutral.size(); it++ )
+		for (auto it{static_cast<signed>(_neutral.size() - 1)}; it >= 0; it--)
+			if (_neutral.at(it).isDead()) _neutral.erase(_neutral.begin() + it);
+		// check win condition
+		if (_hostile.empty()) _allEnemiesDead = true;
 	}
 
 	/**
@@ -427,37 +496,34 @@ public:
 	 * Returns a pointer to an actor located at a given tile.
 	 *
 	 * @param pos			- The target tile
-	 * @param findByIndex	- (Default: true) Whether to search the matrix from pos (0,0)=true or (1,1)=false
 	 */
-	ActorBase* getActorAt(Coord pos, const bool findByIndex = true)
+	ActorBase* getActorAt(Coord pos)
 	{
-		if ( pos == _player.pos() )
-			return &_player; // else:
-		for ( auto it = _hostile.begin(); it != _hostile.end(); it++ ) {
-			if ( pos == (*it).pos() )
-				return &*it;
+		for (auto* it : get_all()) {
+			if (pos == it->pos()) return it;
 		}
-		return{ nullptr };
+		return nullptr;
 	}
-	ActorBase* getActorAt(int posX, int posY, const bool findByIndex = true)
-	{
-		if ( posX == _player.pos()._x && posY == _player.pos()._y )
-			return &_player; // else:
-		for ( auto it = _hostile.begin(); it != _hostile.end(); it++ ) {
-			if ( posX == (*it).pos()._x && posY == (*it).pos()._y )
-				return &*it;
-		}
-		return{ nullptr };
-	}
+
+	ActorBase* getActorAt(int posX, int posY);
 
 	// GETTERS & FRAME API
 
-	inline Player& getPlayer() { return _player; }
-	inline Tile& getTile(Coord pos) { return _world.get(pos); }
-	inline Tile& getTile(int x, int y) { return _world.get(x, y); }
-	inline Cell& getCell() { return{ _world }; }
-	inline Coord getCellSize() { return{ _world._max._x, _world._max._y }; }
-	inline std::vector<Enemy>& getHostileVec() { return _hostile; }
+	Player& getPlayer() { return _player; }
+	Tile& getTile(const Coord& pos) { return _world.get(pos); }
+	Tile& getTile(int x, int y) { return _world.get(x, y); }
+	Cell& getCell() { return {_world}; }
+	Coord getCellSize() { return {_world._max._x, _world._max._y}; }
+	std::vector<Enemy>& getHostileVec() { return _hostile; }
+	GameRules& getRuleset() { return _ruleset; }
 
 	// DISPLAYS / HUD
 };
+
+inline ActorBase* Gamespace::getActorAt(int posX, int posY)
+{
+	for (auto* it : get_all()) {
+		if (posX == it->pos()._x && posY == it->pos()._y) return it;
+	}
+	return nullptr;
+}

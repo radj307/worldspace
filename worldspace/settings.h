@@ -18,5 +18,5 @@ struct WorldAttributes {
 struct GLOBAL : public WorldAttributes {
 	// default values:
 	std::string _import_filename{ "" };
-	Coord _resolution{ 800, 600 };
+	//Coord _resolution{ 800, 600 };
 };

@@ -6,13 +6,15 @@
  */
 #pragma once
 #include <iostream>
-#include <vector>
 #include <sstream>
+#include <utility>
+#include <vector>
 #include <Windows.h>
-#include "WinAPI.h"
-#include "xRand.h"
+
 #include "Coord.h"
 #include "file.h"
+#include "WinAPI.h"
+#include "xRand.h"
 
 /**
  * struct Tile : public Coord
@@ -44,9 +46,10 @@ struct Tile : public Coord {
 	 * @param as				- This tile's type (display character)
 	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
+	 * @param makeWallsVisible	- When true, all wall tiles are always visible to the player
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(display as, int xPos, int yPos, bool makeWallsVisible, bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	Tile(const display as, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
 	{
 		// check if tile attributes are correct
 		switch ( _display ) {
@@ -126,12 +129,12 @@ struct Tile : public Coord {
 	}
 
 	// Stream insertion operator
-	friend inline std::ostream& operator<<(std::ostream& os, const Tile& t)
+	friend std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
 		if ( t._myColor != WinAPI::color::white ) // if this tile has a color, set it
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<int>(t._myColor));
 		if ( t._isKnown ) // if this tile is known, insert its char
-			os << char(t._display) << ' ';
+			os << static_cast<char>(t._display) << ' ';
 		else // if this tile is not known, insert a blank
 			os << ' ' << ' ';
 		// reset color
@@ -151,15 +154,15 @@ static Tile __TILE_ERROR;
  * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
  * @returns vector<vector<Tile>>
  */
-std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWallsVisible, bool override_known_tiles)
+inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, const bool makeWallsVisible, const bool override_known_tiles)
 {
 	std::vector<std::vector<Tile>> matrix{};
 
 	if ( file::exists(filename) ) {
-		std::stringstream content{ file::readToStream(filename) };
+		auto content{ file::readToStream(filename) };
 
 		content.seekg(0, std::ios::end);				// send sstream to the end
-		int content_size{ static_cast<int>(content.tellg()) };  // find the size of received stringstream
+		const auto content_size{ static_cast<int>(content.tellg()) };  // find the size of received stringstream
 		content.seekg(0, std::ios::beg);				// send sstream back to the beginning
 
 		// check if content is not empty
@@ -174,11 +177,11 @@ std::vector<std::vector<Tile>> importMatrix(std::string filename, bool makeWalls
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
 					bool isValid{ false };
 					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); it++ ) {
-						if ( line.at(x) == char(*it) )
+						if ( line.at(x) == static_cast<char>(*it) )
 							isValid = true;
 					}
-					if ( isValid )	row.push_back(Tile(static_cast<Tile::display>(line.at(x)), x, y, makeWallsVisible, override_known_tiles));
-					else			row.push_back(Tile(Tile::display::none, x, y, makeWallsVisible, override_known_tiles));
+					if ( isValid )	row.emplace_back(static_cast<Tile::display>(line.at(x)), x, y, makeWallsVisible, override_known_tiles);
+					else			row.emplace_back(Tile::display::none, x, y, makeWallsVisible, override_known_tiles);
 				}
 				matrix.push_back(row);
 				line.clear();
@@ -201,7 +204,7 @@ protected:
 	 * @param makeWallsVisible		- When true, wall tiles will always be visible.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	inline void generate(bool makeWallsVisible, bool override_known_tiles)
+	void generate(bool makeWallsVisible, bool override_known_tiles)
 	{
 		if ( _max._y > 5 && _max._x > 5 ) {
 			tRand rng;
@@ -210,15 +213,15 @@ protected:
 				for ( int x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
 					if ( (x == 0 || x == (_max._x - 1)) || (y == 0 || y == (_max._y - 1)) )
-						_row.push_back(Tile(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles));
+						_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
 					else { // not an edge
-						unsigned int rand = rng.get(100u, 0u);
+						const unsigned int rand = rng.get(100u, 0u);
 						if ( rand < 7 ) // 7:100 chance of a wall tile that isn't on an edge
-							_row.push_back(Tile(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles));
+							_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
 						else if ( rand > 7 && rand < 9 )
-							_row.push_back(Tile(Tile::display::hole, x, y, makeWallsVisible, override_known_tiles));
+							_row.emplace_back(Tile::display::hole, x, y, makeWallsVisible, override_known_tiles);
 						else
-							_row.push_back(Tile(Tile::display::empty, x, y, makeWallsVisible, override_known_tiles));
+							_row.emplace_back(Tile::display::empty, x, y, makeWallsVisible, override_known_tiles);
 					}
 				}
 				_matrix.push_back(_row);
@@ -239,7 +242,7 @@ public:
 	 * @param cellSize				- The size of the cell
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(Coord cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _max(cellSize._x, cellSize._y), isValidPos(_max)
+	Cell(const Coord& cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _max(cellSize._x, cellSize._y), isValidPos(_max)
 	{
 		generate(makeWallsVisible, override_known_tiles);
 	}
@@ -251,7 +254,7 @@ public:
 	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(std::string filename, bool makeWallsVisible = true, bool override_known_tiles = false) : 
+	Cell(const std::string& filename, bool makeWallsVisible = true, bool override_known_tiles = false) : 
 		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
 		_max((file::exists(filename)) ? (_matrix.at(0).size()) : (0), (file::exists(filename)) ? (_matrix.size()) : (0)),
 		isValidPos(_max) {}
@@ -260,7 +263,7 @@ public:
 	 * display()
 	 * Print the cell to the console as it is known to the player.
 	 */
-	inline void display()
+	void display()
 	{
 		std::stringstream buf;
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
@@ -279,15 +282,15 @@ public:
 	 * @param pos
 	 * @param diameter
 	 */
-	inline void display(Coord pos, const int diameter)
+	void display(const Coord& pos, const int diameter)
 	{
 		std::stringstream buf;
 		// iterate vertical
-		for ( int y = (signed)(pos._y - diameter); y < (signed)(pos._y + diameter); y++ ) { 
+		for ( int y = static_cast<int>(pos._y - diameter); y < static_cast<int>(pos._y + diameter); y++ ) { 
 			// counter for number of chars added
 			int doNewline{ 0 };
 			// iterate horizontal
-			for ( int x = (signed)(pos._x - diameter); x < (signed)(pos._x + diameter); x++ ) { 
+			for ( int x = static_cast<int>(pos._x - diameter); x < static_cast<int>(pos._x + diameter); x++ ) { 
 				// check if this pos exists
 				if ( isValidPos(x, y) ) { 
 					buf << _matrix.at(y).at(x);
@@ -307,11 +310,11 @@ public:
 	 *
 	 * @param pos	- Target position
 	 */
-	inline char getDisplayChar(Coord pos)
+	char getDisplayChar(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
-			return char(get(pos)._display);
-		return{ NULL };
+			return static_cast<char>(get(pos)._display);
+		return NULL;
 	}
 
 	/**
@@ -320,7 +323,7 @@ public:
 	 * 
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 */
-	inline void modVis(bool to)
+	void modVis(bool to)
 	{
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ )
 			for ( auto x = y->begin(); x != y->end(); x++ )
@@ -335,7 +338,7 @@ public:
 	 * @param pos		- The center-point
 	 * @param diameter	- The distance away from the center-point that will also be discovered.
 	 */
-	inline void modVis(bool to, Coord pos, const int diameter = 3)
+	void modVis(bool to, const Coord& pos, const int diameter = 3)
 	{
 		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ )
 			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ )
@@ -351,7 +354,7 @@ public:
 	 * @param minPos	- The top-left corner of the target area
 	 * @param maxPos	- The bottom-right corner of the target area
 	 */
-	inline void modVis(bool to, Coord minPos, Coord maxPos)
+	void modVis(bool to, const Coord& minPos, const Coord& maxPos)
 	{
 		for ( int y = minPos._y; y <= maxPos._y; y++ )
 			for ( int x = minPos._x; x <= maxPos._x; x++ )
@@ -382,7 +385,7 @@ public:
 	 * 
 	 * @param pos			- The target tile
 	 */
-	inline Tile &get(Coord pos)
+	Tile &get(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
 			return _matrix.at(pos._y).at(pos._x);
@@ -396,7 +399,7 @@ public:
 	 * @param x				- The target tile's x index
 	 * @param y				- The target tile's y index
 	 */
-	inline Tile &get(int x, int y)
+	Tile &get(int x, int y)
 	{
 		if ( isValidPos(x, y) )
 			return _matrix.at(y).at(x);
@@ -411,8 +414,8 @@ public:
 	 * @param saveAs	- Whether to overwrite or append to file if it already exists.
 	 * @returns bool	- true when successful, false when failed.
 	 */
-	inline bool exportToFile(std::string filename, file::save_type saveAs = file::save_type::overwrite)
+	bool exportToFile(std::string filename, file::save_type saveAs = file::save_type::overwrite)
 	{
-		return file::write(filename, sstream(), saveAs);
+		return file::write(std::move(filename), sstream(), saveAs);
 	}
 };

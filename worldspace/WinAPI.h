@@ -29,7 +29,7 @@ namespace WinAPI {
     void setCursorPos(int x, int y)
     {
         std::cout.flush();
-        COORD coord = { (SHORT)x, (SHORT)y };
+		const COORD coord = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
         SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
     }
 
@@ -75,7 +75,7 @@ namespace WinAPI {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
 
         // set origin point to top left corner
-        COORD topLeft = { 0, 0 };
+		const COORD topLeft = { 0, 0 };
 
         // flush the cout buffer to prevent garbage characters being written
         std::cout.flush();

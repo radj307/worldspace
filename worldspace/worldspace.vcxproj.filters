@@ -38,9 +38,6 @@
     <ClInclude Include="settings.h">
       <Filter>game-related</Filter>
     </ClInclude>
-    <ClInclude Include="threaded.h">
-      <Filter>game implementation</Filter>
-    </ClInclude>
     <ClInclude Include="item.h">
       <Filter>game-related</Filter>
     </ClInclude>
@@ -53,9 +50,21 @@
     <ClInclude Include="Gamespace.h">
       <Filter>game-related</Filter>
     </ClInclude>
+    <ClInclude Include="game_threads.h">
+      <Filter>game implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="game_query.h">
+      <Filter>game implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRules.h">
+      <Filter>game-related</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">
+      <Filter>util</Filter>
+    </Text>
+    <Text Include="log.txt">
       <Filter>util</Filter>
     </Text>
   </ItemGroup>

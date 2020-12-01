@@ -6,20 +6,13 @@
 #pragma once
 #include <cmath>
 
-/**
- * struct Coord
- * Wrapper for (x/y) positioning.
- * 
- * @param x	- Horizontal index
- * @param y	- Vertical index
- */
 struct Coord {
 	long _y;	// VERTICAL
 	long _x;	// HORIZONTAL
-	Coord(long x, long y) : _y(y), _x(x) {}
+	Coord(const long x, const long y) : _y(y), _x(x) {}
 	Coord(const Coord &pos) : _y(pos._y), _x(pos._x) {}
 
-	inline bool operator==(const Coord &o)
+	bool operator==(const Coord &o) const
 	{
 		if ( (_y == o._y) && (_x == o._x) )
 			return true;
@@ -33,18 +26,14 @@ struct Coord {
  */
 struct checkDistance {
 	// Returns the distance in tiles from pos1 to pos2
-	long operator()(Coord pos1, Coord pos2, bool positiveOnly = true)
+	long operator()(const Coord& pos1, const Coord& pos2, bool positiveOnly = true) const
 	{
-		if ( positiveOnly )
-			return{ (abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y)) };
-		else return{ (pos1._x - pos2._x) + (pos1._y - pos2._y) };
+		return (abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y));
 	}
 	// Returns the distance in tiles from pos1 to pos2
-	long operator()(long pos1X, long pos1Y, long pos2X, long pos2Y, bool positiveOnly = true)
+	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y, const bool positiveOnly = true) const
 	{
-		if ( positiveOnly )
-			return{ (abs(pos1X - pos2X) + abs(pos1Y - pos2Y)) };
-		else return{ (pos1X - pos2X) + (pos1Y - pos2Y) };
+		return (abs(pos1X - pos2X) + abs(pos1Y - pos2Y));
 	}
 };
 
@@ -54,7 +43,7 @@ struct checkDistance {
  */
 struct checkDistanceFrom {
 	// member coord pointer to follow, such as the player
-	Coord* _follow{ nullptr };
+	Coord* _follow;
 
 	/** CONSTRUCTOR **
 	 * checkDistanceFrom(Coord*)
@@ -62,21 +51,17 @@ struct checkDistanceFrom {
 	 *
 	 * @param followThis	- A pointer to a Coord instance to use when checking distance.
 	 */
-	checkDistanceFrom(Coord* followThis) : _follow(followThis) {}
+	explicit checkDistanceFrom(Coord& followThis) : _follow(&followThis) {}
 
 	// Returns the distance in tiles from the given pos
-	long operator()(Coord pos, bool positiveOnly = true)
+	long operator()(const Coord& pos) const noexcept
 	{
-		if ( positiveOnly )
-			return{ (abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y)) };
-		else return{ (_follow->_x - pos._x) + (_follow->_y - pos._y) };
+		return (abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y));
 	}
 	// Returns the distance in tiles from the given pos
-	long operator()(long posX, long posY, bool positiveOnly = true)
+	long operator()(const long posX, const long posY) const noexcept
 	{
-		if ( positiveOnly )
-			return{ (abs(_follow->_x - posX) + abs(_follow->_y - posY)) };
-		else return{ (_follow->_x - posX) + (_follow->_y - posY) };
+		return (abs(_follow->_x - posX) + abs(_follow->_y - posY));
 	}
 };
 
@@ -94,7 +79,7 @@ struct checkBounds {
 	 * @param maxPos	- The maximum allowed x & y indexes
 	 * @param minPos	- (Default: [0,0]) The minimum allowed x & y indexes
 	 */
-	checkBounds(const Coord maxPos, const Coord minPos = Coord(0, 0)) : _maxPos(maxPos), _minPos(minPos) {}
+	explicit checkBounds(const Coord& maxPos, const Coord& minPos = Coord(0, 0)) : _maxPos(maxPos), _minPos(minPos) {}
 
 	/** CONSTRUCTOR **
 	 * checkBounds(const Coord, const Coord)
@@ -112,7 +97,7 @@ struct checkBounds {
 	 * 
 	 * @param pos		- Target position to check
 	 */
-	bool operator()(Coord pos) const
+	bool operator()(const Coord& pos) const
 	{
 		if ( (pos._y >= 0 && pos._y < _maxPos._y) && (pos._x >= 0 && pos._x < _maxPos._x) )
 			return true;
