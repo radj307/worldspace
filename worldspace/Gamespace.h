@@ -28,6 +28,7 @@ class Gamespace {
 	std::vector<Enemy> _hostile;
 	// neutral actors
 	std::vector<Neutral> _neutral;
+	checkDistance getDist;
 
 	/**
 	 * findValidSpawn()
@@ -44,7 +45,7 @@ class Gamespace {
 			// Get a random position
 			Coord pos{_rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1)};
 			// Check if this pos is valid
-			if (_world.get(pos)._canMove && !_world.get(pos)._isTrap && isPlayer ? true : getActorAt(pos) == nullptr && _player.getDist(pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
+			if (_world.get(pos)._canMove && !_world.get(pos)._isTrap && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
 		}
 		// Else return invalid coord
 		return Coord(-1, -1);
@@ -58,8 +59,7 @@ class Gamespace {
 			unsigned int sel{0};
 
 			for (auto it{static_cast<signed>(templates.size() - 1)}; it >= 0; it--) {
-				const auto rand{_rng.get(100u, 0u)};
-				if (rand <= templates.at(it)._chance) {
+				if ( _rng.get(100u, 0u) <= templates.at(it)._chance) {
 					sel = it;
 					break;
 				}
@@ -283,71 +283,6 @@ class Gamespace {
 		}
 		return did_move;
 	}
-	// old move function
-	/*bool move(ActorBase* actor, char dir)
-	{
-		if ( actor != nullptr ) {
-			auto did_move{ false }; // boolean to
-			ActorBase* target{ nullptr }; // declare a pointer to potential attack target
-			auto attackCode{ 0 }; // integer to hold the return val of potential attack
-			switch ( dir ) {
-			case 'W':
-			case 'w':
-				target = getActorAt(actor->pos()._x, actor->pos()._y - 1); // define the target
-				if ( target != nullptr )
-					attackCode = attack(actor, target);
-				else if ( attackCode == 1 || canMove(actor->pos()._x, actor->pos()._y - 1) ) {
-					actor->moveU();
-					did_move = true;
-				}
-				break;
-			case 'S':
-			case 's':
-				target = getActorAt(actor->pos()._x, actor->pos()._y + 1); // define the target
-				if ( target != nullptr )
-					attackCode = attack(actor, target);
-				else if ( attackCode == 1 || canMove(actor->pos()._x, actor->pos()._y + 1) ) {
-					actor->moveD();
-					did_move = true;
-				}
-				break;
-			case 'A':
-			case 'a':
-				target = getActorAt(actor->pos()._x - 1, actor->pos()._y); // define the target
-				if ( target != nullptr )
-					attackCode = attack(actor, target);
-				else if ( attackCode == 1 || canMove(actor->pos()._x - 1, actor->pos()._y) ) {
-					actor->moveL();
-					did_move = true;
-				}
-				break;
-			case 'D':
-			case 'd':
-				target = getActorAt(actor->pos()._x + 1, actor->pos()._y); // define the target
-				if ( target != nullptr )
-					attackCode = attack(actor, target);
-				else if ( attackCode == 1 || canMove(actor->pos()._x + 1, actor->pos()._y) ) {
-					actor->moveR();
-					did_move = true;
-				}
-				break;
-			default:return did_move; // if the given char does not match a direction, return to avoid processing the trap logic twice.
-			}
-			// if this tile is a trap
-			if ( _world.get(actor->pos())._isTrap ) {
-				switch ( _ruleset._trap_percentage ) {
-				case true:
-					actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
-					break;
-				default:
-					actor->modHealth(-_ruleset._trap_dmg);
-					break;
-				}
-			}
-			return did_move;
-		}
-		else throw std::exception("Cannot move() a nullptr!");
-	}*/
 	
 	/**
 	 * attack(ActorBase*, ActorBase*)
@@ -359,7 +294,7 @@ class Gamespace {
 	 */
 	int attack(ActorBase* attacker, ActorBase* target)
 	{
-		if (attacker != nullptr && target != nullptr) {
+		if (attacker != nullptr && target != nullptr && attacker->faction() != target->faction()) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
 			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
 			// if actor has enough stamina
@@ -389,7 +324,7 @@ class Gamespace {
 			npc->decrementAggro();
 		}
 		else {
-			if (_player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
+			if (npc->isHostileTo(_player.faction()) && _player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
 				npc->setTarget(&_player);
 				npc->modAggro(_ruleset._enemy_aggro_duration);
 				move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));

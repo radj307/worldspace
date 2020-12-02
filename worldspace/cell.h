@@ -20,7 +20,7 @@
  * struct Tile : public Coord
  * Represents a single position in the matrix of a cell
  */
-struct Tile : public Coord {
+struct Tile : Coord {
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
@@ -76,9 +76,10 @@ struct Tile : public Coord {
 	 * @param color				- This tile's color when inserted into a stream.
 	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
+	 * @param makeWallsVisible	- walls are always visible
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(display as, WinAPI::color color, int xPos, int yPos, bool makeWallsVisible, bool isKnownOverride) : Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	Tile(const display as, const WinAPI::color color, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
 	{
 		// check if tile attributes are correct
 		switch ( _display ) {
@@ -103,25 +104,25 @@ struct Tile : public Coord {
 	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false) {}
 
 	// comparison operators
-	bool operator==(Tile &o)
+	bool operator==(Tile &o) const
 	{
 		if ( _display == o._display )
 			return true;
 		return false;
 	}
-	bool operator!=(Tile &o)
+	bool operator!=(Tile &o) const
 	{
 		if ( _display != o._display )
 			return true;
 		return false;
 	}
-	bool operator==(Tile::display o)
+	bool operator==(Tile::display o) const
 	{
 		if ( _display == o )
 			return true;
 		return false;
 	}
-	bool operator!=(Tile::display o)
+	bool operator!=(Tile::display o) const
 	{
 		if ( _display != o )
 			return true;
@@ -175,7 +176,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 				line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 				// iterate through line
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
-					bool isValid{ false };
+					auto isValid{ false };
 					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); it++ ) {
 						if ( line.at(x) == static_cast<char>(*it) )
 							isValid = true;
@@ -208,14 +209,14 @@ protected:
 	{
 		if ( _max._y > 5 && _max._x > 5 ) {
 			tRand rng;
-			for ( int y = 0; y < _max._y; y++ ) {
+			for (auto y = 0; y < _max._y; y++ ) {
 				std::vector<Tile> _row;
-				for ( int x = 0; x < _max._x; x++ ) {
+				for (auto x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
-					if ( (x == 0 || x == (_max._x - 1)) || (y == 0 || y == (_max._y - 1)) )
+					if ( x == 0 || x == _max._x - 1 || (y == 0 || y == _max._y - 1) )
 						_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
 					else { // not an edge
-						const unsigned int rand = rng.get(100u, 0u);
+						const auto rand = rng.get(100u, 0u);
 						if ( rand < 7 ) // 7:100 chance of a wall tile that isn't on an edge
 							_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
 						else if ( rand > 7 && rand < 9 )
@@ -240,9 +241,10 @@ public:
 	 * Generate a new cell with the given size parameters
 	 * 
 	 * @param cellSize				- The size of the cell
+	 * @param makeWallsVisible		- walls are always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(const Coord& cellSize, bool makeWallsVisible = true, bool override_known_tiles = false) : _max(cellSize._x, cellSize._y), isValidPos(_max)
+	explicit Cell(const Coord& cellSize, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _max(cellSize._x - 1, cellSize._y - 1), isValidPos(_max)
 	{
 		generate(makeWallsVisible, override_known_tiles);
 	}
@@ -252,11 +254,12 @@ public:
 	 * Load a cell from a specified file
 	 * 
 	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
+	 * @param makeWallsVisible		- walls always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	Cell(const std::string& filename, bool makeWallsVisible = true, bool override_known_tiles = false) : 
+	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : 
 		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
-		_max((file::exists(filename)) ? (_matrix.at(0).size()) : (0), (file::exists(filename)) ? (_matrix.size()) : (0)),
+		_max(_matrix.at(0).size() - 1, _matrix.size() - 1),
 		isValidPos(_max) {}
 
 	/**
@@ -268,7 +271,7 @@ public:
 		std::stringstream buf;
 		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
 			for ( auto x = y->begin(); x != y->end(); x++ ) {
-				buf << (*x);
+				buf << *x;
 			}
 			buf << std::endl;
 		}
@@ -340,8 +343,8 @@ public:
 	 */
 	void modVis(bool to, const Coord& pos, const int diameter = 3)
 	{
-		for ( int y = (pos._y - diameter); y <= (pos._y + diameter); y++ )
-			for ( int x = (pos._x - diameter); x <= (pos._x + diameter); x++ )
+		for ( int y = pos._y - diameter; y <= pos._y + diameter; y++ )
+			for ( int x = pos._x - diameter; x <= pos._x + diameter; x++ )
 				if ( isValidPos(x, y) )
 					_matrix.at(y).at(x)._isKnown = to;
 	}
