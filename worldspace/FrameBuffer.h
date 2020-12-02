@@ -50,7 +50,7 @@ struct Frame {
 	 *
 	 * @param spaceColumns	- (Default: true) When true, every other column is a space char, to show square frames as squares in the console.
 	 */
-	void draw(bool spaceColumns = true)
+	void draw(const bool spaceColumns = true)
 	{
 		// use dual-iterators to iterate both the frame, and console position from the origin offset
 		for ( int consoleY{ _origin._y }, frameY{ 0 }; consoleY < _origin._y + static_cast<int>(_frame.size()); consoleY++, frameY++ ) {
@@ -115,8 +115,8 @@ struct Frame {
 					if ( line.size() > longest_line )
 						longest_line = line.size();
 					// iterate through each line
-					for ( unsigned int x = 0; x < line.size(); x++ ) {
-						row.push_back(line.at(x));
+					for (auto& x : line) {
+						row.push_back(x);
 					}
 					matrix.push_back(row);
 					line.clear();
@@ -344,13 +344,20 @@ public:
 				for ( long frameX{ 0 }, consoleX{ _origin._x }; frameX < static_cast<long>(next._frame.at(frameY).size()); frameX++, consoleX++ ) {
 					// check if the tile at this pos is known to the player
 					if ( _game.getTile(frameX, frameY)._isKnown ) {
-						auto* const ptr = _game.getActorAt(Coord(frameX, frameY)); // set a pointer to actor at this pos if they exist
+						auto* const actor = _game.getActorAt(frameX, frameY); // set a pointer to actor at this pos if they exist
+						auto* const item = _game.getItemAt(frameX, frameY);
 						// Check if an actor is located here
-						if ( ptr != nullptr ) {
+						if ( actor != nullptr ) {
 							// set the cursor position to target
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
 							// output actor with their color
-							std::cout << *ptr << ' ';
+							std::cout << *actor << ' ';
+						}
+						else if ( item != nullptr ) {
+							// set the cursor position to target
+							WinAPI::setCursorPos(consoleX * 2, consoleY);
+							// output item with their color
+							std::cout << *item << ' ';
 						}
 						// Check if the game wants a screen color flare
 						else if ( _game._flare > 0 && flare_pattern(frameX, frameY) ) {
@@ -359,11 +366,11 @@ public:
 							if ( _game._flare % 2 == 0 && _game._flare != 1 ) {
 								WinAPI::setConsoleColor(_game._flare_color);
 								std::cout << next._frame.at(frameY).at(frameX);
-								WinAPI::setConsoleColor(WinAPI::color::reset);
+								setConsoleColor(WinAPI::color::reset);
 								std::cout << ' ';
 							}
 							else {
-								WinAPI::setConsoleColor(WinAPI::color::reset);
+								setConsoleColor(WinAPI::color::reset);
 								std::cout << next._frame.at(frameY).at(frameX) << ' ';
 							}
 						}

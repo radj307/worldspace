@@ -7,7 +7,6 @@
 #pragma once
 #include <iostream>
 #include <sstream>
-#include <utility>
 #include <vector>
 #include <Windows.h>
 
@@ -38,7 +37,8 @@ struct Tile : Coord {
 	bool _isKnown;									// true if this tile is known to the player
 	bool _canMove;									// true if this tile allows actors to move to it
 	bool _isTrap;									// true if this tile is a trap, and will damage actors when stepped on.
-
+	bool _canSpawn;
+	
 	/** CONSTRUCTOR **
 	 * Tile(Tile::display, int, int, bool)  
 	 * Construct a tile with the default color. (white)
@@ -49,22 +49,24 @@ struct Tile : Coord {
 	 * @param makeWallsVisible	- When true, all wall tiles are always visible to the player
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(const display as, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	Tile(const display as, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(false), _isTrap(false), _canSpawn(false)
 	{
 		// check if tile attributes are correct
 		switch ( _display ) {
 		case display::none:
-			_canMove = false;
 			break;
 		case display::wall:
 			if ( makeWallsVisible )
 				_isKnown = true;
-			_canMove = false;
 			break;
 		case display::hole:
+			_canMove = true;
 			_isTrap = true;
 			break;
-		default:break;
+		case display::empty:
+			_canMove = true;
+			_canSpawn = true;
+			break;
 		}
 	}
 
@@ -79,29 +81,33 @@ struct Tile : Coord {
 	 * @param makeWallsVisible	- walls are always visible
 	 * @param isKnownOverride	- When true, this tile is visible to the player.
 	 */
-	Tile(const display as, const WinAPI::color color, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false)
+	Tile(const display as, const WinAPI::color color, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride)
+		: Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false), _canSpawn(false)
 	{
 		// check if tile attributes are correct
 		switch ( _display ) {
 		case display::none:
-			_canMove = false;
 			break;
 		case display::wall:
 			if ( makeWallsVisible )
 				_isKnown = true;
-			_canMove = false;
 			break;
 		case display::hole:
+			_canMove = true;
 			_isTrap = true;
 			break;
-		default:break;
+		case display::empty:
+			_canMove = true;
+			_canSpawn = true;
+			break;
 		}
 	}
+
 	/** CONSTRUCTOR **
 	 * Tile()
 	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
 	 */
-	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false) {}
+	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false), _canSpawn(false) {}
 
 	// comparison operators
 	bool operator==(Tile &o) const
@@ -116,13 +122,13 @@ struct Tile : Coord {
 			return true;
 		return false;
 	}
-	bool operator==(Tile::display o) const
+	bool operator==(const display o) const
 	{
 		if ( _display == o )
 			return true;
 		return false;
 	}
-	bool operator!=(Tile::display o) const
+	bool operator!=(const display o) const
 	{
 		if ( _display != o )
 			return true;
@@ -133,7 +139,7 @@ struct Tile : Coord {
 	friend std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
 		if ( t._myColor != WinAPI::color::white ) // if this tile has a color, set it
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<int>(t._myColor));
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(t._myColor));
 		if ( t._isKnown ) // if this tile is known, insert its char
 			os << static_cast<char>(t._display) << ' ';
 		else // if this tile is not known, insert a blank
@@ -259,7 +265,7 @@ public:
 	 */
 	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : 
 		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
-		_max(_matrix.at(0).size() - 1, _matrix.size() - 1),
+		_max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)),
 		isValidPos(_max) {}
 
 	/**
@@ -279,21 +285,21 @@ public:
 	}
 
 	/**
-	 * display(Coord, const int)
+	 * display(Coord&, const int)
 	 * Print a section of the cell to the console.
 	 * 
-	 * @param pos
-	 * @param diameter
+	 * @param pos		- Centerpoint of display target
+	 * @param diameter	- The approx. diameter of the display target
 	 */
 	void display(const Coord& pos, const int diameter)
 	{
 		std::stringstream buf;
 		// iterate vertical
-		for ( int y = static_cast<int>(pos._y - diameter); y < static_cast<int>(pos._y + diameter); y++ ) { 
+		for (auto y = static_cast<int>(pos._y - diameter); y < static_cast<int>(pos._y + diameter); y++ ) { 
 			// counter for number of chars added
-			int doNewline{ 0 };
+			auto doNewline{ 0 };
 			// iterate horizontal
-			for ( int x = static_cast<int>(pos._x - diameter); x < static_cast<int>(pos._x + diameter); x++ ) { 
+			for (auto x = static_cast<int>(pos._x - diameter); x < static_cast<int>(pos._x + diameter); x++ ) { 
 				// check if this pos exists
 				if ( isValidPos(x, y) ) { 
 					buf << _matrix.at(y).at(x);
@@ -326,7 +332,7 @@ public:
 	 * 
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 */
-	void modVis(bool to)
+	void modVis(const bool to)
 	{
 		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y )
 			for ( auto x = y->begin(); x != y->end(); ++x )
@@ -341,7 +347,7 @@ public:
 	 * @param pos		- The center-point
 	 * @param diameter	- The distance away from the center-point that will also be discovered.
 	 */
-	void modVis(bool to, const Coord& pos, const int diameter = 3)
+	void modVis(const bool to, const Coord& pos, const int diameter = 3)
 	{
 		for ( int y = pos._y - diameter; y <= pos._y + diameter; y++ )
 			for ( int x = pos._x - diameter; x <= pos._x + diameter; x++ )
@@ -357,7 +363,7 @@ public:
 	 * @param minPos	- The top-left corner of the target area
 	 * @param maxPos	- The bottom-right corner of the target area
 	 */
-	void modVis(bool to, const Coord& minPos, const Coord& maxPos)
+	void modVis(const bool to, const Coord& minPos, const Coord& maxPos)
 	{
 		for ( int y = minPos._y; y <= maxPos._y; y++ )
 			for ( int x = minPos._x; x <= maxPos._x; x++ )
@@ -402,7 +408,7 @@ public:
 	 * @param x				- The target tile's x index
 	 * @param y				- The target tile's y index
 	 */
-	Tile &get(int x, int y)
+	Tile &get(const int x, const int y)
 	{
 		if ( isValidPos(x, y) )
 			return _matrix.at(y).at(x);
@@ -417,8 +423,8 @@ public:
 	 * @param saveAs	- Whether to overwrite or append to file if it already exists.
 	 * @returns bool	- true when successful, false when failed.
 	 */
-	bool exportToFile(std::string filename, file::save_type saveAs = file::save_type::overwrite)
+	bool exportToFile(const std::string& filename, file::save_type saveAs = file::save_type::overwrite)
 	{
-		return file::write(std::move(filename), sstream(), saveAs);
+		return file::write(filename, sstream(), saveAs);
 	}
 };

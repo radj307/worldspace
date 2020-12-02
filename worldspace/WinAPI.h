@@ -8,7 +8,7 @@
 namespace WinAPI {
 
     // These are pre-set hex values for the setConsoleColor() function
-    enum color {
+    enum class color {
         white = 0x0001 | 0x0002 | 0x0004,
         grey = 0,
         yellow = 0x0002 | 0x0004,
@@ -55,7 +55,7 @@ namespace WinAPI {
      *
      * @param makeColor - A windows API color
      */
-	inline void setConsoleColor(color makeColor)
+	inline void setConsoleColor(const color makeColor)
     {
         std::cout.flush();
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(makeColor));

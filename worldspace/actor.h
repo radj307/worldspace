@@ -42,6 +42,7 @@ public:
 	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
 	[[nodiscard]] int getMaxStamina() const { return _MAX_STAMINA; }
 	[[nodiscard]] int getMaxDamage() const { return _MAX_DAMAGE; }
+	void setMaxDamage(const unsigned int newValue) { _MAX_DAMAGE = static_cast<signed>(newValue); }
 };
 
 // Simple struct containing all of the current values for each stat defined in ActorMaxStats
@@ -182,6 +183,7 @@ public:
 		else _stamina = newStamina;
 		return _stamina;
 	}
+	
 };
 
 // Used to create stat templates for generating large quantities of actors at once
@@ -207,7 +209,7 @@ struct ActorTemplate {
 };
 
 // stats & specs of all actors -- parent struct
-struct ActorBase : public ActorStats {
+struct ActorBase : ActorStats {
 protected:
 	std::string _name;		// My reporting name
 	FACTION _faction;		// My faction
@@ -340,9 +342,9 @@ public:
 };
 
 // human player
-struct Player : ActorBase {
+struct Player final : ActorBase {
 	checkDistanceFrom getDist;		// Functor that gets the distance from _pos to a given Coord point
-
+	
 	/** CONSTRUCTOR **
 	 * Player(FACTION, string, Coord, char, WinAPI::color, int)
 	 * This is the base constructor for actor types.
@@ -418,7 +420,7 @@ public:
 };
 
 // enemy actor
-struct Enemy : NPC {
+struct Enemy final : NPC {
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, WinAPI::color, int, int, int, int, int)
 	 * Constructs a basic enemy with the given parameters.
@@ -453,7 +455,7 @@ struct Enemy : NPC {
 };
 
 // neutral actor
-struct Neutral : NPC {
+struct Neutral final : NPC {
 	/**
 	 * Neutral(string, Coord, char, WinAPI::color, int, int, int, int, int)
 	 * @param myName	 - My reporting name.

@@ -1,5 +1,6 @@
 #pragma once
 #include "actor.h"
+#include "settings.h"
 
 /**
  * struct GameRules
@@ -7,7 +8,10 @@
  */
 struct GameRules {
 	// CELL / WORLD
+	std::string _world_import_file{};
+	Coord _cellSize{ 30, 30 };
 	bool _walls_always_visible{ true };	// When true, wall tiles are always visible to the player.
+	bool _override_known_tiles{ false };	// When true, the player can always see all tiles.
 
 	// TRAPS
 	int _trap_dmg{ 20 };				// the amount of health an actor loses when they step on a trap
@@ -17,6 +21,7 @@ struct GameRules {
 	int _attack_cost_stamina{ 15 };		// The amount of stamina used when attacking.
 
 	// PLAYER
+	bool _player_godmode{ false };
 	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', WinAPI::color::green };
 
 	// NPC RELATIONSHIPS
@@ -67,5 +72,19 @@ struct GameRules {
 			_level_up_kills * ((a->getLevel() > 1 ? a->getLevel() - 1 : a->getLevel()) * _level_up_mult) )
 			return true;
 		return false;
+	}
+
+
+	GameRules() = default;
+
+	explicit GameRules(const GLOBAL& settings) : _world_import_file(settings._import_filename), _cellSize(settings._cellSize), _override_known_tiles(settings._override_known_tiles), _player_godmode(settings._player_godmode)
+	{
+		// Set player stats
+		if ( settings._player_health != NOT_SET )
+			_player_template._stats.setHealth(settings._player_health);
+		if ( settings._player_stamina != NOT_SET )
+			_player_template._stats.setStamina(settings._player_stamina);
+		if ( settings._player_damage != NOT_SET )
+			_player_template._stats.setMaxDamage(settings._player_damage);
 	}
 };

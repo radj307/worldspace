@@ -8,7 +8,7 @@
 #include "actor.h"
 #include "cell.h"
 #include "GameRules.h"
-#include "settings.h"
+#include "item.h"
 
 /**
  * class Gamespace
@@ -28,6 +28,10 @@ class Gamespace {
 	std::vector<Enemy> _hostile;
 	// neutral actors
 	std::vector<Neutral> _neutral;
+	// Static Items
+	std::vector<ItemStaticHealth> _item_static_health;
+	std::vector<ItemStaticStamina> _item_static_stamina;
+	// Functor for checking distance between 2 points
 	checkDistance getDist;
 
 	/**
@@ -42,17 +46,20 @@ class Gamespace {
 		const int MAX_CHECKS{(_world._max._x - 2) * (_world._max._y - 2)};
 		// loop
 		for (auto i{0}; i < MAX_CHECKS; i++) {
-			// Get a random position
-			Coord pos{_rng.get(_world._max._x - 2, 1), _rng.get(_world._max._y - 2, 1)};
+			Coord pos{0,0};
+			for ( auto findPos{ pos }; !_world.get(findPos)._canSpawn; pos = findPos ) {
+				findPos = { _rng.get(_world._max._x - 2, 1), _rng.get(_world._max._y - 2, 1) };
+			}
+		//	auto* tile{&_world.get(pos)};
 			// Check if this pos is valid
-			if (_world.get(pos)._canMove && !_world.get(pos)._isTrap && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
+			if (isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
 		}
 		// Else return invalid coord
 		return Coord(-1, -1);
 	}
 
-	template <class Actor = NPC>
-	std::vector<Actor> generate(const int count, std::vector<ActorTemplate>& templates)
+	template <typename Actor>
+	std::vector<Actor> generate_NPCs(const int count, std::vector<ActorTemplate>& templates)
 	{
 		std::vector<Actor> v;
 		for (auto i{0}; i < count; i++) {
@@ -70,6 +77,19 @@ class Gamespace {
 		return v;
 	}
 
+	template<typename Item>
+	std::vector<Item> generate_items(const int count, const bool lockToPlayer = false)
+	{
+		std::vector<Item> v;
+		for ( auto i{0}; i < count; i++ ) {
+			if ( lockToPlayer )
+				v.emplace_back(Item{ findValidSpawn(), 50, { FACTION::PLAYER } });
+			else
+				v.emplace_back(Item{ findValidSpawn(), 50 });
+		}
+		return v;
+	}
+	
 	/**
 	 * apply_to_all(void(Gamespace::*)(ActorBase*))
 	 * Applies a Gamespace function to all actors.
@@ -103,18 +123,31 @@ class Gamespace {
 	}
 
 	/**
-	 * get_all()
+	 * get_all_actors()
 	 * Returns a vector of pointers containing all actors in the game.
 	 *
 	 * @returns vector<ActorBase*>
 	 */
-	std::vector<ActorBase*> get_all()
+	std::vector<ActorBase*> get_all_actors()
 	{
 		std::vector<ActorBase*> allActors;
 		allActors.push_back(&_player);
-		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.push_back(&*it);
-		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.push_back(&*it);
+		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.emplace_back(&*it);
+		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.emplace_back(&*it);
 		return allActors;
+	}
+	/**
+	 * get_all_static_items()
+	 * Returns a vector of pointers containing all actors in the game.
+	 *
+	 * @returns vector<ItemStaticBase*>
+	 */
+	std::vector<ItemStaticBase*> get_all_static_items()
+	{
+		std::vector<ItemStaticBase*> allItems;
+		for ( auto it{ _item_static_health.begin() }; it != _item_static_health.end(); ++it ) allItems.emplace_back(&*it);
+		for ( auto it{ _item_static_stamina.begin() }; it != _item_static_stamina.end(); ++it ) allItems.emplace_back(&*it);
+		return allItems;
 	}
 
 	/**
@@ -322,6 +355,11 @@ class Gamespace {
 				if (_ruleset._trap_percentage) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
 				else actor->modHealth(-_ruleset._trap_dmg);
 			}
+			auto* item{ getItemAt(actor->pos()) };
+			if ( item != nullptr ) {
+				item->attempt_use(actor);
+				
+			}
 		}
 		return did_move;
 	}
@@ -332,10 +370,14 @@ class Gamespace {
 	 *
 	 * @param attacker	- A pointer to the attacking actor
 	 * @param target	- A pointer to the actor being attacked
-	 * @returns int		- ( -1 = param was nullptr ) ( 0 = success, target is still alive ) ( 1 = success, target killed )
+	 * @returns int		- ( -1 = attack failed ) ( 0 = success, target is still alive ) ( 1 = success, target killed )
 	 */
 	int attack(ActorBase* attacker, ActorBase* target)
 	{
+		// return early if target is player and godmode is enabled
+		if ( _ruleset._player_godmode && target->faction() == FACTION::PLAYER )
+			return -1;
+		// Calculate attack
 		if (attacker != nullptr && target != nullptr && attacker->faction() != target->faction()) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
 			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
@@ -394,18 +436,21 @@ public:
 	unsigned short _flare_color{ BACKGROUND_GREEN };
 	
 	// When this is true, the player wins.
-	bool _allEnemiesDead{false};
+	bool _allEnemiesDead{ false }, _playerDead{ false };
 
 	/** CONSTRUCTOR **
 	 * Gamespace(GLOBAL&, GameRules&)
 	 * Creates a new gamespace with the given settings.
 	 *
-	 * @param settings	- A ref to the global settings structure
 	 * @param ruleset	- A ref to the ruleset structure
 	 */
-	Gamespace(GLOBAL& settings, GameRules& ruleset)
-		: _world(!settings._import_filename.empty() ? Cell{settings._import_filename, ruleset._walls_always_visible, settings._override_known_tiles} : Cell{settings._cellSize, ruleset._walls_always_visible, settings._override_known_tiles}), _ruleset(ruleset), _player(findValidSpawn(true), ruleset._player_template), _hostile(generate<Enemy>(ruleset._enemy_count, ruleset._enemy_template)), _neutral(generate<Neutral>(ruleset._neutral_count, ruleset._neutral_template))
+	explicit Gamespace(GameRules& ruleset)
+		: _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles} : Cell{ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles}), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template })
 	{
+		_hostile = (generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template));
+		_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
+		_item_static_health = generate_items<ItemStaticHealth>(10, true);
+		_item_static_stamina = generate_items<ItemStaticStamina>(10, true);
 		_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
 	}
 
@@ -423,19 +468,14 @@ public:
 	 * Moves the player in a given direction, if possible.
 	 *
 	 * @param key	- 'w' for up, 's' for down, 'a' for left, 'd' for right. Anything else is ignored.
-	 * @returns int	- ( 0 = player is dead ) ( 1 = normal execution ) ( 2 = all enemies are dead )
 	 */
-	int actionPlayer(const char key)
+	void actionPlayer(const char key)
 	{
 		// if not dead and move was successful
 		if (!_player.isDead() && move(&_player, key)) {
 			// player specific post-movement functions
 			_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
 		}
-		// 2nd check to cover both possible cases, where player is dead after moving, or if the first if statement failed
-		if (_player.isDead()) return 0;
-		if (_allEnemiesDead) return 2;
-		return 1;
 	}
 
 	/**
@@ -455,6 +495,14 @@ public:
 	 */
 	void cleanupDead()
 	{
+		// Erase used health potions
+		for ( auto it{ static_cast<signed>(_item_static_health.size() - 1) }; it >= 0; it-- )
+			if ( _item_static_health.at(it).getUses() <= 0 )
+				_item_static_health.erase(_item_static_health.begin() + it);
+		// Erase used stamina potions
+		for ( auto it{ static_cast<signed>(_item_static_stamina.size() - 1) }; it >= 0; it-- )
+			if ( _item_static_stamina.at(it).getUses() <= 0 )
+				_item_static_stamina.erase(_item_static_stamina.begin() + it);
 		// erase dead enemies
 		//	for ( size_t it = 0; it < _hostile.size(); it++ )
 		for (auto it{static_cast<int>(_hostile.size()) - 1}; it >= 0; it--)
@@ -468,20 +516,47 @@ public:
 	}
 
 	/**
-	 * getActorAt(Coord, const bool)
+	 * getActorAt(Coord)
 	 * Returns a pointer to an actor located at a given tile.
 	 *
 	 * @param pos			- The target tile
 	 */
 	ActorBase* getActorAt(const Coord& pos)
 	{
-		for (auto* it : get_all()) {
+		for (auto* it : get_all_actors()) {
 			if (pos == it->pos()) return it;
 		}
 		return nullptr;
 	}
+	ActorBase* getActorAt(const int posX, const int posY)
+	{
+		for ( auto* it : get_all_actors() ) {
+			if ( posX == it->pos()._x && posY == it->pos()._y ) return it;
+		}
+		return nullptr;
+	}
+	
+	/**
+	 * getItemAt(Coord)
+	 * Returns a pointer to an actor located at a given tile.
+	 *
+	 * @param pos			- The target tile
+	 */
+	ItemStaticBase* getItemAt(const Coord& pos)
+	{
+		for (auto* it : get_all_static_items()) {
+			if (pos == it->pos()) return it;
+		}
+		return nullptr;
+	}
+	ItemStaticBase* getItemAt(const int posX, const int posY)
+	{
+		for ( auto* it : get_all_static_items() ) {
+			if ( posX == it->pos()._x && posY == it->pos()._y ) return it;
+		}
+		return nullptr;
+	}
 
-	ActorBase* getActorAt(int posX, int posY);
 
 	// GETTERS & FRAME API
 
@@ -495,11 +570,3 @@ public:
 
 	// DISPLAYS / HUD
 };
-
-inline ActorBase* Gamespace::getActorAt(int posX, int posY)
-{
-	for (auto* it : get_all()) {
-		if (posX == it->pos()._x && posY == it->pos()._y) return it;
-	}
-	return nullptr;
-}
