@@ -43,7 +43,7 @@ class Gamespace {
 		// loop
 		for (auto i{0}; i < MAX_CHECKS; i++) {
 			// Get a random position
-			Coord pos{_rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1)};
+			Coord pos{_rng.get(_world._max._x - 2, 1), _rng.get(_world._max._y - 2, 1)};
 			// Check if this pos is valid
 			if (_world.get(pos)._canMove && !_world.get(pos)._isTrap && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
 		}
@@ -64,6 +64,7 @@ class Gamespace {
 					break;
 				}
 			}
+			
 			v.push_back({findValidSpawn(), templates.at(sel)});
 		}
 		return v;
@@ -76,7 +77,7 @@ class Gamespace {
 	 *
 	 * @param func	- A void function that takes only one ActorBase* parameter.
 	 */
-	void apply_to_all(void (Gamespace::*func)(ActorBase*) const)
+	void apply_to_all(void (Gamespace::*func)(ActorBase*))
 	{
 		// Apply to player
 		(this->*func)(&_player);
@@ -139,7 +140,7 @@ class Gamespace {
 	 */
 	bool isAfraid(ActorBase* a) const
 	{
-		if (a != nullptr && (a->getHealth() < a->getMaxHealth() / 4 || a->getStamina() < _ruleset._attack_cost_stamina)) return true;
+		if (a != nullptr && (a->getHealth() < a->getMaxHealth() / 5 || a->getStamina() < _ruleset._attack_cost_stamina)) return true;
 		return false;
 	}
 
@@ -149,11 +150,26 @@ class Gamespace {
 	 *
 	 * @param a	- Pointer to an actor
 	 */
-	void regen(ActorBase* a) const
+	// ReSharper disable once CppMemberFunctionMayBeConst
+	void regen(ActorBase* a)
 	{
 		if (a != nullptr) {
 			a->modHealth(_ruleset._regen_health);
 			a->modStamina(_ruleset._regen_stamina);
+		}
+	}
+
+	/**
+	 * regenToMax(ActorBase*)
+	 * Increases an actor's stats to their maximum possible value.
+	 *
+	 * @param a	- Pointer to an actor
+	 */
+	static void regenToMax(ActorBase* a)
+	{
+		if (a != nullptr) {
+			a->setHealth(a->getMaxHealth());
+			a->setStamina(a->getMaxStamina());
 		}
 	}
 
@@ -163,11 +179,16 @@ class Gamespace {
 	 *
 	 * @param a	- Pointer to a target actor
 	 */
-	void level_up(ActorBase* a) const
+	void level_up(ActorBase* a)
 	{
 		// return if nullptr was passed
 		if (a != nullptr && _ruleset.canLevelUp(a)) {
 			a->addLevel();
+			// If actor who leveled up is the player
+			if ( a->faction() == FACTION::PLAYER ) {
+				regenToMax(&*a);
+				_flare = _ruleset._level_up_flare_time;
+			}
 		}
 	}
 
@@ -198,7 +219,7 @@ class Gamespace {
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	char getDirTo(Coord pos, Coord target, const bool invert = false)
+	char getDirTo(const Coord& pos, const Coord& target, const bool invert = false)
 	{
 		auto distX{ pos._x - target._x }, distY{ pos._y - target._y };
 		// reduce large X distances to -1 or 1
@@ -207,19 +228,40 @@ class Gamespace {
 		// reduce large Y distances to -1 or 1
 		if ( distY < -1 )		distY = -1;
 		else if ( distY > 1 )	distY = 1;
+
+		if ( _rng.get(100, 0) >= 50 ) { // Check X-axis first
+			// select a direction
+			if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
+			if ( distY == 0 && !invert ) return distX < 0 ? 'd' : 'a'; // check if Y-axis is aligned
+			if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
+			if ( distY == 0 && invert )	 return distX < 0 ? 'a' : 'd'; // check if Y-axis is aligned (inverted)
+			// neither axis is aligned, select a random direction
+			switch ( _rng.get(1, 0) ) {
+			case 1: // move on Y-axis
+				if ( !invert )
+					return distY < 0 ? 's' : 'w';
+				return distY < 0 ? 'w' : 's';
+			case 0: // move on X-axis
+				if ( !invert )
+					return distX < 0 ? 'd' : 'a';
+				return distX < 0 ? 'a' : 'd';
+			default:return' ';
+			}
+		}
+		// Check Y-axis first
 		// select a direction
-		if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
 		if ( distY == 0 && !invert ) return distX < 0 ? 'd' : 'a'; // check if Y-axis is aligned
-		if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
+		if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
 		if ( distY == 0 && invert )	 return distX < 0 ? 'a' : 'd'; // check if Y-axis is aligned (inverted)
+		if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
 		// neither axis is aligned, select a random direction
 		switch ( _rng.get(1, 0) ) {
 		case 0: // move on Y-axis
-			if ( !invert )	
+			if ( !invert )
 				return distY < 0 ? 's' : 'w';
 			return distY < 0 ? 'w' : 's';
 		case 1: // move on X-axis
-			if ( !invert )	
+			if ( !invert )
 				return distX < 0 ? 'd' : 'a';
 			return distX < 0 ? 'a' : 'd';
 		default:return' ';
@@ -266,7 +308,7 @@ class Gamespace {
 			auto* target{getActorAt(actor->getPosDir(dir))}; // declare a pointer to potential attack target
 
 			// If the actor killed someone with an attack, move them to the target tile.
-			if (target != nullptr && (attack(actor, target) == 1 && canMove(target->pos()))) {
+			if (target != nullptr && (attack(actor, target) == 1 && canMove(target->pos()))) {  // NOLINT(bugprone-branch-clone)
 				actor->moveDir(dir);
 				did_move = true;
 			}
@@ -298,35 +340,48 @@ class Gamespace {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
 			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
 			// if actor has enough stamina
-			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) target->modHealth(-dmg);
-				// if actor has stamina, but not enough for a full attack
-			else if (attacker->getStamina()) target->modHealth(-(dmg / 2));
-				// actor is out of stamina
+			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) 
+				target->modHealth(-dmg);
+			// if actor has stamina, but not enough for a full attack
+			else if (attacker->getStamina()) 
+				target->modHealth(-(dmg / 2));
+			// actor is out of stamina
 			else {
 				target->modHealth(-(dmg / 4));
 				attacker->modHealth(-(dmg / 12));
 			}
 			attacker->modStamina(-_ruleset._attack_cost_stamina);
 			// check if target died, add a kill to attacker
-			if (target->isDead()) attacker->addKill();
-				// else set target as hostile to attacker
+			if (target->isDead()) {
+				if ( target->faction() == FACTION::ENEMY ) { // add the difference in level to kill count
+					attacker->addKill(target->getLevel() > attacker->getLevel() ? target->getLevel() - attacker->getLevel() : 1);
+				}
+				else attacker->addKill();
+			}
+			// else set target as hostile to attacker
 			else target->setRelationship(attacker->faction(), true);
 			return target->isDead();
 		}
 		return -1;
 	}
 
+	/**
+	 * actionNPC(NPC*)
+	 * Performs an action for a single NPC
+	 *
+	 * @param npc	- Pointer to an NPC instance
+	 */
 	void actionNPC(NPC* npc)
 	{
 		if (npc->isAggro()) {
-			ActorBase* target{npc->getTarget()};
+			auto* const target{npc->getTarget()};
 			if (target != nullptr) move(&*npc, getDirTo(npc->pos(), target->pos(), isAfraid(&*npc)));
 			npc->decrementAggro();
 		}
 		else {
 			if (npc->isHostileTo(_player.faction()) && _player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
 				npc->setTarget(&_player);
-				npc->modAggro(_ruleset._enemy_aggro_duration);
+				npc->maxAggro();
 				move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));
 			}
 			else if (_rng.get(_ruleset._enemy_move_chance, 0) == 0) move(&*npc, intToDir(_rng.get(3, 0)));
@@ -334,6 +389,10 @@ class Gamespace {
 	}
 
 public:
+	// flare should always be set to a multiple of 2, or 0 for disabled. Flare will flash the display to indicate a level up.
+	int _flare {0};
+	unsigned short _flare_color{ BACKGROUND_GREEN };
+	
 	// When this is true, the player wins.
 	bool _allEnemiesDead{false};
 
@@ -350,6 +409,10 @@ public:
 		_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
 	}
 
+	/**
+	 * actionAllNPC()
+	 * Performs an action for all NPC instances
+	 */
 	void actionAllNPC()
 	{
 		apply_to_npc(&Gamespace::actionNPC);
@@ -377,7 +440,7 @@ public:
 
 	/**
 	 * apply_passive()
-	 * Iterates through all actors and applies passive effects set by the current ruleset.
+	 * Applies passive regen effects to all actors
 	 */
 	void apply_passive()
 	{
@@ -410,7 +473,7 @@ public:
 	 *
 	 * @param pos			- The target tile
 	 */
-	ActorBase* getActorAt(Coord pos)
+	ActorBase* getActorAt(const Coord& pos)
 	{
 		for (auto* it : get_all()) {
 			if (pos == it->pos()) return it;
@@ -426,9 +489,9 @@ public:
 	Tile& getTile(const Coord& pos) { return _world.get(pos); }
 	Tile& getTile(int x, int y) { return _world.get(x, y); }
 	Cell& getCell() { return {_world}; }
-	Coord getCellSize() { return {_world._max._x, _world._max._y}; }
+	[[nodiscard]] Coord getCellSize() const { return {_world._max._x, _world._max._y}; }
 	std::vector<Enemy>& getHostileVec() { return _hostile; }
-	GameRules& getRuleset() { return _ruleset; }
+	[[nodiscard]] GameRules& getRuleset() const { return _ruleset; }
 
 	// DISPLAYS / HUD
 };

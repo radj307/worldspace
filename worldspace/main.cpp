@@ -54,14 +54,14 @@ inline GLOBAL interpret(const int argc, char* argv[])
 	GLOBAL glob;
 
 	opt::list args(argc, argv, "world:,file:");
-	for ( auto it = args._commands.begin(); it != args._commands.end(); it++ ) {
+	for ( auto it = args._commands.begin(); it != args._commands.end(); ++it ) {
 		if ( (*it).checkName("world") && (*it)._hasArg ) {
 			if ( (*it).checkArg("showalltiles") ) {
 				glob._override_known_tiles = true;
 			}
-			else if ( ((*it)._arg.size() >= 8) && ((*it)._arg.substr(0, (*it)._arg.find('=')) == "size") ) {
+			else if ( (*it)._arg.size() >= 8 && (*it)._arg.substr(0, (*it)._arg.find('=')) == "size" ) {
 				if ( (*it)._arg.find(':') != std::string::npos ) {
-					auto str{ ((*it)._arg.substr(((*it)._arg.find('=') + 1), (*it)._arg.size())) };
+					auto str{ ((*it)._arg.substr((*it)._arg.find('=') + 1, (*it)._arg.size())) };
 					try {
 						const auto index_of_colon{ str.find(':') };
 						glob._cellSize = Coord(std::stoi(str.substr(0, index_of_colon)), std::stoi(str.substr(index_of_colon + 1)));

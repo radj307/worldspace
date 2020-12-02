@@ -101,7 +101,7 @@ inline void game_thread_npc(Gamespace& game)
 			game.actionAllNPC();
 			//game.actionHostile();
 		}
-		else std::this_thread::sleep_for(std::chrono::seconds(1) - (__MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT));
+		else std::this_thread::sleep_for(std::chrono::seconds(1) - __MS_CLOCK_SYNC * __NPC_CYCLE_WAIT_MULT);
 	}
 }
 /**
@@ -126,7 +126,7 @@ inline void game_thread_display(Gamespace& game)
 			// display the gamespace
 			gameBuffer.display();
 			// Apply passive effects every second
-			if ( (T::now() - tLastRegenCycle) >= std::chrono::seconds(1) ) {
+			if ( T::now() - tLastRegenCycle >= std::chrono::seconds(1) ) {
 				game.apply_passive();
 				tLastRegenCycle = T::now();
 			}

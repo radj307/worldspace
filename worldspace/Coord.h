@@ -14,7 +14,7 @@ struct Coord {
 
 	bool operator==(const Coord &o) const
 	{
-		if ( (_y == o._y) && (_x == o._x) )
+		if ( _y == o._y && _x == o._x )
 			return true;
 		return false;
 	}
@@ -28,12 +28,12 @@ struct checkDistance {
 	// Returns the distance in tiles from pos1 to pos2
 	long operator()(const Coord& pos1, const Coord& pos2, bool positiveOnly = true) const
 	{
-		return (abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y));
+		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
 	}
 	// Returns the distance in tiles from pos1 to pos2
 	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y, const bool positiveOnly = true) const
 	{
-		return (abs(pos1X - pos2X) + abs(pos1Y - pos2Y));
+		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
 	}
 };
 
@@ -56,12 +56,12 @@ struct checkDistanceFrom {
 	// Returns the distance in tiles from the given pos
 	long operator()(const Coord& pos) const noexcept
 	{
-		return (abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y));
+		return abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y);
 	}
 	// Returns the distance in tiles from the given pos
 	long operator()(const long posX, const long posY) const noexcept
 	{
-		return (abs(_follow->_x - posX) + abs(_follow->_y - posY));
+		return abs(_follow->_x - posX) + abs(_follow->_y - posY);
 	}
 };
 
@@ -99,7 +99,7 @@ struct checkBounds {
 	 */
 	bool operator()(const Coord& pos) const
 	{
-		if ( (pos._y >= 0 && pos._y < _maxPos._y) && (pos._x >= 0 && pos._x < _maxPos._x) )
+		if ( pos._y >= 0 && pos._y < _maxPos._y && (pos._x >= 0 && pos._x < _maxPos._x) )
 			return true;
 		return false;
 	}
@@ -113,7 +113,7 @@ struct checkBounds {
 	 */
 	bool operator()(long x, long y) const
 	{
-		if ( (y >= 0 && y < _maxPos._y) && (x >= 0 && x < _maxPos._x) )
+		if ( y >= 0 && y < _maxPos._y && (x >= 0 && x < _maxPos._x) )
 			return true;
 		return false;
 	}

@@ -22,7 +22,10 @@ enum class FACTION {
 // Simple struct containing all of the constant base stats of an actor.
 struct ActorMaxStats {
 protected:
+	// These are modified every level change
 	int _MAX_HEALTH, _MAX_STAMINA, _MAX_DAMAGE;
+	// Do not modify these
+	int _BASE_HEALTH, _BASE_STAMINA, _BASE_DAMAGE;
 
 	/** CONSTRUCTOR **
 	 * ActorMaxStats(int, int, int)
@@ -32,23 +35,9 @@ protected:
 	 * @param STAMINA	- My maximum stamina value	(Minimum is 10)
 	 * @param DAMAGE	- My damage modifier value	(Minimum is 10)
 	 */
-	ActorMaxStats(unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE)
-	{
-		// validate stats
-		if ( Mult < 1 )
-			Mult = 1;
-		// set stats
-		_MAX_HEALTH = static_cast<signed>(HEALTH * Mult);
-		_MAX_STAMINA = static_cast<signed>(STAMINA * Mult);
-		_MAX_DAMAGE = static_cast<signed>(DAMAGE * Mult);
-	}
-
-	/** CONSTRUCTOR **
-	 * Copy constructor
-	 */
-	ActorMaxStats(const ActorMaxStats& maxStat) : 
-		_MAX_HEALTH(maxStat._MAX_HEALTH), _MAX_STAMINA(maxStat._MAX_STAMINA), _MAX_DAMAGE(maxStat._MAX_DAMAGE) {}
-
+	ActorMaxStats(const unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE) : _MAX_HEALTH(static_cast<signed>(HEALTH * (Mult < 1 ? 1 : Mult))), _MAX_STAMINA(static_cast<signed>(STAMINA * (Mult < 1 ? 1 : Mult))), _MAX_DAMAGE(static_cast<signed>(DAMAGE * (Mult < 1 ? 1 : Mult))), _BASE_HEALTH(_MAX_HEALTH), _BASE_STAMINA(_MAX_STAMINA), _BASE_DAMAGE(_MAX_DAMAGE)
+	{}
+	
 public:
 	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
 	[[nodiscard]] int getMaxStamina() const { return _MAX_STAMINA; }
@@ -61,11 +50,14 @@ protected:
 	int _level, _health, _stamina;	// level = Stat Multiplier
 	bool _dead;						// Am I dead?
 
-	void update_stats()
+	void update_stats(const int newLevel)
 	{
-		_MAX_HEALTH *= static_cast<int>(static_cast<float>(_level) / 1.75f);
-		_MAX_STAMINA *= static_cast<int>(static_cast<float>(_level) / 1.75f);
-		_MAX_DAMAGE *= static_cast<int>(static_cast<float>(_level) / 1.75f);
+		_level = newLevel;
+		if ( _level % 3 == 0 ) {
+			_MAX_HEALTH = static_cast<int>(static_cast<float>(_BASE_HEALTH) * (static_cast<float>(_level) / 1.5f));
+			_MAX_STAMINA = static_cast<int>(static_cast<float>(_BASE_STAMINA) * (static_cast<float>(_level) / 1.5f));
+			_MAX_DAMAGE = static_cast<int>(static_cast<float>(_BASE_DAMAGE) * (static_cast<float>(_level) / 1.5f));
+		}
 	}
 public:
 	int _visRange;
@@ -80,23 +72,20 @@ public:
 	 * @param damage	- My damage modifier
 	 * @param visRange	- My sight range
 	 */
-	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange) : ActorMaxStats(((level >= 1) ? (level) : (1)), health, stamina, damage), _level((level >= 1) ? (level) : (1)), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead((_health == 0) ? (true) : (false)), _visRange(visRange) {}
-
-	/** CONSTRUCTOR **
-	 * Copy constructor
-	 */
-	ActorStats(const ActorStats& stat) : ActorMaxStats(stat), _level(stat._level), _health(stat._health), _stamina(stat._stamina), _dead(stat._dead), _visRange(stat._visRange) {}
+	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange) : ActorMaxStats(level >= 1 ? level : 1, health, stamina, damage), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
 
 	// Returns this actor's level
 	[[nodiscard]] int getLevel() const { return _level; }
 	// Increases this actor's level by one
 	void addLevel() 
 	{ 
-		_level++;
-		update_stats();
+		update_stats(++_level);
 	}
 	// Decreases this actor's level by one
-	void subLevel() { ((_level > 1) ? (_level--) : (_level = 1)); }
+	void subLevel()
+	{
+		update_stats(_level > 1 ? --_level : _level = 1);
+	}
 	/**
 	 * getHealth()
 	 * Returns a copy of this actor's health value
@@ -182,7 +171,7 @@ public:
 	 */
 	int modStamina(const int modValue)
 	{
-		const int newStamina{ _stamina + modValue };
+		const auto newStamina{ _stamina + modValue };
 		// If the new value of stamina is above the max, set it to 0
 		if ( newStamina > _MAX_STAMINA )
 			_stamina = _MAX_STAMINA;
@@ -203,14 +192,18 @@ struct ActorTemplate {
 	WinAPI::color _color;
 	unsigned int _chance;
 	std::vector<FACTION> _hostile_to;
+	int _max_aggression;
 
 	// Include hostile definitions
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u), _hostile_to(
-		std::move(hostileTo)) {}
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const unsigned int spawnChance) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance), _hostile_to(std::move(hostileTo)) {}
+	// Player template
+	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u), _hostile_to(std::move(hostileTo)), _max_aggression(0) {}
+	// NPC template
+	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const unsigned int spawnChance, const int maxAggro) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro) {}
 	// No hostile definitions
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u) {}
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, const unsigned int spawnChance) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance) {}
+	// Player template
+	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u), _max_aggression(0) {}
+	// NPC template
+	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, const unsigned int spawnChance, const int maxAggro) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance), _max_aggression(maxAggro) {}
 };
 
 // stats & specs of all actors -- parent struct
@@ -247,18 +240,10 @@ public:
 	 * @param myColor	- My character's color when inserted into a stream
 	 * @param myStats	- My base statistics
 	 */
-	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0)
-	{
-		initHostilities();
-	}
-	ActorBase(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorStats(myTemplate._stats), _name(myTemplate._name), _faction(myFaction), _pos(myPos), _char(myTemplate._char), _color(myTemplate._color), _hostileTo(myTemplate._hostile_to), _kill_count(0)
-	{
-		if ( myTemplate._hostile_to.empty() && _hostileTo.empty() )
-			initHostilities();
-	}
+	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0) { initHostilities(); }
+	ActorBase(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorStats(myTemplate._stats), _name(myTemplate._name), _faction(myFaction), _pos(myPos), _char(myTemplate._char), _color(myTemplate._color), _hostileTo(myTemplate._hostile_to), _kill_count(0) { if ( myTemplate._hostile_to.empty() && _hostileTo.empty() ) initHostilities(); }
 
 	// Movement functions, these do not check if a movement was possible, they are simply a wrapper for incrementing/decrementing _pos
-
 	void moveU() { _pos._y--; } // decrement y by 1
 	void moveD() { _pos._y++; } // increment y by 1
 	void moveL() { _pos._x--; } // decrement x by 1
@@ -307,7 +292,6 @@ public:
 		default:return{-1,-1};
 		}
 	}
-
 	// Set this actor's relationship to another faction
 	void setRelationship(const FACTION faction, const bool hostile)
 	{
@@ -330,6 +314,7 @@ public:
 		return false;
 	}
 	void modColor(const WinAPI::color newColor) { _color = newColor; }
+	[[nodiscard]] WinAPI::color getColor() const { return _color; }
 	[[nodiscard]] auto name() const -> std::string { return _name; }
 	[[nodiscard]] auto faction() const -> FACTION { return _faction; }
 	[[nodiscard]] Coord pos() const { return _pos; }
@@ -337,7 +322,7 @@ public:
 	[[nodiscard]] auto getVis() const -> int { return _visRange; }
 	[[nodiscard]] auto getChar() const -> char { return _char; }
 	[[nodiscard]] auto getKills() const -> int { return _kill_count; }
-	void addKill() { _kill_count++; }
+	void addKill(const int count = 1) { _kill_count += count; }
 
 	// stream insertion operator
 	friend std::ostream& operator<<(std::ostream &os, ActorBase &a)
@@ -376,13 +361,14 @@ struct Player : ActorBase {
 // base NPC
 struct NPC : ActorBase {
 protected:
+	int _MAX_AGGRO;
 	int _aggro;	// Aggression value used to determine how long this enemy will follow the player before giving up.
 	ActorBase* _target;
 public:
 
 	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-		& myStats) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _aggro(0), _target(nullptr) {}
-	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _aggro(0), _target(nullptr) {}
+		& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
+	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _MAX_AGGRO(myTemplate._max_aggression), _aggro(0), _target(nullptr) {}
 
 	// Returns true if this NPC is currently aggravated
 	[[nodiscard]] bool isAggro() const
@@ -394,19 +380,26 @@ public:
 	// Returns this NPC's aggression value
 	[[nodiscard]] int getAggro() const { return _aggro; }
 	// Modify this NPC's aggression, positive adds, negative removes.
-	void modAggro(int modValue)
+	void modAggro(const int modValue)
 	{
-		int newValue{ _aggro + modValue };
+		auto newValue{ _aggro + modValue };
 		if ( newValue < 0 )
 			newValue = 0;
+		if ( newValue > _MAX_AGGRO )
+			newValue = _MAX_AGGRO;
 		_aggro = newValue;
+	}
+	// Make this NPC aggressive
+	void maxAggro()
+	{
+		_aggro = _MAX_AGGRO;
 	}
 	// Remove this NPC's aggression
 	void removeAggro() { _aggro = 0; if (_target != nullptr) removeTarget(); }
 	// Decreases this NPC's aggression by 1
 	void decrementAggro()
 	{
-		if ( (_aggro - 1) <= 0 )
+		if ( _aggro - 1 <= 0 )
 			_aggro = 0;
 		else _aggro--;
 	}
@@ -439,8 +432,9 @@ struct Enemy : NPC {
 	 * @param myStamina	 - My max stamina
 	 * @param myDamage	 - My max damage
 	 * @param myVisRange - My sight range
+	 * @param MAX_AGGRO  - My maximum aggression
 	 */
-	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange)) {}
+	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, WinAPI::color, ActorStats&)
 	 * Constructs a basic enemy with the given parameters.
@@ -450,10 +444,11 @@ struct Enemy : NPC {
 	 * @param myChar	- My display character when inserted into a stream
 	 * @param myColor	- My character's color when inserted into a stream
 	 * @param myStats	- A ref to my base statistics object
+	 * @param MAX_AGGRO	- My maximum aggression
 	 */
 	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
 		  &
-		  myStats) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats) {}
+		  myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
 	Enemy(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::ENEMY, myPos, myTemplate) {}
 };
 
@@ -470,9 +465,10 @@ struct Neutral : NPC {
 	 * @param myStamina	 - My max stamina
 	 * @param myDamage	 - My max damage
 	 * @param myVisRange - My sight range
+	 * @param MAX_AGGRO	 - My maximum possible aggression
 	 */
-	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange)) {}
+	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
 	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-			& myStats) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats) {}
+			& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
 	Neutral(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::NEUTRAL, myPos, myTemplate) {}
 };

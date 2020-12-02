@@ -8,7 +8,7 @@
 namespace WinAPI {
 
     // These are pre-set hex values for the setConsoleColor() function
-    enum class color {
+    enum color {
         white = 0x0001 | 0x0002 | 0x0004,
         grey = 0,
         yellow = 0x0002 | 0x0004,
@@ -17,6 +17,7 @@ namespace WinAPI {
         blue = 0x0001,
         cyan = 0x0001 | 0x0002,
         green = 0x0002,
+    	reset = 07,
     };
 
     /**
@@ -26,7 +27,7 @@ namespace WinAPI {
      * @param x - Target horizontal-axis position, measured in characters of the screen buffer
      * @param y - Target vertical-axis position, measured in characters of the screen buffer
      */
-    void setCursorPos(int x, int y)
+	inline void setCursorPos(const int x, const int y)
     {
         std::cout.flush();
 		const COORD coord = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
@@ -36,10 +37,11 @@ namespace WinAPI {
     /**
      * hideCursor()
      * Hides the cursor from the terminal.
-     *
+     * ( src: https://stackoverflow.com/a/34843392 )
+     * 
      * @param isVisible - (Default: false) When true, the cursor is visible. When false, the cursor is not shown.
-     *///( src: https://stackoverflow.com/a/34843392 )
-    void visibleCursor(const bool isVisible = false)
+     */
+	inline void visibleCursor(const bool isVisible = false)
     {
         CONSOLE_CURSOR_INFO info{};
         info.dwSize = 100;
@@ -51,22 +53,26 @@ namespace WinAPI {
      * setConsoleColor(unsigned short)
      * Sets the console color to a supported window color
      *
-     * @param color     - A windows API color
+     * @param makeColor - A windows API color
      */
-    void setConsoleColor(unsigned short color)
+	inline void setConsoleColor(color makeColor)
     {
-        static const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
         std::cout.flush();
-        SetConsoleTextAttribute(hOut, color);
+        SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(makeColor));
+    }
+	inline void setConsoleColor(const unsigned int color)
+    {
+        std::cout.flush();
+        SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
     }
 
 
     /**
      * cls()
      * Clears the console window.
-     * @src https://stackoverflow.com/a/34843392
+     * src https://stackoverflow.com/a/34843392
      */
-    void cls()
+	inline void cls()
     {
         // Get the Win32 handle representing standard output.
         // This generally only has to be done once, so we make it static.

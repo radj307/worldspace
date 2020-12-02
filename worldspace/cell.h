@@ -177,7 +177,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 				// iterate through line
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
 					auto isValid{ false };
-					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); it++ ) {
+					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); ++it ) {
 						if ( line.at(x) == static_cast<char>(*it) )
 							isValid = true;
 					}
@@ -269,8 +269,8 @@ public:
 	void display()
 	{
 		std::stringstream buf;
-		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
-			for ( auto x = y->begin(); x != y->end(); x++ ) {
+		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y ) {
+			for ( auto x = y->begin(); x != y->end(); ++x ) {
 				buf << *x;
 			}
 			buf << std::endl;
@@ -328,8 +328,8 @@ public:
 	 */
 	void modVis(bool to)
 	{
-		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ )
-			for ( auto x = y->begin(); x != y->end(); x++ )
+		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y )
+			for ( auto x = y->begin(); x != y->end(); ++x )
 				x->_isKnown = to;
 	}
 
@@ -374,8 +374,8 @@ public:
 	std::stringstream sstream()
 	{
 		std::stringstream buf;
-		for ( auto y = _matrix.begin(); y != _matrix.end(); y++ ) {
-			for ( auto x = (*y).begin(); x != (*y).end(); x++ )
+		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y ) {
+			for ( auto x = (*y).begin(); x != (*y).end(); ++x )
 				buf << *x;
 			buf << std::endl;
 		}
