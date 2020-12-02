@@ -44,7 +44,7 @@ class Gamespace {
 			// Get a random position
 			Coord pos{_rng.get(_world._max._x - 1, 1), _rng.get(_world._max._y - 1, 1)};
 			// Check if this pos is valid
-			if ((_world.get(pos)._canMove) && !(_world.get(pos)._isTrap) && (isPlayer) ? (true) : (getActorAt(pos) == nullptr) && (_player.getDist(pos) >= _ruleset._enemy_aggro_distance + _player._visRange)) return pos;
+			if (_world.get(pos)._canMove && !_world.get(pos)._isTrap && isPlayer ? true : getActorAt(pos) == nullptr && _player.getDist(pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
 		}
 		// Else return invalid coord
 		return Coord(-1, -1);
@@ -139,7 +139,7 @@ class Gamespace {
 	 */
 	bool isAfraid(ActorBase* a) const
 	{
-		if (a != nullptr && ((a->getHealth() < (a->getMaxHealth() / 4)) || (a->getStamina() < _ruleset._attack_cost_stamina))) return true;
+		if (a != nullptr && (a->getHealth() < a->getMaxHealth() / 4 || a->getStamina() < _ruleset._attack_cost_stamina)) return true;
 		return false;
 	}
 
@@ -190,60 +190,40 @@ class Gamespace {
 	}
 
 	/**
-	 * floor(int&)
-	 * Round an integer to between (-1) and (1)
-	 *
-	 * @param in	- Reference of large/unknown integral to round.
-	 */
-	static int floor(const int in)
-	{
-		if ( in != 0 ) {
-			if ( in < -1 ) return -1;
-			else if ( in > 1 ) return 1;
-		}
-		return 0;
-	}
-
-	/**
-	 * getDir(Coord, Coord)
+	 * getDirTo(Coord, Coord)
 	 * Returns a direction char from a start point and end point.
 	 *
-	 * @param actor		- The starting/current position
+	 * @param pos		- The starting/current position
 	 * @param target	- The target position
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	auto getDir(ActorBase* actor, const Coord& target, const bool invert = false) -> char
+	char getDirTo(Coord pos, Coord target, const bool invert = false)
 	{
-		int // Get distance to target
-			distX{ floor(actor->pos()._x - target._x) },
-			distY{ floor(actor->pos()._y - target._y) };
-		auto dir{ ' ' };
+		auto distX{ pos._x - target._x }, distY{ pos._y - target._y };
+		// reduce large X distances to -1 or 1
+		if ( distX < -1 )		distX = -1;
+		else if ( distX > 1 )	distX = 1;
+		// reduce large Y distances to -1 or 1
+		if ( distY < -1 )		distY = -1;
+		else if ( distY > 1 )	distY = 1;
 		// select a direction
-		if (distX == 0 && !invert) dir = (distY < 0) ? ('s') : ('w'); // check if X-axis is aligned
-		if (distY == 0 && !invert) dir = (distX < 0) ? ('d') : ('a'); // check if Y-axis is aligned
-		// select an inverted direction
-		if (distX == 0 && invert) dir = (distY < 0) ? ('w') : ('s'); // check if X-axis is aligned (inverted)
-		if (distY == 0 && invert) dir = (distX < 0) ? ('a') : ('d'); // check if Y-axis is aligned (inverted)
+		if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
+		if ( distY == 0 && !invert ) return distX < 0 ? 'd' : 'a'; // check if Y-axis is aligned
+		if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
+		if ( distY == 0 && invert )	 return distX < 0 ? 'a' : 'd'; // check if Y-axis is aligned (inverted)
 		// neither axis is aligned, select a random direction
 		switch ( _rng.get(1, 0) ) {
 		case 0: // move on Y-axis
-			if ( !invert ) {
-				dir = (distY < 0) ? ('s') : ('w');
-				break;
-			}
-			dir = (distY < 0) ? ('w') : ('s');
-			break;
+			if ( !invert )	
+				return distY < 0 ? 's' : 'w';
+			return distY < 0 ? 'w' : 's';
 		case 1: // move on X-axis
-			if ( !invert ) {
-				dir = (distX < 0) ? ('d') : ('a');
-				break;
-			}
-			dir = (distX < 0) ? ('a') : ('d');
-			break;
-		default:break;
+			if ( !invert )	
+				return distX < 0 ? 'd' : 'a';
+			return distX < 0 ? 'a' : 'd';
+		default:return' ';
 		}
-		return dir;
 	}
 
 	/**
@@ -255,7 +235,7 @@ class Gamespace {
 	 */
 	bool canMove(const Coord& pos)
 	{
-		return ((_world.get(pos)._canMove && getActorAt(pos) == nullptr) ? (true) : (false));
+		return _world.get(pos)._canMove && getActorAt(pos) == nullptr ? true : false;
 	}
 
 	/**
@@ -268,7 +248,7 @@ class Gamespace {
 	 */
 	bool canMove(const int posX, const int posY)
 	{
-		return ((_world.get(posX, posY)._canMove && getActorAt(posX, posY) == nullptr) ? (true) : (false));
+		return _world.get(posX, posY)._canMove && getActorAt(posX, posY) == nullptr ? true : false;
 	}
 
 	/**
@@ -284,8 +264,6 @@ class Gamespace {
 		auto did_move{false};
 		if (actor != nullptr) {
 			auto* target{getActorAt(actor->getPosDir(dir))}; // declare a pointer to potential attack target
-
-			if (target != nullptr) { }
 
 			// If the actor killed someone with an attack, move them to the target tile.
 			if (target != nullptr && (attack(actor, target) == 1 && canMove(target->pos()))) {
@@ -383,7 +361,7 @@ class Gamespace {
 	{
 		if (attacker != nullptr && target != nullptr) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
-			const auto dmg = _rng.get(attacker->getMaxDamage(), (attacker->getMaxDamage() / 6));
+			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
 			// if actor has enough stamina
 			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) target->modHealth(-dmg);
 				// if actor has stamina, but not enough for a full attack
@@ -407,14 +385,14 @@ class Gamespace {
 	{
 		if (npc->isAggro()) {
 			ActorBase* target{npc->getTarget()};
-			if (target != nullptr) move(&*npc, getDir(&*npc, target->pos(), isAfraid(&*npc)));
+			if (target != nullptr) move(&*npc, getDirTo(npc->pos(), target->pos(), isAfraid(&*npc)));
 			npc->decrementAggro();
 		}
 		else {
 			if (_player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
 				npc->setTarget(&_player);
 				npc->modAggro(_ruleset._enemy_aggro_duration);
-				move(&*npc, getDir(&*npc, _player.pos(), isAfraid(&*npc)));
+				move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));
 			}
 			else if (_rng.get(_ruleset._enemy_move_chance, 0) == 0) move(&*npc, intToDir(_rng.get(3, 0)));
 		}
@@ -432,7 +410,7 @@ public:
 	 * @param ruleset	- A ref to the ruleset structure
 	 */
 	Gamespace(GLOBAL& settings, GameRules& ruleset)
-		: _world((!settings._import_filename.empty()) ? (Cell{settings._import_filename, ruleset._walls_always_visible, settings._override_known_tiles}) : (Cell{settings._cellSize, ruleset._walls_always_visible, settings._override_known_tiles})), _ruleset(ruleset), _player(findValidSpawn(true), ruleset._player_template), _hostile(generate<Enemy>(ruleset._enemy_count, ruleset._enemy_template)), _neutral(generate<Neutral>(ruleset._neutral_count, ruleset._neutral_template))
+		: _world(!settings._import_filename.empty() ? Cell{settings._import_filename, ruleset._walls_always_visible, settings._override_known_tiles} : Cell{settings._cellSize, ruleset._walls_always_visible, settings._override_known_tiles}), _ruleset(ruleset), _player(findValidSpawn(true), ruleset._player_template), _hostile(generate<Enemy>(ruleset._enemy_count, ruleset._enemy_template)), _neutral(generate<Neutral>(ruleset._neutral_count, ruleset._neutral_template))
 	{
 		_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
 	}
