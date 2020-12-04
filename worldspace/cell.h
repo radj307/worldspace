@@ -5,7 +5,7 @@
  * by radj307
  */
 #pragma once
-#include <iostream>
+//#include <iostream>
 #include <sstream>
 #include <vector>
 #include <Windows.h>
@@ -19,17 +19,46 @@
  * struct Tile : public Coord
  * Represents a single position in the matrix of a cell
  */
-struct Tile : Coord {
+struct Tile final : Coord {
+private:
+	/**
+	 * initTraits(bool)
+	 * Initialize this tile's variables based on type.
+	 *
+	 * @param makeWallsVisible	- When true, all wall tiles will always be known to the player
+	 */
+	void initTraits(const bool makeWallsVisible)
+	{
+		// check if tile attributes are correct
+		switch ( _display ) {
+		case display::none:break;
+		case display::wall:
+			if ( makeWallsVisible )
+				_isKnown = true;
+			break;
+		case display::hole:
+			_canMove = true;
+			_isTrap = true;
+			break;
+		case display::empty:
+			_canMove = true;
+			_canSpawn = true;
+			break;
+		}
+	}
+	
+public:
+	
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
 	 * Remember to add new entries to vector __VALID_TILES below
 	 */
 	enum class display {
-		none = '?',
 		empty = '_',
 		wall = '#',
 		hole = 'O',
+		none = '?',
 	};
 
 	display _display;								// the display character
@@ -51,23 +80,7 @@ struct Tile : Coord {
 	 */
 	Tile(const display as, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(false), _isTrap(false), _canSpawn(false)
 	{
-		// check if tile attributes are correct
-		switch ( _display ) {
-		case display::none:
-			break;
-		case display::wall:
-			if ( makeWallsVisible )
-				_isKnown = true;
-			break;
-		case display::hole:
-			_canMove = true;
-			_isTrap = true;
-			break;
-		case display::empty:
-			_canMove = true;
-			_canSpawn = true;
-			break;
-		}
+		initTraits(makeWallsVisible);
 	}
 
 	/** CONSTRUCTOR **
@@ -84,23 +97,7 @@ struct Tile : Coord {
 	Tile(const display as, const WinAPI::color color, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride)
 		: Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false), _canSpawn(false)
 	{
-		// check if tile attributes are correct
-		switch ( _display ) {
-		case display::none:
-			break;
-		case display::wall:
-			if ( makeWallsVisible )
-				_isKnown = true;
-			break;
-		case display::hole:
-			_canMove = true;
-			_isTrap = true;
-			break;
-		case display::empty:
-			_canMove = true;
-			_canSpawn = true;
-			break;
-		}
+		initTraits(makeWallsVisible);
 	}
 
 	/** CONSTRUCTOR **
@@ -108,32 +105,6 @@ struct Tile : Coord {
 	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
 	 */
 	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false), _canSpawn(false) {}
-
-	// comparison operators
-	bool operator==(Tile &o) const
-	{
-		if ( _display == o._display )
-			return true;
-		return false;
-	}
-	bool operator!=(Tile &o) const
-	{
-		if ( _display != o._display )
-			return true;
-		return false;
-	}
-	bool operator==(const display o) const
-	{
-		if ( _display == o )
-			return true;
-		return false;
-	}
-	bool operator!=(const display o) const
-	{
-		if ( _display != o )
-			return true;
-		return false;
-	}
 
 	// Stream insertion operator
 	friend std::ostream& operator<<(std::ostream& os, const Tile& t)
@@ -183,8 +154,8 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 				// iterate through line
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
 					auto isValid{ false };
-					for ( auto it = __VALID_TILES.begin(); it != __VALID_TILES.end(); ++it ) {
-						if ( line.at(x) == static_cast<char>(*it) )
+					for (auto it : __VALID_TILES) {
+						if ( line.at(x) == static_cast<char>(it) )
 							isValid = true;
 					}
 					if ( isValid )	row.emplace_back(static_cast<Tile::display>(line.at(x)), x, y, makeWallsVisible, override_known_tiles);
@@ -198,7 +169,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 	return matrix;
 }
 
-class Cell {
+class Cell final {
 	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
 
@@ -213,7 +184,7 @@ protected:
 	 */
 	void generate(bool makeWallsVisible, bool override_known_tiles)
 	{
-		if ( _max._y > 5 && _max._x > 5 ) {
+		if ( _max._y >= 10 && _max._x >= 10 ) {
 			tRand rng;
 			for (auto y = 0; y < _max._y; y++ ) {
 				std::vector<Tile> _row;
@@ -244,7 +215,7 @@ public:
 
 	/** CONSTRUCTOR **
 	 * Cell(Coord, bool)
-	 * Generate a new cell with the given size parameters
+	 * Generate a new cell with the given size parameters. Minimum size is 10x10
 	 * 
 	 * @param cellSize				- The size of the cell
 	 * @param makeWallsVisible		- walls are always visible
@@ -269,61 +240,17 @@ public:
 		isValidPos(_max) {}
 
 	/**
-	 * display()
-	 * Print the cell to the console as it is known to the player.
-	 */
-	void display()
-	{
-		std::stringstream buf;
-		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y ) {
-			for ( auto x = y->begin(); x != y->end(); ++x ) {
-				buf << *x;
-			}
-			buf << std::endl;
-		}
-		std::cout << buf.rdbuf();
-	}
-
-	/**
-	 * display(Coord&, const int)
-	 * Print a section of the cell to the console.
-	 * 
-	 * @param pos		- Centerpoint of display target
-	 * @param diameter	- The approx. diameter of the display target
-	 */
-	void display(const Coord& pos, const int diameter)
-	{
-		std::stringstream buf;
-		// iterate vertical
-		for (auto y = static_cast<int>(pos._y - diameter); y < static_cast<int>(pos._y + diameter); y++ ) { 
-			// counter for number of chars added
-			auto doNewline{ 0 };
-			// iterate horizontal
-			for (auto x = static_cast<int>(pos._x - diameter); x < static_cast<int>(pos._x + diameter); x++ ) { 
-				// check if this pos exists
-				if ( isValidPos(x, y) ) { 
-					buf << _matrix.at(y).at(x);
-					doNewline++;
-				}
-			}
-			// check if a newline should be inserted
-			if ( doNewline )
-				buf << std::endl;
-		}
-		std::cout << buf.rdbuf();
-	}
-
-	/**
-	 * display(Coord)
-	 * Returns the character
+	 * getDisplayChar(Coord)
+	 * Returns the display character of a given tile
 	 *
-	 * @param pos	- Target position
+	 * @param pos	 - Target position
+	 * @returns char - ( ' ' for invalid position )
 	 */
 	char getDisplayChar(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
 			return static_cast<char>(get(pos)._display);
-		return NULL;
+		return ' ';
 	}
 
 	/**
@@ -334,9 +261,8 @@ public:
 	 */
 	void modVis(const bool to)
 	{
-		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y )
-			for ( auto x = y->begin(); x != y->end(); ++x )
-				x->_isKnown = to;
+		for (auto& y : _matrix)
+			for (auto& x : y) x._isKnown = to;
 	}
 
 	/**
@@ -380,9 +306,8 @@ public:
 	std::stringstream sstream()
 	{
 		std::stringstream buf;
-		for ( auto y = _matrix.begin(); y != _matrix.end(); ++y ) {
-			for ( auto x = (*y).begin(); x != (*y).end(); ++x )
-				buf << *x;
+		for (auto& y : _matrix) {
+			for (auto& x : y) buf << x;
 			buf << std::endl;
 		}
 		return buf;
@@ -425,6 +350,11 @@ public:
 	 */
 	bool exportToFile(const std::string& filename, file::save_type saveAs = file::save_type::overwrite)
 	{
-		return file::write(filename, sstream(), saveAs);
+		std::stringstream buf;
+		for ( auto& y : _matrix ) {
+			for ( auto& x : y ) buf << x;
+			buf << std::endl;
+		}
+		return file::write(filename, buf, saveAs);
 	}
 };

@@ -18,6 +18,12 @@ struct Coord {
 			return true;
 		return false;
 	}
+	bool operator!=(const Coord &o) const
+	{
+		if ( _y != o._y && _x != o._x )
+			return true;
+		return false;
+	}
 };
 
 /** FUNCTOR **

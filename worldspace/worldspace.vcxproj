@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Coord.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -161,7 +162,6 @@
     <ClInclude Include="Gamespace.h" />
     <ClInclude Include="cell.h" />
     <ClInclude Include="item.h" />
-    <ClInclude Include="game_query.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="settings.h" />
     <ClInclude Include="game_threads.h" />

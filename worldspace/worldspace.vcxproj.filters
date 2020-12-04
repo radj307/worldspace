@@ -9,19 +9,19 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="util">
-      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
-    </Filter>
     <Filter Include="game implementation">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="game-related">
-      <UniqueIdentifier>{1c93fc7f-b492-4a28-b68c-9d0882d0160b}</UniqueIdentifier>
+    <Filter Include="doc">
+      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
+      <Filter>game implementation</Filter>
+    </ClCompile>
+    <ClCompile Include="Coord.cpp">
       <Filter>game implementation</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,40 +35,37 @@
     <ClInclude Include="WinAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="settings.h">
-      <Filter>game-related</Filter>
-    </ClInclude>
-    <ClInclude Include="item.h">
-      <Filter>game-related</Filter>
-    </ClInclude>
-    <ClInclude Include="cell.h">
-      <Filter>game-related</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="actor.h">
-      <Filter>game-related</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Gamespace.h">
-      <Filter>game-related</Filter>
+    <ClInclude Include="cell.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="game_threads.h">
-      <Filter>game implementation</Filter>
-    </ClInclude>
-    <ClInclude Include="game_query.h">
-      <Filter>game implementation</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GameRules.h">
-      <Filter>game-related</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="Gamespace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">
-      <Filter>util</Filter>
+      <Filter>doc</Filter>
     </Text>
     <Text Include="log.txt">
-      <Filter>util</Filter>
+      <Filter>doc</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

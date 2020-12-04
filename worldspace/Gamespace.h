@@ -12,7 +12,7 @@
 
 /**
  * class Gamespace
- * Contains all of the game-related functions required for running a game. Does not contain any display functions, use external FrameBuffer.
+ * @brief Contains all of the game-related functions required for running a game. Does not contain any display functions, use external FrameBuffer.
  */
 class Gamespace {
 	// worldspace cell
@@ -37,7 +37,7 @@ class Gamespace {
 
 	/**
 	 * findValidSpawn()
-	 * Returns the coordinate of a valid NPC spawn position. The player must already be initialized.
+	 * @brief Returns the coordinate of a valid NPC spawn position. The player must already be initialized.
 	 *
 	 * @returns Coord
 	 */
@@ -59,6 +59,15 @@ class Gamespace {
 		return Coord(-1, -1);
 	}
 
+	/**
+	 * generate_NPCs(int, vector<ActorTemplate>)
+	 * @brief Returns a vector of randomly generated NPC actors.
+	 *
+	 * @tparam Actor		 - The type of item to generate
+	 * @param count			 - The number of items to generate
+	 * @param templates		 - When true, only the player can use these items
+	 * @returns vector<Actor>
+	 */
 	template <typename Actor>
 	std::vector<Actor> generate_NPCs(const int count, std::vector<ActorTemplate>& templates)
 	{
@@ -78,6 +87,15 @@ class Gamespace {
 		return v;
 	}
 
+	/**
+	 * generate_items(int, bool)
+	 * @brief Returns a vector of randomly generated static items.
+	 *
+	 * @tparam Item			- The type of item to generate
+	 * @param count			- The number of items to generate
+	 * @param lockToPlayer	- When true, only the player can use these items
+	 * @returns vector<Item>
+	 */
 	template<typename Item>
 	std::vector<Item> generate_items(const int count, const bool lockToPlayer = false)
 	{
@@ -93,8 +111,7 @@ class Gamespace {
 	
 	/**
 	 * apply_to_all(void(Gamespace::*)(ActorBase*))
-	 * Applies a Gamespace function to all actors.
-	 * Function must: Return void, and take 1 parameter of type ActorBase*
+	 * @brief Applies a Gamespace function to all actors. Function must: Return void, and take 1 parameter of type ActorBase*
 	 *
 	 * @param func	- A void function that takes only one ActorBase* parameter.
 	 */
@@ -110,8 +127,7 @@ class Gamespace {
 
 	/**
 	 * apply_to_npc(void(Gamespace::*)(ActorBase*))
-	 * Applies a Gamespace function to all NPC actors.
-	 * Function must: Return void, and take 1 parameter of type ActorBase*
+	 * @brief Applies a Gamespace function to all NPC actors. Function must: Return void, and take 1 parameter of type ActorBase*
 	 *
 	 * @param func	- A void function that takes only one ActorBase* parameter.
 	 */
@@ -125,7 +141,7 @@ class Gamespace {
 
 	/**
 	 * get_all_actors()
-	 * Returns a vector of pointers containing all actors in the game.
+	 * @brief Returns a vector of pointers containing all actors in the game.
 	 *
 	 * @returns vector<ActorBase*>
 	 */
@@ -139,7 +155,7 @@ class Gamespace {
 	}
 	/**
 	 * get_all_static_items()
-	 * Returns a vector of pointers containing all actors in the game.
+	 * @brief Returns a vector of pointers containing all actors in the game.
 	 *
 	 * @returns vector<ItemStaticBase*>
 	 */
@@ -153,7 +169,7 @@ class Gamespace {
 
 	/**
 	 * get_all_npc()
-	 * Returns a vector of pointers containing all NPC actors in the game.
+	 * @brief Returns a vector of pointers containing all NPC actors in the game.
 	 *
 	 * @returns vector<NPC*>
 	 */
@@ -167,7 +183,7 @@ class Gamespace {
 
 	/**
 	 * isAfraid(ActorBase*)
-	 * Returns true if the given enemy's stats are too low to proceed with an attack on the player
+	 * @brief Returns true if the given enemy's stats are too low to proceed with an attack on the player
 	 *
 	 * @param a		 - Pointer to an Enemy instance
 	 * @returns bool - ( true = Enemy is afraid, run away ) ( false = Enemy is not afraid, proceed with attack )
@@ -180,7 +196,7 @@ class Gamespace {
 
 	/**
 	 * regen(ActorBase*)
-	 * Increases an actors stats by the relevant value in ruleset.
+	 * @brief Increases an actors stats by the relevant value in ruleset.
 	 *
 	 * @param actor	- Pointer to an actor
 	 */
@@ -195,7 +211,7 @@ class Gamespace {
 
 	/**
 	 * regen(ActorBase*, int)
-	 * Increases an actors stats by a percentage.
+	 * @brief Increases an actors stats by a percentage.
 	 *
 	 * @param actor   - Pointer to an actor
 	 * @param percent - Percentage to restore ( 0 - 100 )
@@ -217,7 +233,7 @@ class Gamespace {
 
 	/**
 	 * level_up(ActorBase*)
-	 * Checks if the given actor has enough kills to level up, then increments their level if they do.
+	 * @brief Checks if the given actor has enough kills to level up, then increments their level if they do.
 	 *
 	 * @param a	- Pointer to a target actor
 	 */
@@ -236,7 +252,7 @@ class Gamespace {
 
 	/**
 	 * intToDir(int)
-	 * Converts an integer to a direction char. Used by NPCs to select a movement direction consistent with the player controls.
+	 * @brief Converts an integer to a direction char. Used by NPCs to select a movement direction consistent with the player controls.
 	 *
 	 * @param i			- ( 0 = 'w'/up ) ( 1 = 's'/down ) ( 2 = 'a'/left ) ( 3 = 'd'/right ) ( other = ' ' )
 	 * @returns char	- w/a/s/d
@@ -253,6 +269,44 @@ class Gamespace {
 	}
 
 	/**
+	 * getPosFromDir(Coord, char)
+	 * @brief Returns an adjacent position based on a direction char.
+	 *
+	 * @param startPos	- The starting position, returned pos will be adjacent to this.
+	 * @param dir		- The direction char
+	 * @returns Coord
+	 */
+	static Coord getPosFromDir(const Coord& startPos, const char dir)
+	{
+		switch ( std::tolower(dir) ) {
+		case 'w': 	return { startPos._x, startPos._y - 1 };
+		case 's':	return { startPos._x, startPos._y + 1 };
+		case 'a':	return { startPos._x - 1, startPos._y };
+		case 'd':	return { startPos._x + 1, startPos._y };
+		default:	return startPos;
+		}
+	}
+
+	/**
+	 * constexpr getDir(Coord&, bool)
+	 * @brief Returns a direction char from a start point and end point. Called from getDirTo()
+	 *
+	 * @param dist		- The difference between 2 actor's positions
+	 * @param invert	- When true, returns a direction away from the target
+	 * @returns char	- w = up/s = down/a = left/d = right
+	 */
+	static constexpr char getDir(const Coord& dist, const bool invert)
+	{
+		if ( dist._x == 0 )	// X-axis is aligned, move vertically
+			return dist._y < 0	? invert ? 'w' : 's'	: invert ? 's' : 'w';
+		if ( dist._y == 0 )	// Y-axis is aligned, move horizontally
+			return dist._x < 0	? invert ? 'a' : 'd'	: invert ? 'd' : 'a';
+		if ( dist._x < dist._y ) // neither is aligned, check which axis is smaller
+			return dist._x < 0	? invert ? 'a' : 'd'	: invert ? 'd' : 'a';
+		return dist._y < 0		? invert ? 'w' : 's'	: invert ? 's' : 'w';
+	}
+
+	/**
 	 * getDirTo(Coord, Coord)
 	 * Returns a direction char from a start point and end point.
 	 *
@@ -261,53 +315,9 @@ class Gamespace {
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	char getDirTo(const Coord& pos, const Coord& target, const bool invert = false)
+	static char getDirTo(const Coord& pos, const Coord& target, const bool invert = false)
 	{
-		auto distX{ pos._x - target._x }, distY{ pos._y - target._y };
-		// reduce large X distances to -1 or 1
-		if ( distX < -1 )		distX = -1;
-		else if ( distX > 1 )	distX = 1;
-		// reduce large Y distances to -1 or 1
-		if ( distY < -1 )		distY = -1;
-		else if ( distY > 1 )	distY = 1;
-
-		if ( _rng.get(100, 0) >= 50 ) { // Check X-axis first
-			// select a direction
-			if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
-			if ( distY == 0 && !invert ) return distX < 0 ? 'd' : 'a'; // check if Y-axis is aligned
-			if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
-			if ( distY == 0 && invert )	 return distX < 0 ? 'a' : 'd'; // check if Y-axis is aligned (inverted)
-			// neither axis is aligned, select a random direction
-			switch ( _rng.get(1, 0) ) {
-			case 1: // move on Y-axis
-				if ( !invert )
-					return distY < 0 ? 's' : 'w';
-				return distY < 0 ? 'w' : 's';
-			case 0: // move on X-axis
-				if ( !invert )
-					return distX < 0 ? 'd' : 'a';
-				return distX < 0 ? 'a' : 'd';
-			default:return' ';
-			}
-		}
-		// Check Y-axis first
-		// select a direction
-		if ( distY == 0 && !invert ) return distX < 0 ? 'd' : 'a'; // check if Y-axis is aligned
-		if ( distX == 0 && !invert ) return distY < 0 ? 's' : 'w'; // check if X-axis is aligned
-		if ( distY == 0 && invert )	 return distX < 0 ? 'a' : 'd'; // check if Y-axis is aligned (inverted)
-		if ( distX == 0 && invert )	 return distY < 0 ? 'w' : 's'; // check if X-axis is aligned (inverted)
-		// neither axis is aligned, select a random direction
-		switch ( _rng.get(1, 0) ) {
-		case 0: // move on Y-axis
-			if ( !invert )
-				return distY < 0 ? 's' : 'w';
-			return distY < 0 ? 'w' : 's';
-		case 1: // move on X-axis
-			if ( !invert )
-				return distX < 0 ? 'd' : 'a';
-			return distX < 0 ? 'a' : 'd';
-		default:return' ';
-		}
+		return getDir({ pos._x - target._x, pos._y - target._y }, invert);
 	}
 
 	/**

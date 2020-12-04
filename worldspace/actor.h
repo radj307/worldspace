@@ -35,8 +35,7 @@ protected:
 	 * @param STAMINA	- My maximum stamina value	(Minimum is 10)
 	 * @param DAMAGE	- My damage modifier value	(Minimum is 10)
 	 */
-	ActorMaxStats(const unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE) : _MAX_HEALTH(static_cast<signed>(HEALTH * (Mult < 1 ? 1 : Mult))), _MAX_STAMINA(static_cast<signed>(STAMINA * (Mult < 1 ? 1 : Mult))), _MAX_DAMAGE(static_cast<signed>(DAMAGE * (Mult < 1 ? 1 : Mult))), _BASE_HEALTH(_MAX_HEALTH), _BASE_STAMINA(_MAX_STAMINA), _BASE_DAMAGE(_MAX_DAMAGE)
-	{}
+	ActorMaxStats(const unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE) : _MAX_HEALTH(static_cast<signed>(HEALTH * (Mult < 1 ? 1 : Mult))), _MAX_STAMINA(static_cast<signed>(STAMINA * (Mult < 1 ? 1 : Mult))), _MAX_DAMAGE(static_cast<signed>(DAMAGE * (Mult < 1 ? 1 : Mult))), _BASE_HEALTH(_MAX_HEALTH), _BASE_STAMINA(_MAX_STAMINA), _BASE_DAMAGE(_MAX_DAMAGE) {}
 	
 public:
 	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
@@ -50,8 +49,14 @@ struct ActorStats : ActorMaxStats {
 protected:
 	int _level, _health, _stamina;	// level = Stat Multiplier
 	bool _dead;						// Am I dead?
-	int _visRange;
+	int _visRange;					// Range in tiles that this actor can see
 
+	/**
+	 * update_stats(int)
+	 * Sets this actor's level to a new value, and updates their stats accordingly. This function is called by addLevel()
+	 *
+	 * @param newLevel	- The new level to set
+	 */
 	void update_stats(const int newLevel)
 	{
 		_level = newLevel;
@@ -61,8 +66,8 @@ protected:
 			_MAX_DAMAGE = static_cast<int>(static_cast<float>(_BASE_DAMAGE) * (static_cast<float>(_level) / 1.5f));
 		}
 	}
+	
 public:
-
 	/**
 	 * ActorStats(int, int, int)
 	 * These values are used to determine my maximum stats.
@@ -77,6 +82,7 @@ public:
 
 	// Returns this actor's level
 	[[nodiscard]] int getLevel() const { return _level; }
+	// Get this actor's visibility range
 	[[nodiscard]] auto getVis() const -> int { return _visRange; }
 	// Increases this actor's level by one
 	void addLevel() 
@@ -125,7 +131,7 @@ public:
 	 */
 	int modHealth(const int modValue)
 	{
-		const int newHealth{ _health + modValue };
+		const auto newHealth{ _health + modValue };
 		// If the new value of health is above the max, set it to 0
 		if ( newHealth > _MAX_HEALTH )
 			_health = _MAX_HEALTH;
@@ -184,7 +190,6 @@ public:
 		else _stamina = newStamina;
 		return _stamina;
 	}
-	
 };
 
 // Used to create stat templates for generating large quantities of actors at once

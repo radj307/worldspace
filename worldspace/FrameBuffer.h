@@ -36,9 +36,9 @@ struct Frame {
 	Coord getSize()
 	{
 		auto Y{ 0 }, X{ 0 };
-		for ( auto y = _frame.begin(); y != _frame.end(); ++y ) {
+		for (auto& y : _frame) {
 			Y++;
-			for ( auto x = (*y).begin(); x != (*y).end(); ++x )
+			for ( auto x = y.begin(); x != y.end(); ++x )
 				X++;
 		}
 		return{ X, Y };
@@ -122,9 +122,8 @@ struct Frame {
 					line.clear();
 				}
 				// fill in any lines that are too short with blanks
-				for ( auto it = matrix.begin(); it != matrix.end(); ++it ) {
-					if ( (*it).size() < longest_line )
-						(*it).push_back(' ');
+				for (auto& it : matrix) {
+					if (it.size() < longest_line ) it.push_back(' ');
 				}
 			}
 		}
@@ -134,8 +133,8 @@ struct Frame {
 	// Stream insertion operator
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f)
 	{
-		for ( auto y = f._frame.begin(); y != f._frame.end(); ++y ) {
-			for ( auto x = (*y).begin(); x != (*y).end(); ++x ) {
+		for (const auto& y : f._frame) {
+			for ( auto x = y.begin(); x != y.end(); ++x ) {
 				os << *x << ' ';
 			}
 			os << std::endl;
