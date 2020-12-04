@@ -50,6 +50,7 @@ struct ActorStats : ActorMaxStats {
 protected:
 	int _level, _health, _stamina;	// level = Stat Multiplier
 	bool _dead;						// Am I dead?
+	int _visRange;
 
 	void update_stats(const int newLevel)
 	{
@@ -61,7 +62,6 @@ protected:
 		}
 	}
 public:
-	int _visRange;
 
 	/**
 	 * ActorStats(int, int, int)
@@ -77,6 +77,7 @@ public:
 
 	// Returns this actor's level
 	[[nodiscard]] int getLevel() const { return _level; }
+	[[nodiscard]] auto getVis() const -> int { return _visRange; }
 	// Increases this actor's level by one
 	void addLevel() 
 	{ 
@@ -321,7 +322,6 @@ public:
 	[[nodiscard]] auto faction() const -> FACTION { return _faction; }
 	[[nodiscard]] Coord pos() const { return _pos; }
 	[[nodiscard]] auto isDead() const -> bool { return _dead; }
-	[[nodiscard]] auto getVis() const -> int { return _visRange; }
 	[[nodiscard]] auto getChar() const -> char { return _char; }
 	[[nodiscard]] auto getKills() const -> int { return _kill_count; }
 	void addKill(const int count = 1) { _kill_count += count; }
@@ -368,8 +368,7 @@ protected:
 	ActorBase* _target;
 public:
 
-	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-		& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
+	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
 	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _MAX_AGGRO(myTemplate._max_aggression), _aggro(0), _target(nullptr) {}
 
 	// Returns true if this NPC is currently aggravated

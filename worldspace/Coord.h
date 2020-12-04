@@ -10,7 +10,7 @@ struct Coord {
 	long _y;	// VERTICAL
 	long _x;	// HORIZONTAL
 	Coord(const long x, const long y) : _y(y), _x(x) {}
-	Coord(const Coord &pos) : _y(pos._y), _x(pos._x) {}
+	Coord() = default;
 
 	bool operator==(const Coord &o) const
 	{
@@ -31,7 +31,7 @@ struct checkDistance {
 		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
 	}
 	// Returns the distance in tiles from pos1 to pos2
-	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y, const bool positiveOnly = true) const
+	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) const
 	{
 		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
 	}
@@ -71,7 +71,7 @@ struct checkDistanceFrom {
  */
 struct checkBounds {
 	// The max & min allowable positions 
-	const Coord _maxPos, _minPos;
+	Coord _maxPos, _minPos;
 
 	/** CONSTRUCTOR **
 	 * checkBounds(const Coord, const Coord)

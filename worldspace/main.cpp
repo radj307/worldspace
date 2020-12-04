@@ -15,6 +15,7 @@
 #include "game_threads.h"
 #include "opt.h"
 
+inline bool prompt_restart(Coord textPos = Coord(5, 6));
 inline GLOBAL interpret(int argc, char* argv[]);
 
 /**
@@ -23,17 +24,58 @@ inline GLOBAL interpret(int argc, char* argv[]);
  * @param argc	- Argument count
  * @param argv	- Argument array
  */
-auto main(const int argc, char* argv[]) -> int
+int main(const int argc, char* argv[])
 {
-	try { // run game
-		game_start(interpret(argc, argv));
-		// return 0 for successful execution
-		return 0;
-	} catch ( ... ) {
-		msg(sys::error, "An unknown error occurred during game operations.", "PRESS ANY KEY TO EXIT....");
-		// return -1 for errors
+	// Interpret commandline options
+	GLOBAL settings;
+	try { settings = { interpret(argc, argv) }; }
+	catch( std::exception & ex ) {
+		msg(sys::error, "\"" + std::string(ex.what()) + "\" was thrown while interpreting command-line arguments.", "Press any key to exit....");
 		return -1;
 	}
+	do { // Start the game, loop until player declines to restart, or player pressed the quit button
+		try { // Check the return code from game::start
+			if ( game::start(settings) ) break; // Break without prompting for a restart
+		} catch ( std::exception& ex ) {
+			WinAPI::cls();
+			msg(sys::error, "The game crashed with exception: \"" + std::string(ex.what()) + "\"", "PRESS ANY KEY TO EXIT....");
+			return -1;
+		}
+	} while ( prompt_restart() );
+	return 0;
+}
+
+/**
+ * prompt_restart(Coord)
+ * Prompts the user to press a key and returns true if the key was 'r', false if the key was 'q'
+ *
+ * @param textPos	- A location in the screen buffer where prompt message will be displayed.
+ * @returns bool	- ( true = Restart the game ) ( false = Quit the game )
+ */
+inline bool prompt_restart(const Coord textPos)
+{
+	typedef std::chrono::steady_clock T;		// typedef for chrono clock
+	const std::chrono::seconds _TIMEOUT{ 6 };	// Maximum time to wait before returning false
+
+	WinAPI::setCursorPos(textPos);	// move to target line, print restart key
+	std::cout << "Press <" << termcolor::green << 'r' << termcolor::reset << "> to restart.";
+
+	WinAPI::setCursorPos(textPos._x, textPos._y + 1);	// move to next line, print quit key
+	std::cout << "Press <" << termcolor::red << 'q' << termcolor::reset << "> to quit.";
+
+	// loop until timeout, or valid key press
+	for ( auto t{ T::now() }; T::now() - t <= _TIMEOUT; t = T::now() ) {
+		if ( _kbhit() ) { // If a key is pressed, process it
+			switch ( std::tolower(_getch()) ) {
+			case 'r': // r was pressed, restart the game
+				return true;
+			case 'q': // q was pressed, quit the game
+				return false;
+			default:break;
+			}
+		} // else wait for timeout
+	}
+	return false;
 }
 
 /**
@@ -49,17 +91,17 @@ inline GLOBAL interpret(const int argc, char* argv[])
 	GLOBAL glob;
 
 	opt::list args(argc, argv, "world:,file:,player:");
-	for ( auto it = args._commands.begin(); it != args._commands.end(); ++it ) {
+	for (auto& _command : args._commands) {
 		// "-world <arg>"
-		if ( (*it).checkName("world") && (*it)._hasArg ) {
+		if (_command.checkName("world") && _command._hasArg ) {
 			// "-world showalltiles"
-			if ( (*it).checkArg("showalltiles") ) {
+			if (_command.checkArg("showalltiles") ) {
 				glob._override_known_tiles = true;
 			}
 			// "-world size=XX:XX"
-			else if ( (*it)._arg.size() >= 8 && (*it)._arg.substr(0, (*it)._arg.find('=')) == "size" ) {
-				if ( (*it)._arg.find(':') != std::string::npos ) {
-					auto str{ ((*it)._arg.substr((*it)._arg.find('=') + 1, (*it)._arg.size())) };
+			else if (_command._arg.size() >= 8 && _command._arg.substr(0, _command._arg.find('=')) == "size" ) {
+				if (_command._arg.find(':') != std::string::npos ) {
+					auto str{ (_command._arg.substr(_command._arg.find('=') + 1, _command._arg.size())) };
 					try {
 						const auto index_of_colon{ str.find(':') };
 						glob._cellSize = Coord(std::stoi(str.substr(0, index_of_colon)), std::stoi(str.substr(index_of_colon + 1)));
@@ -70,29 +112,29 @@ inline GLOBAL interpret(const int argc, char* argv[])
 			}
 		}
 		// "-file <filename>"
-		else if ( (*it).checkName("file") && (*it)._hasArg ) {
-			glob._import_filename = (*it)._arg;
+		else if (_command.checkName("file") && _command._hasArg ) {
+			glob._import_filename = _command._arg;
 		}
 		// "-player <arg>"
-		else if ( (*it).checkName("player") ) {
+		else if (_command.checkName("player") ) {
 			// Check complex arguments
-			const auto index{ (*it)._arg.find('=') };
+			const auto index{_command._arg.find('=') };
 			if ( index != std::string::npos ) {
-				auto arg{ (*it)._arg.substr(0, index) };
+				auto arg{_command._arg.substr(0, index) };
 				try {
 					if ( arg == "health=" )
-						glob._player_health = std::stoi((*it)._arg.substr(index + 1));
+						glob._player_health = std::stoi(_command._arg.substr(index + 1));
 					else if ( arg == "stamina=" )
-						glob._player_stamina = std::stoi((*it)._arg.substr(index + 1));
+						glob._player_stamina = std::stoi(_command._arg.substr(index + 1));
 					else if ( arg == "damage=" )
-						glob._player_damage = std::stoi((*it)._arg.substr(index + 1));
+						glob._player_damage = std::stoi(_command._arg.substr(index + 1));
 				} catch ( std::exception & ex ) {
 					sys::msg(sys::warning, "Argument for player statistic \"" + arg + "\" threw exception: \"" + std::string(ex.what()) + "\"");
 				}
 			}
 			// Check simple arguments
 			else {
-				if ( (*it).checkArg("godmode") )
+				if (_command.checkArg("godmode") )
 					glob._player_godmode = true;
 			}
 		}

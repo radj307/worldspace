@@ -21,6 +21,8 @@ class Gamespace {
 	GameRules& _ruleset;
 	// Randomization engine
 	tRand _rng;
+	// Functor for checking distance between 2 points
+	checkDistance getDist;
 
 	// player character
 	Player _player;
@@ -28,11 +30,10 @@ class Gamespace {
 	std::vector<Enemy> _hostile;
 	// neutral actors
 	std::vector<Neutral> _neutral;
-	// Static Items
+	// Static Items - Health
 	std::vector<ItemStaticHealth> _item_static_health;
+	// Static Items - Stamina
 	std::vector<ItemStaticStamina> _item_static_stamina;
-	// Functor for checking distance between 2 points
-	checkDistance getDist;
 
 	/**
 	 * findValidSpawn()
@@ -52,7 +53,7 @@ class Gamespace {
 			}
 		//	auto* tile{&_world.get(pos)};
 			// Check if this pos is valid
-			if (isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player._visRange) return pos;
+			if (isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis()) return pos;
 		}
 		// Else return invalid coord
 		return Coord(-1, -1);
@@ -179,30 +180,38 @@ class Gamespace {
 
 	/**
 	 * regen(ActorBase*)
-	 * Increases an actor's stats by the relevant value in ruleset.
+	 * Increases an actors stats by the relevant value in ruleset.
 	 *
-	 * @param a	- Pointer to an actor
+	 * @param actor	- Pointer to an actor
 	 */
 	// ReSharper disable once CppMemberFunctionMayBeConst
-	void regen(ActorBase* a)
+	void regen(ActorBase* actor)
 	{
-		if (a != nullptr) {
-			a->modHealth(_ruleset._regen_health);
-			a->modStamina(_ruleset._regen_stamina);
+		if ( actor != nullptr && !actor->isDead()) {
+			actor->modHealth(_ruleset._regen_health);
+			actor->modStamina(_ruleset._regen_stamina);
 		}
 	}
 
 	/**
-	 * regenToMax(ActorBase*)
-	 * Increases an actor's stats to their maximum possible value.
+	 * regen(ActorBase*, int)
+	 * Increases an actors stats by a percentage.
 	 *
-	 * @param a	- Pointer to an actor
+	 * @param actor   - Pointer to an actor
+	 * @param percent - Percentage to restore ( 0 - 100 )
 	 */
-	static void regenToMax(ActorBase* a)
+	static void regen(ActorBase* actor, int percent)
 	{
-		if (a != nullptr) {
-			a->setHealth(a->getMaxHealth());
-			a->setStamina(a->getMaxStamina());
+		if ( actor != nullptr && !actor->isDead() ) {
+			// Minimum percentage is 0
+			if ( percent < 0 )
+				percent = 0;
+			// Maximum percentage is 100
+			else if ( percent > 100 )
+				percent = 100;
+			// Modify health+stamina by percentage
+			actor->modHealth(percent * actor->getMaxHealth() / 100);
+			actor->modStamina(percent * actor->getMaxStamina() / 100);
 		}
 	}
 
@@ -219,7 +228,7 @@ class Gamespace {
 			a->addLevel();
 			// If actor who leveled up is the player
 			if ( a->faction() == FACTION::PLAYER ) {
-				regenToMax(&*a);
+				regen(&*a, _ruleset._level_up_restore_percent);
 				_flare = _ruleset._level_up_flare_time;
 			}
 		}
@@ -350,15 +359,15 @@ class Gamespace {
 				actor->moveDir(dir);
 				did_move = true;
 			}
+			// Check for items
+			auto* item{ getItemAt(actor->pos()) };
+			if ( item != nullptr ) {
+				item->attempt_use(actor);
+			}
 			// Calculate trap damage if applicable
 			if (_world.get(actor->pos())._isTrap) {
 				if (_ruleset._trap_percentage) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
 				else actor->modHealth(-_ruleset._trap_dmg);
-			}
-			auto* item{ getItemAt(actor->pos()) };
-			if ( item != nullptr ) {
-				item->attempt_use(actor);
-				
 			}
 		}
 		return did_move;
@@ -420,13 +429,22 @@ class Gamespace {
 			if (target != nullptr) move(&*npc, getDirTo(npc->pos(), target->pos(), isAfraid(&*npc)));
 			npc->decrementAggro();
 		}
+		else if ( npc->isHostileTo(FACTION::PLAYER) && _player.getDist(npc->pos()) <= npc->getVis() ) {
+			npc->setTarget(&_player);
+			npc->maxAggro();
+			move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));
+		}
 		else {
-			if (npc->isHostileTo(_player.faction()) && _player.getDist(npc->pos()) <= _ruleset._enemy_aggro_distance) {
-				npc->setTarget(&_player);
-				npc->maxAggro();
-				move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));
+			auto* const nearest{ getNearbyActors(npc->pos(), npc->getVis()) };
+			if ( nearest != nullptr ) {
+				if ( npc->isHostileTo(nearest->faction()) && getDist(npc->pos(), nearest->pos()) <= npc->getVis() ) {
+					npc->setTarget(&*nearest);
+					npc->maxAggro();
+					move(&*npc, getDirTo(npc->pos(), nearest->pos(), isAfraid(&*npc)));
+				}
+				else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, intToDir(_rng.get(3, 0)));
 			}
-			else if (_rng.get(_ruleset._enemy_move_chance, 0) == 0) move(&*npc, intToDir(_rng.get(3, 0)));
+			else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, intToDir(_rng.get(3, 0)));
 		}
 	}
 
@@ -450,8 +468,8 @@ public:
 		_hostile = (generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template));
 		_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
 		_item_static_health = generate_items<ItemStaticHealth>(10, true);
-		_item_static_stamina = generate_items<ItemStaticStamina>(10, true);
-		_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
+		_item_static_stamina = generate_items<ItemStaticStamina>(10);
+		_world.modVis(true, _player.pos(), _player.getVis()); // allow the player to see the area around them
 	}
 
 	/**
@@ -474,8 +492,13 @@ public:
 		// if not dead and move was successful
 		if (!_player.isDead() && move(&_player, key)) {
 			// player specific post-movement functions
-			_world.modVis(true, _player.pos(), _player._visRange); // allow the player to see the area around them
+			_world.modVis(true, _player.pos(), _player.getVis()); // allow the player to see the area around them
 		}
+	}
+
+	void apply_level_ups()
+	{
+		apply_to_all(&Gamespace::level_up);
 	}
 
 	/**
@@ -485,7 +508,6 @@ public:
 	void apply_passive()
 	{
 		apply_to_all(&Gamespace::regen);
-		apply_to_all(&Gamespace::level_up);
 	}
 
 	/**
@@ -513,6 +535,27 @@ public:
 			if (_neutral.at(it).isDead()) _neutral.erase(_neutral.begin() + it);
 		// check win condition
 		if (_hostile.empty()) _allEnemiesDead = true;
+	}
+
+	ActorBase* getNearbyActors(const Coord pos, const int visRange)
+	{
+		ActorBase* nearest{ nullptr };
+		auto dist{ -1 };		
+		for ( auto y{pos._y - visRange}; y < pos._y + visRange; ++y ) {
+			for ( auto x{pos._x - visRange}; x < pos._x + visRange; ++x ) {
+				auto* const here{ getActorAt(x, y) };
+				if ( here != nullptr ) {
+					const auto dist_here{ getDist(x, y, here->pos()._x, here->pos()._y) };
+					if ( dist == -1 || dist_here < dist ) {
+						nearest = here;
+						dist = dist_here;
+					}
+					if ( dist == 1 )
+						break;
+				}
+			}
+		}
+		return nearest;
 	}
 
 	/**

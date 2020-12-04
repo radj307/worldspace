@@ -2,30 +2,37 @@
 #include <iostream>
 #include <Windows.h>
 
+#include "Coord.h"
+
 /**
  * Windows-Specific API function wrappers.
  */
 namespace WinAPI {
-
-    // These are pre-set hex values for the setConsoleColor() function
+    // These are pre-set hex values for the setConsoleColor() function. Enums beginning with "b_" are background colors.
     enum class color {
-        white = 0x0001 | 0x0002 | 0x0004,
-        grey = 0,
-        yellow = 0x0002 | 0x0004,
-        red = 0x0004,
-        magenta = 0x0001 | 0x0004,
-        blue = 0x0001,
-        cyan = 0x0001 | 0x0002,
-        green = 0x0002,
+        b_white = BACKGROUND_BLUE | BACKGROUND_GREEN | BACKGROUND_RED, 
+        b_yellow = BACKGROUND_GREEN | BACKGROUND_RED,
+        b_red = BACKGROUND_RED,
+        b_magenta = BACKGROUND_BLUE | BACKGROUND_RED,
+        b_blue = BACKGROUND_BLUE,
+        b_cyan = BACKGROUND_BLUE | BACKGROUND_GREEN,
+        b_green = BACKGROUND_GREEN,
+        white = FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED,
+        yellow = FOREGROUND_GREEN | FOREGROUND_RED,
+        red = FOREGROUND_RED,
+        magenta = FOREGROUND_BLUE | FOREGROUND_RED,
+        blue = FOREGROUND_BLUE,
+        cyan = FOREGROUND_BLUE | FOREGROUND_GREEN,
+        green = FOREGROUND_GREEN,
     	reset = 07,
     };
 
     /**
      * setCursorPos(int, int)
-     * Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0) ( src: https://stackoverflow.com/a/34843392 )
+     * Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
      * 
-     * @param x - Target horizontal-axis position, measured in characters of the screen buffer
-     * @param y - Target vertical-axis position, measured in characters of the screen buffer
+     * @param x     - Target horizontal-axis position, measured in characters of the screen buffer
+     * @param y     - Target vertical-axis position, measured in characters of the screen buffer
      */
 	inline void setCursorPos(const int x, const int y)
     {
@@ -33,17 +40,29 @@ namespace WinAPI {
 		const COORD coord = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
         SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
     }
+	
+     /**
+     * setCursorPos(Coord)
+     * Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
+     *
+     * @param pos   - Target position, measured in characters of the screen buffer
+     */
+	inline void setCursorPos(const Coord pos)
+    {
+        std::cout.flush();
+		const COORD coord = { static_cast<SHORT>(pos._x), static_cast<SHORT>(pos._y) };
+        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+    }
 
     /**
      * hideCursor()
-     * Hides the cursor from the terminal.
-     * ( src: https://stackoverflow.com/a/34843392 )
+     * Changes the cursor's visibility in the terminal
      * 
      * @param isVisible - (Default: false) When true, the cursor is visible. When false, the cursor is not shown.
      */
 	inline void visibleCursor(const bool isVisible = false)
     {
-        CONSOLE_CURSOR_INFO info{};
+        CONSOLE_CURSOR_INFO info;
         info.dwSize = 100;
         info.bVisible = isVisible;
         SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
@@ -51,16 +70,23 @@ namespace WinAPI {
 
     /**
      * setConsoleColor(unsigned short)
-     * Sets the console color to a supported window color
+     * Sets the console color to a supported windows terminal color.
      *
-     * @param makeColor - A windows API color
+     * @param color - A windows API color
      */
-	inline void setConsoleColor(const color makeColor)
+	inline void setConsoleColor(const color color)
     {
         std::cout.flush();
-        SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(makeColor));
+        SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(color));
     }
-	inline void setConsoleColor(const unsigned int color)
+
+	/**
+	 * setConsoleColor(unsigned short)
+	 * Sets the console color to a supported windows terminal color.
+	 *
+     * @param color - A windows API color as an unsigned short. This can be found with the "color /?" command in cmd.exe
+	 */
+	inline void setConsoleColor(const unsigned short color)
     {
         std::cout.flush();
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
@@ -76,7 +102,7 @@ namespace WinAPI {
     {
         // Get the Win32 handle representing standard output.
         // This generally only has to be done once, so we make it static.
-        static const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        static const auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 
         CONSOLE_SCREEN_BUFFER_INFO csbi;
 
@@ -94,7 +120,7 @@ namespace WinAPI {
         FillConsoleOutputCharacter(hOut, TEXT(' '), length, topLeft, &written);
 
         // Reset the attributes of every character to the default.
-        // This clears all background colour formatting, if any.
+        // This clears all background color formatting, if any.
         FillConsoleOutputAttribute(hOut, csbi.wAttributes, length, topLeft, &written);
 
         // Move the cursor back to the top left for the next sequence of writes
