@@ -449,10 +449,12 @@ class Gamespace {
 	}
 
 public:
+	// THESE VARIABLES SHOULD BE ACCESSED BY THE FRAMEBUFFER ONLY
 	// flare should always be set to a multiple of 2, or 0 for disabled. Flare will flash the display to indicate a level up.
 	int _flare {0};
 	unsigned short _flare_color{ BACKGROUND_GREEN };
-	
+
+	// THESE VARIABLES SHOULD BE ACCESSED BY THE THREADS & GAMESPACE ONLY
 	// When this is true, the player wins.
 	bool _allEnemiesDead{ false }, _playerDead{ false };
 

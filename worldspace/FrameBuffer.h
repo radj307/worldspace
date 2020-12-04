@@ -228,12 +228,8 @@ class FrameBuffer_Gamespace {
 		return Frame{ buffer, origin };
 	}
 
-	static bool flare_pattern(const int x, const int y)
-	{
-		if ( (x - y % 2) % 2 == 0 )
-			return true;
-		return false;
-	}
+	// The level-up flare pattern
+	[[nodiscard]] static constexpr bool flare_pattern(const int x, const int y) { return (x - y % 2) % 2 == 0; }
 
 	/**
 	 * playerStatDisplay()

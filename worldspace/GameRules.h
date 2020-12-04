@@ -64,8 +64,6 @@ struct GameRules {
 	
 	// The level up algorithm
 	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
-	// The level-up flare pattern
-	[[nodiscard]] static constexpr bool flare_pattern(const Coord pos) { return (pos._x - pos._y % 2) % 2 == 0; }
 	
 	// Default constructor
 	GameRules() = default;
