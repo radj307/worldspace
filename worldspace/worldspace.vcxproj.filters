@@ -1,81 +1,88 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="0 Utilities &amp; Defaults">
+      <UniqueIdentifier>{ed433398-f402-480b-9b8e-cd0e765645c2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
+    <Filter Include="1 Game Elements">
+      <UniqueIdentifier>{6de560ea-f97f-4994-9d72-397533f0e296}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2 Game Rules">
+      <UniqueIdentifier>{e192340e-721b-4cd9-a7a6-1d8fdd0f92d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3 Game Operation">
+      <UniqueIdentifier>{c39a1f3c-7037-49b8-b201-82853fd22fdd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="4 Display">
+      <UniqueIdentifier>{82aad79c-9020-4e17-ac21-8bab16287d79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="5 HighLevel Operations">
+      <UniqueIdentifier>{4565c9ea-0f9f-4885-9d2a-c34c64f11138}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="documentation">
+      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VS Resources">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="game implementation">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="doc">
-      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>game implementation</Filter>
-    </ClCompile>
-    <ClCompile Include="Coord.cpp">
-      <Filter>game implementation</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Coord.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameBuffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="WinAPI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
+      <Filter>VS Resources</Filter>
     </ClInclude>
     <ClInclude Include="settings.h">
-      <Filter>Header Files</Filter>
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </ClInclude>
+    <ClInclude Include="Coord.h">
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </ClInclude>
+    <ClInclude Include="WinAPI.h">
+      <Filter>0 Utilities &amp; Defaults</Filter>
     </ClInclude>
     <ClInclude Include="actor.h">
-      <Filter>Header Files</Filter>
+      <Filter>1 Game Elements</Filter>
     </ClInclude>
     <ClInclude Include="cell.h">
-      <Filter>Header Files</Filter>
+      <Filter>1 Game Elements</Filter>
     </ClInclude>
-    <ClInclude Include="game_threads.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GameRules.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Gamespace.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Flare.h">
+      <Filter>1 Game Elements</Filter>
     </ClInclude>
     <ClInclude Include="item.h">
-      <Filter>Header Files</Filter>
+      <Filter>1 Game Elements</Filter>
+    </ClInclude>
+    <ClInclude Include="Gamespace.h">
+      <Filter>3 Game Operation</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRules.h">
+      <Filter>2 Game Rules</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameBuffer.h">
+      <Filter>4 Display</Filter>
+    </ClInclude>
+    <ClInclude Include="game_threads.hpp">
+      <Filter>5 HighLevel Operations</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">
-      <Filter>doc</Filter>
-    </Text>
-    <Text Include="log.txt">
-      <Filter>doc</Filter>
+      <Filter>documentation</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="worldspace.rc">
-      <Filter>Resource Files</Filter>
+      <Filter>VS Resources</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="AceOfSpades.ico">
-      <Filter>Resource Files</Filter>
+      <Filter>VS Resources</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

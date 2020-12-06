@@ -27,7 +27,7 @@ struct GameRules {
 
 	// NPC RELATIONSHIPS
 	std::vector<FACTION>
-		_enemy_hostile_to =	{ FACTION::PLAYER, FACTION::NEUTRAL }, // Which factions are enemies hostile to by default.
+		_enemy_hostile_to =	{ FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
 		_neutral_hostile_to = { FACTION::NONE }; // Which factions are neutrals hostile to by default. This changes if NPC is attacked.
 	
 	// ENEMY-SPECIFIC
@@ -35,18 +35,20 @@ struct GameRules {
 		_enemy_count{ 20 },					// how many enemies are present when the game starts
 		_enemy_move_chance{ 4 },			// 1 in (this) chance of a hostile moving each cycle (range is 0-this)
 		_enemy_aggro_distance{ 4 };			// Determines from how far away enemies notice the player and become aggressive
+	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Chance to spawn), (Max aggression val in move cycles)
 	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types
-		{ "Bandit",	 ActorStats(1, 40, 55, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 50, 30 },	// Level 1 enemy
-		{ "Marauder",ActorStats(2, 40, 45, 20, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 35, 25 },	// Level 2 enemy
-		{ "Reaver",	 ActorStats(3, 60, 60, 30, _enemy_aggro_distance + 1), 'T', WinAPI::color::magenta, _enemy_hostile_to, 15, 15 },// Level 3 enemy
+		{ "Bandit",	 ActorStats(1, 40, 55, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 50, 50 },	// Level 1 enemy
+		{ "Marauder",ActorStats(2, 40, 45, 20, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 35, 35 },	// Level 2 enemy
+		{ "Reaver",	 ActorStats(3, 60, 60, 30, _enemy_aggro_distance + 1), 'T', WinAPI::color::magenta, _enemy_hostile_to, 15, 20 },// Level 3 enemy
+		{ "",	 ActorStats(3, 60, 60, 30, _enemy_aggro_distance + 1), 'T', WinAPI::color::magenta, _enemy_hostile_to, 15, 20 },// Level 3 enemy
 	};
 
 	// NEUTRALS
 	int	_neutral_count{ 20 };				// how many neutrals are present when the game starts
 	std::vector<ActorTemplate> _neutral_template{	// Neutral templates, aka default values for neutral types
-		{ "Chicken",ActorStats(1, 20, 25, 5, 3), '`', WinAPI::color::cyan, _neutral_hostile_to, 50, 11 },
-		{ "Sheep",	ActorStats(2, 25, 25, 10, 4), '@', WinAPI::color::cyan, _neutral_hostile_to, 35, 11 },
-		{ "Cow",	ActorStats(3, 40, 25, 15, 5), '%', WinAPI::color::blue, _neutral_hostile_to, 15, 11 },
+		{ "Chicken",ActorStats(1, 20, 25, 5, 3), '`', WinAPI::color::cyan, _neutral_hostile_to, 50, 50 },
+		{ "Sheep",	ActorStats(2, 25, 25, 10, 4), '@', WinAPI::color::cyan, _neutral_hostile_to, 35, 30 },
+		{ "Cow",	ActorStats(3, 40, 25, 15, 5), '%', WinAPI::color::blue, _neutral_hostile_to, 15, 20 },
 	};
 
 	// PASSIVE EFFECTS
@@ -59,11 +61,18 @@ struct GameRules {
 	int
 		_level_up_kills{ 2 },				// Kills required for an actor to level up. This value is arbitrary.
 		_level_up_mult{ 2 },				// Multiplies the level_up_kills threshold for every level
-		_level_up_flare_time{ 6 },			// How many frames to flare when the player levels up. Must be a multiple of 2
 		_level_up_restore_percent{ 50 };	// How much health/stamina is regenerated when the player levels up ( 0 - 100 )
+	unsigned short
+		_level_up_flare_time{ 6 };			// How many frames to flare when the player levels up. Must be a multiple of 2
 	
 	// The level up algorithm
 	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
+
+	// CHALLENGES
+	unsigned int // Percentage of remaining enemies to trigger finale. (0 to disable.)
+		_challenge_final_trigger_percent{ 25 }; 
+	bool		 // if true, neutral NPCs will also attack the player during the finale
+		_challenge_neutral_is_hostile{ false }; 
 	
 	// Default constructor
 	GameRules() = default;
@@ -91,10 +100,12 @@ struct GameRules {
 	explicit GameRules(const GLOBAL& settings) : _override_known_tiles(settings._override_known_tiles), _world_import_file(settings._import_filename), _cellSize(settings._cellSize), _player_godmode(settings._player_godmode), _regen_timer(settings._regen_timer)
 	{
 		// Set player stats
+		if ( !settings._player_name.empty() )		// Check name
+			_player_template._name = settings._player_name;
 		if ( settings._player_health != NOT_SET )	// Check health
-			_player_template._stats.setHealth(settings._player_health);
+			_player_template._stats.setMaxHealth(settings._player_health);
 		if ( settings._player_stamina != NOT_SET )	// Check stamina
-			_player_template._stats.setStamina(settings._player_stamina);
+			_player_template._stats.setMaxStamina(settings._player_stamina);
 		if ( settings._player_damage != NOT_SET )	// Check damage
 			_player_template._stats.setMaxDamage(settings._player_damage);
 	}

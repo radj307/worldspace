@@ -8,14 +8,13 @@
  * 
  * 
  *	[Task List]
-		modify the player stat bar to use a Frame rather than direct console output
-		notification area for general notifications, that are removed after x seconds
-		implement items
+		Add an endgame function that either spawns new enemies that always know where the player is, or lets all remaining enemies know where the player is
  */
-#include "game_threads.h"
+#include "game_threads.hpp"
 #include "opt.h"
 
 inline bool prompt_restart(Coord textPos = Coord(5, 6));
+
 inline GLOBAL interpret(int argc, char* argv[]);
 
 /**
@@ -122,12 +121,14 @@ inline GLOBAL interpret(const int argc, char* argv[])
 			if ( index != std::string::npos ) {
 				auto arg{_command._arg.substr(0, index) };
 				try {
-					if ( arg == "health=" )
+					if ( arg == "health" )
 						glob._player_health = std::stoi(_command._arg.substr(index + 1));
-					else if ( arg == "stamina=" )
+					else if ( arg == "stamina" )
 						glob._player_stamina = std::stoi(_command._arg.substr(index + 1));
-					else if ( arg == "damage=" )
+					else if ( arg == "damage" )
 						glob._player_damage = std::stoi(_command._arg.substr(index + 1));
+					else if ( arg == "name" )
+						glob._player_name = _command._arg.substr(index + 1);
 				} catch ( std::exception & ex ) {
 					sys::msg(sys::warning, "Argument for player statistic \"" + arg + "\" threw exception: \"" + std::string(ex.what()) + "\"");
 				}

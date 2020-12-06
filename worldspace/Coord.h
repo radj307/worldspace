@@ -5,6 +5,7 @@
  */
 #pragma once
 #include <cmath>
+#include <exception>
 
 struct Coord {
 	long _y;	// VERTICAL
@@ -49,7 +50,7 @@ struct checkDistance {
  */
 struct checkDistanceFrom {
 	// member coord pointer to follow, such as the player
-	Coord* _follow;
+	Coord* _follow{ nullptr };
 
 	/** CONSTRUCTOR **
 	 * checkDistanceFrom(Coord*)
@@ -57,7 +58,10 @@ struct checkDistanceFrom {
 	 *
 	 * @param followThis	- A pointer to a Coord instance to use when checking distance.
 	 */
-	explicit checkDistanceFrom(Coord& followThis) : _follow(&followThis) {}
+	explicit checkDistanceFrom(Coord& followThis) : _follow(&followThis)
+	{
+		if ( _follow == nullptr ) throw std::exception("checkDistanceFrom() exception: Given coord to follow was nullptr");
+	}
 
 	// Returns the distance in tiles from the given pos
 	long operator()(const Coord& pos) const noexcept
@@ -117,7 +121,7 @@ struct checkBounds {
 	 * @param x			- Target X (horizontal) position to check
 	 * @param y			- Target Y (vertical) position to check
 	 */
-	bool operator()(long x, long y) const
+	bool operator()(const long x, const long y) const
 	{
 		if ( y >= 0 && y < _maxPos._y && (x >= 0 && x < _maxPos._x) )
 			return true;

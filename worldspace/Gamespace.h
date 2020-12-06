@@ -9,12 +9,13 @@
 #include "cell.h"
 #include "GameRules.h"
 #include "item.h"
+#include "Flare.h"
 
 /**
  * class Gamespace
  * @brief Contains all of the game-related functions required for running a game. Does not contain any display functions, use external FrameBuffer.
  */
-class Gamespace {
+class Gamespace final {
 	// worldspace cell
 	Cell _world;
 	// Reference to the game's ruleset
@@ -34,7 +35,31 @@ class Gamespace {
 	std::vector<ItemStaticHealth> _item_static_health;
 	// Static Items - Stamina
 	std::vector<ItemStaticStamina> _item_static_stamina;
+	
+	// Declare Flare instances
+	FlareLevel _FLARE_DEF_LEVEL;			// Flare used when the player levels up
+	FlareChallenge _FLARE_DEF_CHALLENGE;	// Flare used when the final challenge mode begins
+	Flare* _flare;	// Pointer to one of the above instances, this should only be accessed through the flare functions.
+	
+	bool // Flags
+		_final_challenge{ false },	// When true, all enemies (& neutrals if set in gamerules) attack the player.
+		_allEnemiesDead{ false },	// When true, the player wins
+		_playerDead{ false };		// When true, the player loses
 
+	/**
+	 * changeFlare(Flare&)
+	 * Resets the current flare instance, and applies a new one.
+	 * This function should be used rather than directly accessing the _flare pointer.
+	 *
+	 * @param newFlare	- A new flare instance.
+	 */
+	void changeFlare(Flare& newFlare)
+	{
+		if ( _flare != nullptr )
+			_flare->reset(); // reset flare instance
+		_flare = &newFlare;
+	}
+	
 	/**
 	 * findValidSpawn()
 	 * @brief Returns the coordinate of a valid NPC spawn position. The player must already be initialized.
@@ -91,10 +116,9 @@ class Gamespace {
 	 * generate_items(int, bool)
 	 * @brief Returns a vector of randomly generated static items.
 	 *
-	 * @tparam Item			- The type of item to generate
-	 * @param count			- The number of items to generate
-	 * @param lockToPlayer	- When true, only the player can use these items
-	 * @returns vector<Item>
+	 * @tparam Item			 - The type of item to generate
+	 * @param count			 - The number of items to generate
+	 * @param lockToPlayer	 - When true, only the player can use these items
 	 */
 	template<typename Item>
 	std::vector<Item> generate_items(const int count, const bool lockToPlayer = false)
@@ -148,9 +172,10 @@ class Gamespace {
 	std::vector<ActorBase*> get_all_actors()
 	{
 		std::vector<ActorBase*> allActors;
-		allActors.push_back(&_player);
-		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.emplace_back(&*it);
-		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.emplace_back(&*it);
+		allActors.reserve(_hostile.size() + _neutral.size() + 1u);
+		allActors.emplace_back(&_player);
+		for ( auto& it : _hostile ) allActors.emplace_back(&it);
+		for ( auto& it : _neutral ) allActors.emplace_back(&it);
 		return allActors;
 	}
 	/**
@@ -162,8 +187,9 @@ class Gamespace {
 	std::vector<ItemStaticBase*> get_all_static_items()
 	{
 		std::vector<ItemStaticBase*> allItems;
-		for ( auto it{ _item_static_health.begin() }; it != _item_static_health.end(); ++it ) allItems.emplace_back(&*it);
-		for ( auto it{ _item_static_stamina.begin() }; it != _item_static_stamina.end(); ++it ) allItems.emplace_back(&*it);
+		allItems.reserve(_item_static_health.size() + _item_static_stamina.size());
+		for ( auto& it : _item_static_health ) allItems.emplace_back(&it);
+		for ( auto& it : _item_static_stamina ) allItems.emplace_back(&it);
 		return allItems;
 	}
 
@@ -176,22 +202,10 @@ class Gamespace {
 	std::vector<NPC*> get_all_npc()
 	{
 		std::vector<NPC*> allActors;
-		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) allActors.push_back(&*it);
-		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) allActors.push_back(&*it);
+		allActors.reserve(_hostile.size() + _neutral.size());
+		for ( auto& it : _hostile ) allActors.emplace_back(&it);
+		for ( auto& it : _neutral ) allActors.emplace_back(&it);
 		return allActors;
-	}
-
-	/**
-	 * isAfraid(ActorBase*)
-	 * @brief Returns true if the given enemy's stats are too low to proceed with an attack on the player
-	 *
-	 * @param a		 - Pointer to an Enemy instance
-	 * @returns bool - ( true = Enemy is afraid, run away ) ( false = Enemy is not afraid, proceed with attack )
-	 */
-	bool isAfraid(ActorBase* a) const
-	{
-		if (a != nullptr && (a->getHealth() < a->getMaxHealth() / 5 || a->getStamina() < _ruleset._attack_cost_stamina)) return true;
-		return false;
 	}
 
 	/**
@@ -245,79 +259,56 @@ class Gamespace {
 			// If actor who leveled up is the player
 			if ( a->faction() == FACTION::PLAYER ) {
 				regen(&*a, _ruleset._level_up_restore_percent);
-				_flare = _ruleset._level_up_flare_time;
+				if ( _flare == nullptr )
+					changeFlare(_FLARE_DEF_LEVEL);
 			}
 		}
 	}
 
 	/**
 	 * intToDir(int)
-	 * @brief Converts an integer to a direction char. Used by NPCs to select a movement direction consistent with the player controls.
+	 * @brief Converts an integer to a direction char
 	 *
-	 * @param i			- ( 0 = 'w'/up ) ( 1 = 's'/down ) ( 2 = 'a'/left ) ( 3 = 'd'/right ) ( other = ' ' )
-	 * @returns char	- w/a/s/d
+	 * @param i		 - Input integer between 0 and 3
+	 * @returns char - ( 'w' == 0 ) ( 'd' == 1 ) ( 's' == 2 ) ( 'a' == 3 ) ( ' ' == invalid parameter )
 	 */
 	static char intToDir(const int i)
 	{
-		switch (i) {
+		switch ( i ) {
 		case 0: return 'w';
-		case 1: return 's';
-		case 2: return 'a';
-		case 3: return 'd';
-		default: return ' ';
+		case 1: return 'd';
+		case 2: return 's';
+		case 3: return 'a';
+		default:return ' ';
 		}
 	}
 
 	/**
-	 * getPosFromDir(Coord, char)
-	 * @brief Returns an adjacent position based on a direction char.
+	 * intToDir(int)
+	 * @brief Converts an integer to a direction char
 	 *
-	 * @param startPos	- The starting position, returned pos will be adjacent to this.
-	 * @param dir		- The direction char
-	 * @returns Coord
+	 * @param c		 - Input integer between 0 and 3
+	 * @returns int - ( 0 == 'w' ) ( 1 == 'd' ) ( 2 == 's' ) ( 3 == 'a' ) ( -1 == invalid parameter )
 	 */
-	static Coord getPosFromDir(const Coord& startPos, const char dir)
+	static int dirToInt(const char c)
 	{
-		switch ( std::tolower(dir) ) {
-		case 'w': 	return { startPos._x, startPos._y - 1 };
-		case 's':	return { startPos._x, startPos._y + 1 };
-		case 'a':	return { startPos._x - 1, startPos._y };
-		case 'd':	return { startPos._x + 1, startPos._y };
-		default:	return startPos;
+		switch ( c ) {
+		case 'w': return 0;
+		case 'd': return 1;
+		case 's': return 2;
+		case 'a': return 3;
+		default:return -1;
 		}
 	}
-
+	
 	/**
-	 * constexpr getDir(Coord&, bool)
-	 * @brief Returns a direction char from a start point and end point. Called from getDirTo()
-	 *
-	 * @param dist		- The difference between 2 actor's positions
-	 * @param invert	- When true, returns a direction away from the target
-	 * @returns char	- w = up/s = down/a = left/d = right
+	 * getRandomDir()
+	 * @brief Returns a random direction char
+	 * @returns char	- w/a/s/d
 	 */
-	static constexpr char getDir(const Coord& dist, const bool invert)
+	char getRandomDir()
 	{
-		if ( dist._x == 0 )	// X-axis is aligned, move vertically
-			return dist._y < 0	? invert ? 'w' : 's'	: invert ? 's' : 'w';
-		if ( dist._y == 0 )	// Y-axis is aligned, move horizontally
-			return dist._x < 0	? invert ? 'a' : 'd'	: invert ? 'd' : 'a';
-		if ( dist._x < dist._y ) // neither is aligned, check which axis is smaller
-			return dist._x < 0	? invert ? 'a' : 'd'	: invert ? 'd' : 'a';
-		return dist._y < 0		? invert ? 'w' : 's'	: invert ? 's' : 'w';
-	}
-
-	/**
-	 * getDirTo(Coord, Coord)
-	 * Returns a direction char from a start point and end point.
-	 *
-	 * @param pos		- The starting/current position
-	 * @param target	- The target position
-	 * @param invert	- When true, returns a direction away from the target
-	 * @returns char	- w = up/s = down/a = left/d = right
-	 */
-	static char getDirTo(const Coord& pos, const Coord& target, const bool invert = false)
-	{
-		return getDir({ pos._x - target._x, pos._y - target._y }, invert);
+		return intToDir(_rng.get(0, 3));
 	}
 
 	/**
@@ -347,7 +338,7 @@ class Gamespace {
 
 	/**
 	 * move(ActorBase*, char)
-	 * Attempts to move the target actor to an adjacent tile, and processes trap logic.
+	 * Attempts to move the target actor to an adjacent tile, and processes trap & item logic.
 	 *
 	 * @param actor	 - A pointer to the target actor
 	 * @param dir	 - (w = up / s = down / a = left / d = right) all other characters are ignored.
@@ -369,11 +360,13 @@ class Gamespace {
 				actor->moveDir(dir);
 				did_move = true;
 			}
+			
 			// Check for items
 			auto* item{ getItemAt(actor->pos()) };
 			if ( item != nullptr ) {
 				item->attempt_use(actor);
 			}
+			
 			// Calculate trap damage if applicable
 			if (_world.get(actor->pos())._isTrap) {
 				if (_ruleset._trap_percentage) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
@@ -394,29 +387,24 @@ class Gamespace {
 	int attack(ActorBase* attacker, ActorBase* target)
 	{
 		// return early if target is player and godmode is enabled
-		if ( _ruleset._player_godmode && target->faction() == FACTION::PLAYER )
-			return -1;
+		if ( _ruleset._player_godmode && target->faction() == FACTION::PLAYER )	return -1;
 		// Calculate attack
 		if (attacker != nullptr && target != nullptr && attacker->faction() != target->faction()) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
 			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
-			// if actor has enough stamina
-			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) 
+			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) // actor has enough stamina
 				target->modHealth(-dmg);
-			// if actor has stamina, but not enough for a full attack
-			else if (attacker->getStamina()) 
+			else if (attacker->getStamina()) // actor has stamina, but not enough for a full attack
 				target->modHealth(-(dmg / 2));
-			// actor is out of stamina
-			else {
+			else {							// actor is out of stamina
 				target->modHealth(-(dmg / 4));
 				attacker->modHealth(-(dmg / 12));
 			}
+			// Subtract stamina
 			attacker->modStamina(-_ruleset._attack_cost_stamina);
-			// check if target died, add a kill to attacker
-			if (target->isDead()) {
-				if ( target->faction() == FACTION::ENEMY ) { // add the difference in level to kill count
+			if (target->isDead()) {			// if target died, add a kill to attacker
+				if ( target->faction() == FACTION::ENEMY ) // add the difference in level to kill count, but only for enemies
 					attacker->addKill(target->getLevel() > attacker->getLevel() ? target->getLevel() - attacker->getLevel() : 1);
-				}
 				else attacker->addKill();
 			}
 			// else set target as hostile to attacker
@@ -427,6 +415,53 @@ class Gamespace {
 	}
 
 	/**
+	 * moveNPC(NPC*, Coord&)
+	 * @brief Attempt to move an npc with obstacle avoidance
+	 *
+	 * @param npc	 - Pointer to an NPC instance
+	 * @param target - Ref of a target coordinate
+	 * @param noFear - NPC will never run away
+	 */
+	bool moveNPC(NPC* npc, const Coord& target, const bool noFear = false)
+	{
+		auto dir{ npc->getDirTo(target, noFear) };
+		const auto dirAsInt{ dirToInt(dir) };
+		// if NPC can move in their chosen direction, return result of move
+		if ( canMove(npc->getPosDir(dir)) )
+			return move(&*npc, dir);
+
+		// else find a new direction
+		switch ( _rng.get(1u, 0u) ) { // randomly choose order
+		case 0: // check adjacent tiles
+			for ( auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it+=2 ) {
+				// check if iterator is a valid direction int
+				if ( it >= 0 && it <= 3 ) {
+					dir = intToDir(it);
+					if ( canMove(npc->getPosDir(dir)) )
+						return move(&*npc, dir);
+				}
+				// else continue
+			}
+			break;
+		case 1: // check adjacent tiles
+			for ( auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it-=2 ) {
+				// check if iterator is a valid direction int
+				if ( it >= 0 && it <= 3 ) {
+					dir = intToDir(it);
+					if ( canMove(npc->getPosDir(dir)) )
+						return move(&*npc, dir);
+				}
+				// else continue
+			}
+			break;
+		default:break;
+		}
+		
+		// failed, return false
+		return false;
+	}
+	
+	/**
 	 * actionNPC(NPC*)
 	 * Performs an action for a single NPC
 	 *
@@ -434,68 +469,94 @@ class Gamespace {
 	 */
 	void actionNPC(NPC* npc)
 	{
-		if (npc->isAggro()) {
-			auto* const target{npc->getTarget()};
-			if (target != nullptr) move(&*npc, getDirTo(npc->pos(), target->pos(), isAfraid(&*npc)));
-			npc->decrementAggro();
-		}
-		else if ( npc->isHostileTo(FACTION::PLAYER) && _player.getDist(npc->pos()) <= npc->getVis() ) {
-			npc->setTarget(&_player);
-			npc->maxAggro();
-			move(&*npc, getDirTo(npc->pos(), _player.pos(), isAfraid(&*npc)));
-		}
-		else {
-			auto* const nearest{ getNearbyActors(npc->pos(), npc->getVis()) };
-			if ( nearest != nullptr ) {
-				if ( npc->isHostileTo(nearest->faction()) && getDist(npc->pos(), nearest->pos()) <= npc->getVis() ) {
-					npc->setTarget(&*nearest);
-					npc->maxAggro();
-					move(&*npc, getDirTo(npc->pos(), nearest->pos(), isAfraid(&*npc)));
-				}
-				else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, intToDir(_rng.get(3, 0)));
+		// Finale Challenge Event - enemies always attack player, neutrals attack player if ruleset allows it
+		if ( _final_challenge && (npc->faction() == FACTION::ENEMY || npc->faction() == FACTION::NEUTRAL && _ruleset._challenge_neutral_is_hostile) ) {
+			if ( !npc->isAggro() ) {
+				npc->maxAggro();
+				npc->setTarget(&_player);
 			}
-			else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, intToDir(_rng.get(3, 0)));
+			moveNPC(&*npc, _player.pos(), true);
+	//		move(&*npc, npc->getDirTo(&_player, true));
+		}
+		else { // Normal turn
+			if ( npc->isAggro() ) {
+				auto* const target{ npc->getTarget() };
+				if ( target != nullptr )
+					moveNPC(&*npc, target->pos());
+	//				move(&*npc, npc->getDirTo(&*target));
+				npc->decrementAggro();
+			}
+			else if ( npc->isHostileTo(FACTION::PLAYER) && _player.getDist(npc->pos()) <= npc->getVis() ) {
+				npc->setTarget(&_player);
+				npc->maxAggro();
+				moveNPC(&*npc, _player.pos());
+	//			move(&*npc, npc->getDirTo(&_player));
+			}
+			else {
+				auto* const nearest{ getNearbyActor(npc->pos(), npc->getVis()) };
+				if ( nearest != nullptr ) {
+					if ( npc->isHostileTo(nearest->faction()) && getDist(npc->pos(), nearest->pos()) <= npc->getVis() ) {
+						npc->setTarget(&*nearest);
+						npc->maxAggro();
+						moveNPC(&*npc, nearest->pos());
+	//					move(&*npc, npc->getDirTo(nearest));
+					}
+					else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, getRandomDir());
+				}
+				else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, getRandomDir());
+			}
 		}
 	}
 
-public:
-	// THESE VARIABLES SHOULD BE ACCESSED BY THE FRAMEBUFFER ONLY
-	// flare should always be set to a multiple of 2, or 0 for disabled. Flare will flash the display to indicate a level up.
-	int _flare {0};
-	unsigned short _flare_color{ BACKGROUND_GREEN };
+	/**
+	 * trigger_final_challenge(unsigned int)
+	 * @brief Checks if the finale event should be triggered
+	 *
+	 * @param remainingEnemies	- The number of remaining enemies. (_hostile.size())
+	 * @returns bool			- ( true = trigger event ) ( false = don't trigger event yet )
+	 */
+	[[nodiscard]] constexpr bool trigger_final_challenge(const unsigned int remainingEnemies) const { return remainingEnemies <= _ruleset._enemy_count * _ruleset._challenge_final_trigger_percent / 100; }
 
-	// THESE VARIABLES SHOULD BE ACCESSED BY THE THREADS & GAMESPACE ONLY
-	// When this is true, the player wins.
-	bool _allEnemiesDead{ false }, _playerDead{ false };
+public:
 
 	/** CONSTRUCTOR **
 	 * Gamespace(GLOBAL&, GameRules&)
-	 * Creates a new gamespace with the given settings.
+	 * @brief Creates a new gamespace with the given settings.
 	 *
 	 * @param ruleset	- A ref to the ruleset structure
 	 */
-	explicit Gamespace(GameRules& ruleset)
-		: _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles} : Cell{ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles}), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template })
+	explicit Gamespace(GameRules& ruleset) : _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles} : Cell{ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles}), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max), _flare(nullptr)
 	{
 		_hostile = (generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template));
 		_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
 		_item_static_health = generate_items<ItemStaticHealth>(10, true);
 		_item_static_stamina = generate_items<ItemStaticStamina>(10);
 		_world.modVis(true, _player.pos(), _player.getVis()); // allow the player to see the area around them
+
+	#ifdef _DEBUG // debug section
+		_final_challenge = true;
+		changeFlare(_FLARE_DEF_CHALLENGE);
+	#endif
 	}
 
 	/**
 	 * actionAllNPC()
-	 * Performs an action for all NPC instances
+	 * @brief Performs an action for all NPC instances
 	 */
 	void actionAllNPC()
 	{
+		// Check if the final challenge should be triggered
+		if ( !_final_challenge && trigger_final_challenge(_hostile.size()) ) {
+			_final_challenge = true;
+			changeFlare(_FLARE_DEF_CHALLENGE);
+		}
+		// Perform all NPC actions.
 		apply_to_npc(&Gamespace::actionNPC);
 	}
 
 	/**
 	 * actionPlayer(char)
-	 * Moves the player in a given direction, if possible.
+	 * @brief Moves the player in a given direction, if possible.
 	 *
 	 * @param key	- 'w' for up, 's' for down, 'a' for left, 'd' for right. Anything else is ignored.
 	 */
@@ -508,24 +569,21 @@ public:
 		}
 	}
 
-	void apply_level_ups()
-	{
-		apply_to_all(&Gamespace::level_up);
-	}
+	/**
+	 * apply_level_ups()
+	 * @brief Applies pending level ups to all actors.
+	 */
+	void apply_level_ups() { apply_to_all(&Gamespace::level_up); }
 
 	/**
 	 * apply_passive()
-	 * Applies passive regen effects to all actors
+	 * @brief Applies passive regen effects to all actors. Amounts are determined by the ruleset.
 	 */
-	void apply_passive()
-	{
-		apply_to_all(&Gamespace::regen);
-	}
+	void apply_passive() { apply_to_all(&Gamespace::regen); }
 
 	/**
 	 * cleanupDead()
-	 * Removes dead hostiles from the game.
-	 * This function is used by FrameBuffer::display()
+	 * @brief Cleans up expired game elements. This is called by the frame buffer before every frame.
 	 */
 	void cleanupDead()
 	{
@@ -538,18 +596,25 @@ public:
 			if ( _item_static_stamina.at(it).getUses() <= 0 )
 				_item_static_stamina.erase(_item_static_stamina.begin() + it);
 		// erase dead enemies
-		//	for ( size_t it = 0; it < _hostile.size(); it++ )
 		for (auto it{static_cast<int>(_hostile.size()) - 1}; it >= 0; it--)
 			if (_hostile.at(it).isDead()) _hostile.erase(_hostile.begin() + it);
 		// erase dead neutrals
-		//for ( size_t it = 0; it < _neutral.size(); it++ )
 		for (auto it{static_cast<signed>(_neutral.size() - 1)}; it >= 0; it--)
 			if (_neutral.at(it).isDead()) _neutral.erase(_neutral.begin() + it);
 		// check win condition
-		if (_hostile.empty()) _allEnemiesDead = true;
+		if ( _player.isDead() ) _playerDead = true;
+		if ( _hostile.empty() ) _allEnemiesDead = true;
 	}
 
-	ActorBase* getNearbyActors(const Coord pos, const int visRange)
+	/**
+	 * getNearbyActor(Coord&, int)
+	 * @brief Returns a pointer to the closest actor to a given position.
+	 *
+	 * @param pos		- Position ref
+	 * @param visRange	- Range to check in all directions around the position ref
+	 * @returns ActorBase*
+	 */
+	ActorBase* getNearbyActor(const Coord& pos, const int visRange)
 	{
 		ActorBase* nearest{ nullptr };
 		auto dist{ -1 };		
@@ -575,6 +640,7 @@ public:
 	 * Returns a pointer to an actor located at a given tile.
 	 *
 	 * @param pos			- The target tile
+	 * @returns ActorBase*	- nullptr if not found
 	 */
 	ActorBase* getActorAt(const Coord& pos)
 	{
@@ -583,6 +649,15 @@ public:
 		}
 		return nullptr;
 	}
+	
+	/**
+	 * getActorAt(int, int)
+	 * Returns a pointer to an actor located at a given tile.
+	 *
+	 * @param posX			- The target tile's X (horizontal) index
+	 * @param posY			- The target tile's Y (vertical) index
+	 * @returns ActorBase*	- nullptr if not found
+	 */
 	ActorBase* getActorAt(const int posX, const int posY)
 	{
 		for ( auto* it : get_all_actors() ) {
@@ -595,7 +670,8 @@ public:
 	 * getItemAt(Coord)
 	 * Returns a pointer to an actor located at a given tile.
 	 *
-	 * @param pos			- The target tile
+	 * @param pos				- The target tile
+	 * @returns ItemStaticBase*	- nullptr if not found
 	 */
 	ItemStaticBase* getItemAt(const Coord& pos)
 	{
@@ -604,6 +680,15 @@ public:
 		}
 		return nullptr;
 	}
+
+	/**
+	 * getItemAt(Coord)
+	 * Returns a pointer to an item located at a given tile.
+	 *
+	 * @param posX				- The target tile's X (horizontal) index
+	 * @param posY				- The target tile's Y (vertical) index
+	 * @returns ItemStaticBase*	- nullptr if not found
+	 */
 	ItemStaticBase* getItemAt(const int posX, const int posY)
 	{
 		for ( auto* it : get_all_static_items() ) {
@@ -612,16 +697,23 @@ public:
 		return nullptr;
 	}
 
-
 	// GETTERS & FRAME API
 
 	Player& getPlayer() { return _player; }
 	Tile& getTile(const Coord& pos) { return _world.get(pos); }
-	Tile& getTile(int x, int y) { return _world.get(x, y); }
+	Tile& getTile(const int x, const int y) { return _world.get(x, y); }
 	Cell& getCell() { return {_world}; }
-	[[nodiscard]] Coord getCellSize() const { return {_world._max._x, _world._max._y}; }
 	std::vector<Enemy>& getHostileVec() { return _hostile; }
+	[[nodiscard]] Coord getCellSize() const { return {_world._max._x, _world._max._y}; }
 	[[nodiscard]] GameRules& getRuleset() const { return _ruleset; }
-
-	// DISPLAYS / HUD
+	// Returns true if the player lost the game
+	[[nodiscard]] bool playerLost() const { return _playerDead; }
+	// Returns true if the player won the game
+	[[nodiscard]] bool playerWon() const { return _allEnemiesDead; }
+	[[nodiscard]] Flare* getFlare() const { return _flare; }
+	void resetFlare()
+	{
+		_flare->reset(); // reset the flare instance
+		_flare = nullptr;// set the flare pointer to nullptr
+	}
 };

@@ -151,12 +151,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Coord.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="actor.h" />
     <ClInclude Include="Coord.h" />
+    <ClInclude Include="Flare.h" />
     <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="GameRules.h" />
     <ClInclude Include="Gamespace.h" />
@@ -164,12 +164,11 @@
     <ClInclude Include="item.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="settings.h" />
-    <ClInclude Include="game_threads.h" />
+    <ClInclude Include="game_threads.hpp" />
     <ClInclude Include="WinAPI.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt" />
-    <Text Include="log.txt" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="worldspace.rc" />

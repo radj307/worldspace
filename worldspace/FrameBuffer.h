@@ -1,7 +1,6 @@
 #pragma once
 #include <utility>
 
-
 #include "Gamespace.h"
 #include "group.hpp"
 
@@ -13,23 +12,24 @@
 struct Frame {
 	// This frame's buffer
 	std::vector<std::vector<char>> _frame;
+	bool _space_columns{ true };
 	Coord _origin;
 
 	/** CONSTRUCTOR
 	 * Frame()
-	 * Instantiate a blank frame.
+	 * @brief Instantiate a blank frame.
 	 */
 	Frame() : _origin({ 0,0 }) {}
 
 	/** CONSTRUCTOR
 	 * Frame(vector<vector<char>>)
-	 * Instantiate a pre-made frame
+	 * @brief Instantiate a pre-made frame
 	 */
 	explicit Frame(std::vector<std::vector<char>> frameMatrix, const Coord& frameOrigin = Coord(0, 0)) : _frame(std::move(frameMatrix)), _origin(frameOrigin) {}
 
 	/**
 	 * getSize()
-	 * Returns the size of this frame's character matrix
+	 * @brief Returns the size of this frame's character matrix
 	 *
 	 * @returns Coord
 	 */
@@ -46,18 +46,16 @@ struct Frame {
 
 	/**
 	 * draw()
-	 * Draws this frame to the console at it's origin point.
-	 *
-	 * @param spaceColumns	- (Default: true) When true, every other column is a space char, to show square frames as squares in the console.
+	 * @brief Draws this frame to the console at it's origin point.
 	 */
-	void draw(const bool spaceColumns = true)
+	void draw()
 	{
 		// use dual-iterators to iterate both the frame, and console position from the origin offset
 		for ( int consoleY{ _origin._y }, frameY{ 0 }; consoleY < _origin._y + static_cast<int>(_frame.size()); consoleY++, frameY++ ) {
 			for ( int consoleX = _origin._x, frameX{ 0 }; consoleX < _origin._x + static_cast<int>(_frame.at(frameY).size()); consoleX++, frameX++ ) {
 				WinAPI::setCursorPos(consoleX * 2, consoleY);		// set the cursor position
 				std::cout << _frame.at(frameY).at(frameX);
-				if ( spaceColumns )
+				if ( _space_columns )
 					std::cout << ' ';	// draw the frame pos to screen
 			}
 		}
@@ -65,7 +63,7 @@ struct Frame {
 
 	/** STATIC **
 	 * buildFromCell(Cell&, Coord)
-	 * Static function that builds a frame from a given cell. Similar to Gamespace::getFrame(), but does not have knowledge of actors.
+	 * @brief Static function that builds a frame from a given cell. Similar to Gamespace::getFrame(), but does not have knowledge of actors.
 	 *
 	 * @param cell			- A cell reference to build from
 	 * @param displayOrigin	- A point in the console window, measured in characters, that will act as the frame's top left corner.
@@ -86,7 +84,7 @@ struct Frame {
 
 	/** STATIC **
 	 * buildFromFile(string)
-	 * Builds a Frame object from a given file. This function is similar to the importMatrix() function in cell.h, but returns a Frame.
+	 * @brief Builds a Frame object from a given file. This function is similar to the importMatrix() function in cell.h, but returns a Frame.
 	 *
 	 * @param filename	- The name/path to the target file
 	 * @returns Frame
@@ -134,8 +132,8 @@ struct Frame {
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f)
 	{
 		for (const auto& y : f._frame) {
-			for ( auto x = y.begin(); x != y.end(); ++x ) {
-				os << *x << ' ';
+			for (auto x : y) {
+				os << x << ' ';
 			}
 			os << std::endl;
 		}
@@ -147,13 +145,13 @@ struct Frame {
  * struct FrameBuffer_Gamespace
  * Double-Buffered console rendering using the Frame struct.
  */
-class FrameBuffer_Gamespace {
+class FrameBuffer {
 	// The initialized flag, this is set to true once the frame has already been drawn to the console.
 	bool _initialized{ false };
 	// The last frame printed to the console. (Or the currently displayed frame if this frame-buffer is currently running.)
 	Frame _last;
 	// The origin-point of this frame, which is the top-left corner of the matrix. Measured in screen buffer characters
-	Coord _origin;
+	Coord _window_origin, _origin, _size;
 	// A reference to the attached gamespace
 	Gamespace& _game;
 
@@ -172,7 +170,7 @@ class FrameBuffer_Gamespace {
 		const auto cellSize{ _game.getCellSize() };
 
 		// move the window, and change its size
-		MoveWindow(GetConsoleWindow(), _origin._x, _origin._y, (cellSize._x + cellSize._x / 4) * ch_width, (cellSize._y + cellSize._y / 4) * ch_height, TRUE);
+		MoveWindow(GetConsoleWindow(), _window_origin._x, _window_origin._y, (cellSize._x + cellSize._x / 4) * ch_width, (cellSize._y + cellSize._y / 4) * ch_height, TRUE);
 
 		// hide the cursor
 		WinAPI::visibleCursor(false);
@@ -208,10 +206,10 @@ class FrameBuffer_Gamespace {
 	 */
 	[[nodiscard]] Frame getFrame(const Coord& origin) const
 	{
-		std::vector<std::vector<char>> buffer;
-		for ( auto y = 0; y < _game.getCellSize()._y; y++ ) {
-			std::vector<char> row;
-			for ( auto x = 0; x < _game.getCellSize()._x; x++ ) {
+		std::vector<std::vector<char>> buffer; buffer.reserve(_size._y);
+		for ( auto y = 0; y < static_cast<signed>(buffer.capacity()); y++ ) {
+			std::vector<char> row; row.reserve(_size._x);
+			for ( auto x = 0; x < static_cast<signed>(row.capacity()); x++ ) {
 				auto pos{ Coord(x, y) };
 				if ( _game.getTile(pos)._isKnown ) {
 					auto* const ptr{ _game.getActorAt(pos) };
@@ -226,9 +224,6 @@ class FrameBuffer_Gamespace {
 		}
 		return Frame{ buffer, origin };
 	}
-
-	// The level-up flare pattern
-	[[nodiscard]] static constexpr bool flare_pattern(const int x, const int y) { return (x - y % 2) % 2 == 0; }
 
 	/**
 	 * playerStatDisplay()
@@ -307,10 +302,11 @@ public:
 	/** CONSTRUCTOR **
 	 * FrameBuffer_Gamespace(Cell&, Coord, vector<ActorBase*>)
 	 *
-	 * @param gamespace	- Reference to the attached Gamespace instance
-	 * @param origin	- Display origin point, measured in chars. This is the top-left corner.
+	 * @param gamespace		- Reference to the attached Gamespace instance
+	 * @param origin		- Display origin point, measured in chars. This is the top-left corner.
+	 * @param windowOrigin	- Position of the window on the monitor
 	 */
-	FrameBuffer_Gamespace(Gamespace& gamespace, const Coord& origin) : _origin(origin), _game(gamespace)
+	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1,1)) : _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _game(gamespace)
 	{
 		initConsole();
 	}
@@ -337,6 +333,7 @@ public:
 			for ( long frameY{ 0 }, consoleY{ _origin._y }; frameY < static_cast<long>(next._frame.size()); frameY++, consoleY++ ) {
 				// iterate horizontal axis for each vertical index
 				for ( long frameX{ 0 }, consoleX{ _origin._x }; frameX < static_cast<long>(next._frame.at(frameY).size()); frameX++, consoleX++ ) {
+					setConsoleColor(WinAPI::color::reset);
 					// check if the tile at this pos is known to the player
 					if ( _game.getTile(frameX, frameY)._isKnown ) {
 						auto* const actor = _game.getActorAt(frameX, frameY); // set a pointer to actor at this pos if they exist
@@ -355,19 +352,17 @@ public:
 							std::cout << *item << ' ';
 						}
 						// Check if the game wants a screen color flare
-						else if ( _game._flare > 0 && flare_pattern(frameX, frameY) ) {
+						else if ( _game.getFlare() != nullptr && _game.getFlare()->pattern(frameX, frameY) ) {
 							// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
-							if ( _game._flare % 2 == 0 && _game._flare != 1 ) {
-								WinAPI::setConsoleColor(_game._flare_color);
+							if ( _game.getFlare()->time() % 2 == 0 && _game.getFlare()->time() != 1 ) {
+								WinAPI::setConsoleColor(_game.getFlare()->color());
 								std::cout << next._frame.at(frameY).at(frameX);
 								setConsoleColor(WinAPI::color::reset);
 								std::cout << ' ';
 							}
-							else {
-								setConsoleColor(WinAPI::color::reset);
+							else
 								std::cout << next._frame.at(frameY).at(frameX) << ' ';
-							}
 						}
 						// Actor is not located here, show the tile char.
 						else if ( next._frame.at(frameY).at(frameX) != _last._frame.at(frameY).at(frameX) ) {
@@ -392,8 +387,12 @@ public:
 			_last = next;
 		}
 		else initFrame();
-		if ( _game._flare > 0 )
-			_game._flare--;
+		if ( _game.getFlare() != nullptr ) {
+			if ( _game.getFlare()->time() > 1 )
+				_game.getFlare()->decrement();
+			else // turn off flare
+				_game.resetFlare();
+		}
 		playerStatDisplay();
 	}
 

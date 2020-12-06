@@ -36,12 +36,16 @@ protected:
 	 * @param DAMAGE	- My damage modifier value	(Minimum is 10)
 	 */
 	ActorMaxStats(const unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE) : _MAX_HEALTH(static_cast<signed>(HEALTH * (Mult < 1 ? 1 : Mult))), _MAX_STAMINA(static_cast<signed>(STAMINA * (Mult < 1 ? 1 : Mult))), _MAX_DAMAGE(static_cast<signed>(DAMAGE * (Mult < 1 ? 1 : Mult))), _BASE_HEALTH(_MAX_HEALTH), _BASE_STAMINA(_MAX_STAMINA), _BASE_DAMAGE(_MAX_DAMAGE) {}
+	ActorMaxStats(const ActorMaxStats&) = default;
+	ActorMaxStats(ActorMaxStats&&) = default;
+	virtual ~ActorMaxStats() = default;
+	ActorMaxStats& operator=(const ActorMaxStats&) = default;
+	ActorMaxStats& operator=(ActorMaxStats&&) = default;
 	
 public:
 	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
 	[[nodiscard]] int getMaxStamina() const { return _MAX_STAMINA; }
 	[[nodiscard]] int getMaxDamage() const { return _MAX_DAMAGE; }
-	void setMaxDamage(const unsigned int newValue) { _MAX_DAMAGE = static_cast<signed>(newValue); }
 };
 
 // Simple struct containing all of the current values for each stat defined in ActorMaxStats
@@ -66,6 +70,12 @@ protected:
 			_MAX_DAMAGE = static_cast<int>(static_cast<float>(_BASE_DAMAGE) * (static_cast<float>(_level) / 1.5f));
 		}
 	}
+
+	void restore_all_stats()
+	{
+		_health = _MAX_HEALTH;
+		_stamina = _MAX_STAMINA;
+	}
 	
 public:
 	/**
@@ -79,6 +89,28 @@ public:
 	 * @param visRange	- My sight range
 	 */
 	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange) : ActorMaxStats(level >= 1 ? level : 1, health, stamina, damage), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
+
+	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	void setMaxHealth(const unsigned int newValue)
+	{
+		_MAX_HEALTH = static_cast<signed>(newValue);
+		_BASE_HEALTH = _MAX_HEALTH;
+		restore_all_stats();
+	}
+	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	void setMaxStamina(const unsigned int newValue)
+	{
+		_MAX_STAMINA = static_cast<signed>(newValue);
+		_BASE_STAMINA = _MAX_STAMINA;
+		restore_all_stats();
+	}
+	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	void setMaxDamage(const unsigned int newValue)
+	{
+		_MAX_DAMAGE = static_cast<signed>(newValue);
+		_BASE_DAMAGE = _MAX_DAMAGE;
+		restore_all_stats();
+	}
 
 	// Returns this actor's level
 	[[nodiscard]] int getLevel() const { return _level; }
@@ -202,16 +234,41 @@ struct ActorTemplate {
 	std::vector<FACTION> _hostile_to;
 	int _max_aggression;
 
-	// Include hostile definitions
-	// Player template
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u), _hostile_to(std::move(hostileTo)), _max_aggression(0) {}
-	// NPC template
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const unsigned int spawnChance, const int maxAggro) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro) {}
-	// No hostile definitions
-	// Player template
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(100u), _max_aggression(0) {}
-	// NPC template
-	ActorTemplate(std::string name, const ActorStats& templateStats, const char templateChar, const WinAPI::color templateColor, const unsigned int spawnChance, const int maxAggro) : _name(std::move(name)), _stats(templateStats), _char(templateChar), _color(templateColor), _chance(spawnChance), _max_aggression(maxAggro) {}
+	/**
+	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
+	 * @brief Constructs a human player actor template.
+	 *
+	 * @param templateName	- A name of type string.
+	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
+	 * @param templateChar	- A character to represent actors of this type
+	 * @param templateColor	- A color to represent actors of this type
+	 */
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(100u), _max_aggression(0) {}
+	/**
+	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
+	 * @brief Constructs a NPC actor template. This template type is used to randomly generate NPCs
+	 *
+	 * @param templateName	- A name of type string.
+	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
+	 * @param templateChar	- A character to represent actors of this type
+	 * @param templateColor	- A color to represent actors of this type
+	 * @param hostileTo		- A list of factions that actors of this type are hostile to
+	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
+	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
+	 */
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const unsigned int spawnChance, const int maxAggro) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(spawnChance), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro) {}
+	/**
+	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
+	 * @brief Constructs a NPC template that is always hostile to all other factions, unless the setRelationship function is used.
+	 *
+	 * @param templateName	- A name of type string.
+	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
+	 * @param templateChar	- A character to represent actors of this type
+	 * @param templateColor	- A color to represent actors of this type
+	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
+	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
+	 */
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, const unsigned int spawnChance, const int maxAggro) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(spawnChance), _max_aggression(maxAggro) {}
 };
 
 // stats & specs of all actors -- parent struct
@@ -224,7 +281,7 @@ protected:
 	WinAPI::color _color;	// My displayed char's color in the console
 	std::vector<FACTION> _hostileTo;
 	int _kill_count;
-
+		
 private:
 	// Initialize this actor's hostile faction list -- Sets all factions as hostile
 	void initHostilities()
@@ -235,7 +292,7 @@ private:
 				_hostileTo.push_back(thisFaction);
 		}
 	}
-
+	
 public:
 	/** CONSTRUCTOR **
 	 * ActorBase(FACTION, string, Coord, char, WinAPI::color, int, int, int)
@@ -250,12 +307,18 @@ public:
 	 */
 	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0) { initHostilities(); }
 	ActorBase(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorStats(myTemplate._stats), _name(myTemplate._name), _faction(myFaction), _pos(myPos), _char(myTemplate._char), _color(myTemplate._color), _hostileTo(myTemplate._hostile_to), _kill_count(0) { if ( myTemplate._hostile_to.empty() && _hostileTo.empty() ) initHostilities(); }
-
+	ActorBase(const ActorBase&) = default;
+	ActorBase(ActorBase&&) = default;
+	virtual ~ActorBase() = default;
+	ActorBase& operator=(const ActorBase&) = default;
+	ActorBase& operator=(ActorBase&&) = default;
+	
 	// Movement functions, these do not check if a movement was possible, they are simply a wrapper for incrementing/decrementing _pos
 	void moveU() { _pos._y--; } // decrement y by 1
 	void moveD() { _pos._y++; } // increment y by 1
 	void moveL() { _pos._x--; } // decrement x by 1
 	void moveR() { _pos._x++; } // increment x by 1
+	// Moves this actor in a given direction
 	void moveDir(const char dir)
 	{
 		switch ( dir ) {
@@ -282,6 +345,7 @@ public:
 	[[nodiscard]] Coord getPosD() const { return { _pos._x, _pos._y + 1 }; }
 	[[nodiscard]] Coord getPosL() const { return { _pos._x - 1, _pos._y }; }
 	[[nodiscard]] Coord getPosR() const { return { _pos._x + 1, _pos._y }; }
+	// Returns the Coordinate of a tile in the given direction
 	[[nodiscard]] Coord getPosDir(const char dir) const
 	{
 		switch ( std::tolower(dir) ) {
@@ -365,17 +429,81 @@ struct Player final : ActorBase {
 	Player(const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(FACTION::PLAYER, myPos, myTemplate), getDist(_pos) {}
 };
 
-// base NPC
+// base NPC actor
 struct NPC : ActorBase {
 protected:
 	int _MAX_AGGRO;
 	int _aggro;	// Aggression value used to determine how long this enemy will follow the player before giving up.
 	ActorBase* _target;
+
+	/**
+	 * isAfraid()
+	 * @brief Returns true if this NPC's stats are too low to continue fighting
+	 *
+	 * @returns bool - ( true = Enemy is afraid, run away ) ( false = Enemy is not afraid, proceed with attack )
+	 */
+	[[nodiscard]] bool afraid() const
+	{
+		if ( _health < _MAX_HEALTH / 4 || _stamina < _MAX_STAMINA / 6 )
+			return true;
+		return false;
+	}
+
+	/**
+	 * constexpr getDir(Coord&, bool)
+	 * @brief Returns a direction char from a start point and end point. Called from getDirTo()
+	 *
+	 * @param dist		- The difference between 2 actor's positions
+	 * @param invert	- When true, returns a direction away from the target
+	 * @returns char	- w = up/s = down/a = left/d = right
+	 */
+	static constexpr char getDir(const Coord& dist, const bool invert)
+	{
+		if ( dist._x == 0 )	// X-axis is aligned, move vertically
+			return dist._y < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
+		if ( dist._y == 0 )	// Y-axis is aligned, move horizontally
+			return dist._x < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
+		if ( dist._x < dist._y ) // neither is aligned, check which axis is smaller
+			return dist._x < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
+		return dist._y < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
+	}
 public:
 
 	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
 	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _MAX_AGGRO(myTemplate._max_aggression), _aggro(0), _target(nullptr) {}
+	NPC(const NPC&) = default;
+	NPC(NPC&&) = default;
+	virtual ~NPC() = default;
+	NPC& operator=(const NPC&) = default;
+	NPC& operator=(NPC&&) = default;
 
+	/**
+	 * getDirTo(Coord&)
+	 * Returns a direction char from a given target position.
+	 *
+	 * @param target	- The target position
+	 * @param noFear	- NPC will never run away
+	 * @returns char	- w = up/s = down/a = left/d = right
+	 */
+	[[nodiscard]] char getDirTo(const Coord& target, const bool noFear = false) const
+	{
+		return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid());
+	}
+	/**
+	 * getDirTo(ActorBase*)
+	 * Returns a direction char from a given target actor.
+	 *
+	 * @param target	- Pointer to the target actor
+	 * @param noFear	- NPC will never run away
+	 * @returns char	- w = up/s = down/a = left/d = right
+	 */
+	[[nodiscard]] char getDirTo(ActorBase* target, const bool noFear = false) const
+	{
+		if ( target != nullptr )
+			return getDir({ _pos._x - target->pos()._x, _pos._y - target->pos()._y }, noFear ? false : afraid());
+		return ' ';
+	}
+	
 	// Returns true if this NPC is currently aggravated
 	[[nodiscard]] bool isAggro() const
 	{

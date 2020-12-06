@@ -172,7 +172,7 @@ namespace game {
 			typedef std::chrono::high_resolution_clock T;
 
 			// create a frame buffer with the given gamespace ref
-			FrameBuffer_Gamespace gameBuffer(game, Coord(3, 3));
+			FrameBuffer gameBuffer(game, Coord(3, 3), Coord(1920, 5));
 
 			// Loop until kill flag is true
 			for ( auto tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
@@ -187,12 +187,12 @@ namespace game {
 						game.apply_passive();							// Apply passive effects every second
 						tLastRegenCycle = T::now();
 					}
-					if ( game._allEnemiesDead ) {						// Check if all enemies are dead
+					if ( game.playerWon() ) {							// Check if all enemies are dead
 						mem.kill_code.store(PLAYER_WIN_CODE);			// Send win code
 						mem.kill.store(true);							// Send kill code
 						break;											// break loop
 					}
-					if ( game.getPlayer().isDead() ) {					// check if the player died
+					if ( game.playerLost() ) {							// check if the player died
 						mem.kill_code.store(PLAYER_LOSE_CODE);			// Send lose code
 						mem.kill.store(true);							// Send kill code
 						break;											// break loop

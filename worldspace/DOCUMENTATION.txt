@@ -1,41 +1,122 @@
-### OVERVIEW ###
 
-	This project is designed to act as a game framework, or backend for graphical applications.
-	It relies on object matrices, and can be easily modified for any related purpose.
-	It contains everything for a basic console-based game, and will automatically launch an example game when compiled & run.
+Worldspace Project
+	by radj307
 
-	For using with graphical-based game engines, take the "cell.h" file & modify the Tile struct to fit your needs.
+///  FILE INHERITANCE  ///
 
-	This project uses multi-threading
+			"Coord.h"  "settings.h"
+				v	       	v
+	   {-------------------------------}
+		v	      v		    v		  v
+	"actor.h"  "cell.h"  "item.h"  "Flare.h"
+		v	       v		v		  v
+		{---------------------}		   
+					   v			  v
+				 "GameRules.h"		   
+					   v			  v
+					 {------------------}
+							  v
+						"Gamespace.h"
+							  v
+					   "FrameBuffer.h"
+						      v
+					  "game_threads.hpp"
+					          v
+						 "main.cpp"
 
 
-### FILES ###
 
-	The file inheritance structure is as follows:
+///  CLASSES AND CONCEPTS  ///
 
-			  (Coord.h)
-				v	v
-		(actor.h) (cell.h) (settings.h)
-				v	 v
-			      (game.h)
-				  v
-		   (FrameBuffer.h)	
-					  v		  v
-					(threaded.h)
-						  v
-				     (main.cpp)
+	Below is a detailed content list of the files found in the file inheritance section, divided by file group.
 
-	(Coord.h)		// Contains a wrapper for an x/y position. Also contains functors for finding the distance between 2 points in tiles.
-	(actor.h)		// Contains actor objects, which represent game characters
-	(cell.h)		// Contains Tiles, and Cells. Cells represent the worldspace/a part of the worldspace, they contain a matrix of tiles.
-	(game.h)		// Contains the Gamespace class, which contains a cell, actors, and functions related to running a game.
-	(FrameBuffer.h)	// Contains the Frame, and FrameBuffer classes. Frame represents a single char matrix displayed to the console. FrameBuffer is a wrapper for Frame that contains a Gamespace reference, and related display functions using a double-buffered update system to prevent flickering.
-	(settings.h)	// Contains global settings and world attributes to be parsed from the commandline.
-	(threaded.h)	// Contains 3 threads & functions to operate them. There is a thread for player input, for enemy actions, and for displaying to the console.
-	(main.cpp)		// Contains main() and interpret() to parse commandline arguments.
+	///  FORMATTING  ///
+	/*...*/		- Represents a group of files with a similar purpose. (concept)
+	"..."		- Represents a file.
+	<...>		- Represents a class or struct.
+	[...]		- Represents a namespace.
+	...()		- Represents a function. (Only included if global, or namespace member)
+	enum ...	- Represents an enumerator.
 
-### CLASSES ###
+	/*| UTILITIES & DEFAULTS |*/
+	{
+		"settings.h"
+			->  <WorldAttributes>			// Basic attributes required to generate/load a Cell.
+				->  <GLOBAL>				// Global commandline settings & their defaults
 
-	The class inheritance structure is as follows:
-
-	(I don't want to write this right now)
+		"Coord.h"
+			->  <Coord>						// Wrapper for a x/y coordinate
+				->  <checkDistance>			// Functor to find the distance between 2 Coord points
+				->	<checkDistanceFrom>		// Same as above, but contains a pointer to a Coord instance. 
+				->  <checkBounds>			// Functor to check if a given Coord is within a square boundary.
+				
+		"WinAPI.h"
+			->  [WinAPI]					// Namespace containing various windows-specific API functions.
+				->  enum color				// A list of all valid Windows console API colors, for both background & foreground.
+				->  setCursorPos()			// Sets the cursor position in the screen buffer, this is used by the frame buffer.
+				->  visibleCursor()			// Toggles the console cursor's visibility.
+				->  setConsoleColor()		// Sets the color of printed characters in the console.
+				->  cls()					// Replaces the entire screen buffer with space characters.
+	}
+	/*| GAME ELEMENTS |*/
+	{
+		"cell.h"
+			->  <Tile>						// A single location in the game world, contains attributes that control actor interactions.
+				->  enum display			// A list of valid tile display characters, which also act as a type identifier.
+			->  <Cell>						// The world space, composed of a matrix of tiles.
+			
+		"actor.h"
+			->  <ActorMaxStats>				// Contains an actor's maximum possible stats.
+				->  <ActorStats>			// Contains an actor's current stats.
+					->  <ActorTemplate>		// Contains basic stats & values to make randomly generating actors easier.
+					->  <ActorBase>			// Contains all universal actor stats, functions, and utilities
+						->  <Player>		// A human player instance, with an attached <checkDistanceFrom> functor.
+						->  <NPC>			// Contains all NPC-specific stats, functions, etc.
+							->  <Enemy>		// A basic enemy NPC
+							->  <Neutral>	// A basic neutral NPC
+							
+		"item.h"
+			->  <ItemStats>					// Contains an item's basic stats, and setter/getter functions
+				->  <ItemStaticBase>		// Contains all functions related to static items that appear in the world.
+					->  <ItemStaticHealth>	// Static health potions to be placed randomly around the map
+					->  <ItemStaticStamina>	// Static stamina potions to be placed randomly around the map
+		
+		"Flare.h"
+			->  <Flare>						// Contains all relevant data for flashing the console display with colored patterns
+				->  <FlareLevel>			// Diagonal green-background color flare to indicate player level-ups
+				->  <FlareChallenge>		// Edge red-background color flare to indicate the finale event
+	}
+	/*| Game Rules & Settings |*/
+	{
+		"GameRules.h"
+			->  <GameRules>					// Contains all configuration options for changing game balance, difficulty, etc. 
+	}
+	/*| GAME FUNCTIONS & OPERATION |*/
+	{	
+		"Gamespace.h"
+			->  <Gamespace>					// Contains all game elements & game functions, as well as implementation of actor AI.
+	}
+	/*| CONSOLE DISPLAY |*/
+	{
+		"FrameBuffer.h"
+			->  <Frame>						// Contains a single frame, and the character matrix used to display it.
+				->  <FrameBuffer>			// Contains the frame display function, and the player stats bar. Used to avoid cls
+	}
+	/*| MULTI-THREADING & TASK DELEGATION |*/
+	{
+		"game_threads.hpp"
+			->  [game]						// Namespace containing all high-level game functions & threads.
+				->  start()					// Starts the game threads and returns once they are done.
+				->  [_internal]				// Namespace containing all thread functions, the mutex, and shared memory.
+					->  print_game_over()	// Gets the outcome of the game and prints "game over" / "you win" / "you lose"
+					->  thread_player()		// Asyncronous thread for getting player input, and performing player actions.
+					->  thread_npc()		// Asyncronous thread for performing NPC actions.
+					->  thread_display()	// Asyncronous thread for displaying the FrameBuffer to the console.
+	}
+	/*| MAIN |*/
+	{
+		"main.cpp"
+			->  interpret()					// Interprets commandline arguments from main() and constructs a <GLOBAL> instance.
+			->  prompt_restart()			// Prompts the player to press 'r' to restart, or 'q' to quit
+			->  main()						// Calls interpret(), game::start(), and prompt_restart().
+	}

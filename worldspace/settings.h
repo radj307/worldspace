@@ -15,6 +15,7 @@ struct GLOBAL {
 
 	// GAME PARAMETERS
 	std::chrono::seconds _regen_timer{ 2 };
+	std::string _player_name{};
 	int _player_health{ NOT_SET }, _player_stamina{ NOT_SET }, _player_damage{ NOT_SET };
 	bool _player_godmode{ false };
 };

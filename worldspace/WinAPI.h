@@ -102,7 +102,7 @@ namespace WinAPI {
     {
         // Get the Win32 handle representing standard output.
         // This generally only has to be done once, so we make it static.
-        static const auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        static auto* const hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 
         CONSOLE_SCREEN_BUFFER_INFO csbi;
 
