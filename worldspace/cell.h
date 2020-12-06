@@ -172,7 +172,6 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 class Cell final {
 	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
-	std::vector<std::vector<Tile*>> _nav;
 
 protected:
 

@@ -230,9 +230,9 @@ struct ActorTemplate {
 	ActorStats _stats;
 	char _char;
 	WinAPI::color _color;
-	unsigned int _chance;
 	std::vector<FACTION> _hostile_to;
 	int _max_aggression;
+	unsigned int _chance;
 
 	/**
 	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
@@ -243,7 +243,7 @@ struct ActorTemplate {
 	 * @param templateChar	- A character to represent actors of this type
 	 * @param templateColor	- A color to represent actors of this type
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(100u), _max_aggression(0) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(0), _chance(100u) {}
 	/**
 	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
 	 * @brief Constructs a NPC actor template. This template type is used to randomly generate NPCs
@@ -256,7 +256,7 @@ struct ActorTemplate {
 	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
 	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const unsigned int spawnChance, const int maxAggro) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(spawnChance), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, std::vector<FACTION> hostileTo, const int maxAggro, const unsigned int spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro), _chance(spawnChance) {}
 	/**
 	 * ActorTemplate(string, ActorStats&, char, WinAPI::color, vector<FACTION>)
 	 * @brief Constructs a NPC template that is always hostile to all other factions, unless the setRelationship function is used.
@@ -268,7 +268,7 @@ struct ActorTemplate {
 	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
 	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, const unsigned int spawnChance, const int maxAggro) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _chance(spawnChance), _max_aggression(maxAggro) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const WinAPI::color templateColor, const int maxAggro, const unsigned int spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(maxAggro), _chance(spawnChance) {}
 };
 
 // stats & specs of all actors -- parent struct
@@ -385,6 +385,13 @@ public:
 				return true;
 		return false;
 	}
+	bool isHostileTo(ActorBase* target)
+	{
+		for ( auto it : _hostileTo )
+			if ( it == target->faction() )
+				return true;
+		return false;
+	}
 	void modColor(const WinAPI::color newColor) { _color = newColor; }
 	[[nodiscard]] WinAPI::color getColor() const { return _color; }
 	[[nodiscard]] auto name() const -> std::string { return _name; }
@@ -431,10 +438,12 @@ struct Player final : ActorBase {
 
 // base NPC actor
 struct NPC : ActorBase {
+private:
+	int
+		_MAX_AGGRO,		// Maximum aggression value
+		_aggro;			// Current aggression value
 protected:
-	int _MAX_AGGRO;
-	int _aggro;	// Aggression value used to determine how long this enemy will follow the player before giving up.
-	ActorBase* _target;
+	ActorBase* _target; // Current target
 
 	/**
 	 * isAfraid()
@@ -444,7 +453,7 @@ protected:
 	 */
 	[[nodiscard]] bool afraid() const
 	{
-		if ( _health < _MAX_HEALTH / 4 || _stamina < _MAX_STAMINA / 6 )
+		if ( static_cast<float>(_health) < static_cast<float>(_MAX_HEALTH) / 5.0f || static_cast<float>(_stamina) < static_cast<float>(_MAX_STAMINA) / 6.0f )
 			return true;
 		return false;
 	}
@@ -463,13 +472,48 @@ protected:
 			return dist._y < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
 		if ( dist._y == 0 )	// Y-axis is aligned, move horizontally
 			return dist._x < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
-		if ( dist._x < dist._y ) // neither is aligned, check which axis is smaller
+		// neither is aligned, check which axis is smaller
+		if ( (dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y) )
 			return dist._x < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
 		return dist._y < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
 	}
-public:
 
+/*	static constexpr char getDir(const Coord& dist, const bool invert)
+	{
+		// check if either axis is aligned
+		if ( dist._x == 0 || dist._y == 0 ) {
+			// x axis is aligned (move vertically)
+			if ( dist._x == 0 )
+				return dist._y < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
+			// y axis is aligned (move horizontally)
+			return dist._x < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
+		} // else, move on the axis with the largest distance first
+		// if the absolute value of X-axis distance is larger than the absolute value of Y-axis distance
+		if ( (dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y) )
+			return dist._x < 0 ? invert ? 'w' : 's' : invert ? 's' : 'w';
+		// else, Y-axis is larger
+		return dist._y < 0 ? invert ? 'a' : 'd' : invert ? 'd' : 'a';
+	}*/
+public:
+	/**
+	 * NPC(FACTION, string&, Coord&, char, WinAPI::color, ActorStats&, int)
+	 *
+	 * @param myFaction		- This NPC's faction
+	 * @param myName		- This NPC's name
+	 * @param myPos			- This NPC's position
+	 * @param myChar		- This NPC's display character
+	 * @param myColor		- This NPC's display color
+	 * @param myStats		- This NPC's stats
+	 * @param MAX_AGGRO		- This NPC's maximum aggression value
+	 */
 	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
+	/**
+	 * NPC(FACTION, string&, Coord&, char, WinAPI::color, ActorStats&, int)
+	 *
+	 * @param myFaction		- This NPC's faction
+	 * @param myPos			- This NPC's position
+	 * @param myTemplate	- This NPC's templated stats
+	 */
 	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _MAX_AGGRO(myTemplate._max_aggression), _aggro(0), _target(nullptr) {}
 	NPC(const NPC&) = default;
 	NPC(NPC&&) = default;
@@ -477,6 +521,65 @@ public:
 	NPC& operator=(const NPC&) = default;
 	NPC& operator=(NPC&&) = default;
 
+	/**
+	 * canSee(Coord&, int)
+	 * @brief Returns true if a given point is within sight of this NPC.
+	 *
+	 * @param pos		- Coordinate to check
+	 * @param visMod	- Optional modifier to NPC visibility, this value is added to NPC's sight range.
+	 * @returns bool
+	 */
+	[[nodiscard]] bool canSee(const Coord& pos, const int visMod = 0) const
+	{
+		if ( checkDistance::get(_pos, pos) <= _visRange + visMod )
+			return true;
+		return false;
+	}
+
+	/**
+	 * canSee(ActorBase*, int)
+	 * @brief Returns true if a given actor is within sight of this NPC.
+	 *
+	 * @param target	- Pointer to an actor to check
+	 * @param visMod	- Optional modifier to NPC visibility, this value is added to NPC's sight range.
+	 * @returns bool
+	 */
+	[[nodiscard]] bool canSee(ActorBase* target, const int visMod = 0) const
+	{
+		if ( checkDistance::get(_pos, target->pos()) <= _visRange + visMod )
+			return true;
+		return false;
+	}
+
+	/**
+	 * canSee(ActorBase*, int)
+	 * @brief Returns true if a given actor is within sight of this NPC.
+	 *
+	 * @param target	- Pointer to an actor to check
+	 * @param visMod	- Optional modifier to NPC visibility, this value is added to NPC's sight range.
+	 * @returns bool
+	 */
+	[[nodiscard]] bool canSeeHostile(ActorBase* target, const int visMod = 0)
+	{
+		if ( isHostileTo(&*target) && checkDistance::get(_pos, target->pos()) <= _visRange + visMod )
+			return true;
+		return false;
+	}
+
+	/**
+	 * canSee(int)
+	 * @brief Returns true if this NPC has a target, and the target is within sight range.
+	 * 
+	 * @param visMod	- Optional modifier to NPC visibility, this value is added to NPC's sight range.
+	 * @returns bool
+	 */
+	[[nodiscard]] bool canSeeTarget(const int visMod = 0) const
+	{
+		if ( _target != nullptr && checkDistance::get(_pos, _target->pos()) <= _visRange + visMod )
+			return true;
+		return false;
+	}
+	
 	/**
 	 * getDirTo(Coord&)
 	 * Returns a direction char from a given target position.
@@ -489,9 +592,10 @@ public:
 	{
 		return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid());
 	}
+	
 	/**
 	 * getDirTo(ActorBase*)
-	 * Returns a direction char from a given target actor.
+	 * Returns a direction char from a given target actor's position.
 	 *
 	 * @param target	- Pointer to the target actor
 	 * @param noFear	- NPC will never run away
@@ -501,6 +605,20 @@ public:
 	{
 		if ( target != nullptr )
 			return getDir({ _pos._x - target->pos()._x, _pos._y - target->pos()._y }, noFear ? false : afraid());
+		return ' ';
+	}
+	
+	/**
+	 * getDirTo(ActorBase*)
+	 * Returns a direction char from this NPC's current target's position.
+	 *
+	 * @param noFear	- NPC will never run away
+	 * @returns char	- w = up/s = down/a = left/d = right
+	 */
+	[[nodiscard]] char getDirTo(const bool noFear = false) const
+	{
+		if ( _target != nullptr )
+			return getDir({ _pos._x - _target->pos()._x, _pos._y - _target->pos()._y }, noFear ? false : afraid());
 		return ' ';
 	}
 	
@@ -538,16 +656,18 @@ public:
 		else _aggro--;
 	}
 
-	// Returns this actor's current target
+	// Returns true if this NPC has a target
+	[[nodiscard]] bool hasTarget() const { return _target != nullptr; }
+	// Returns this NPC's current target
 	[[nodiscard]] ActorBase* getTarget() const { return _target; }
-	// Set this actor's current target
+	// Set this NPC's current target
 	void setTarget(ActorBase* target) 
 	{ 
 		if ( !isHostileTo(target->faction()) )
 			setRelationship(target->faction(), true);
 		_target = target;
 	}
-	// Remove this actor's current target
+	// Remove this NPC's current target
 	void removeTarget() { _target = nullptr; }
 };
 

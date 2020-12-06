@@ -20,7 +20,7 @@ namespace game {
 		constexpr int PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set
 		constexpr char __BLANK_KEY{ '\\' }; // Unused key, for preventing input loops
 		constexpr std::chrono::milliseconds __MS_CLOCK_SYNC{ 15 }; // Frametime
-		constexpr std::chrono::milliseconds __NPC_CYCLE_WAIT_MULT{ __MS_CLOCK_SYNC * 12 }; // How long to wait between enemy actions
+		constexpr std::chrono::milliseconds __NPC_CYCLE_WAIT_MULT{ __MS_CLOCK_SYNC * 13 }; // How long to wait between enemy actions
 
 		// Shared Memory Object
 		struct memory {

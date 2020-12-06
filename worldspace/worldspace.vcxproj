@@ -174,7 +174,7 @@
     <ResourceCompile Include="worldspace.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="AceOfSpades.ico" />
+    <Image Include="MAINICON.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

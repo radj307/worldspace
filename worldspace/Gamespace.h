@@ -66,22 +66,21 @@ class Gamespace final {
 	 *
 	 * @returns Coord
 	 */
-	Coord findValidSpawn(const bool isPlayer = false)
+	Coord findValidSpawn(const bool isPlayer = false, const bool checkForItems = true)
 	{
 		// calculate max possible valid positions, set it as max
 		const int MAX_CHECKS{(_world._max._x - 2) * (_world._max._y - 2)};
 		// loop
-		for (auto i{0}; i < MAX_CHECKS; i++) {
-			Coord pos{0,0};
+		for (auto i{ 0 }; i < MAX_CHECKS; i++) {
+			Coord pos{ 0, 0 };
 			for ( auto findPos{ pos }; !_world.get(findPos)._canSpawn; pos = findPos ) {
 				findPos = { _rng.get(_world._max._x - 2, 1), _rng.get(_world._max._y - 2, 1) };
 			}
-		//	auto* tile{&_world.get(pos)};
 			// Check if this pos is valid
-			if (isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis()) return pos;
+			if ( !checkForItems ? true : getItemAt(pos) == nullptr && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis()) return pos;
 		}
 		// Else return invalid coord
-		return Coord(-1, -1);
+		return { -1, -1 };
 	}
 
 	/**
@@ -101,12 +100,11 @@ class Gamespace final {
 			unsigned int sel{0};
 
 			for (auto it{static_cast<signed>(templates.size() - 1)}; it >= 0; it--) {
-				if ( _rng.get(100u, 0u) <= templates.at(it)._chance) {
+				if ( _rng.get(100u, 0u) < templates.at(it)._chance) {
 					sel = it;
 					break;
 				}
 			}
-			
 			v.push_back({findValidSpawn(), templates.at(sel)});
 		}
 		return v;
@@ -143,10 +141,8 @@ class Gamespace final {
 	{
 		// Apply to player
 		(this->*func)(&_player);
-		// Apply to enemies
-		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) (this->*func)(&*it);
-		// Apply to neutrals
-		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) (this->*func)(&*it);
+		for ( auto& it : _hostile ) (this->*func)(&it); // Apply to enemies
+		for ( auto& it : _neutral ) (this->*func)(&it); // Apply to neutrals
 	}
 
 	/**
@@ -157,10 +153,8 @@ class Gamespace final {
 	 */
 	void apply_to_npc(void (Gamespace::*func)(NPC*))
 	{
-		// Apply to enemies
-		for (auto it{_hostile.begin()}; it != _hostile.end(); ++it) (this->*func)(&*it);
-		// Apply to neutrals
-		for (auto it{_neutral.begin()}; it != _neutral.end(); ++it) (this->*func)(&*it);
+		for ( auto& it : _hostile ) (this->*func)(&it); // Apply to enemies
+		for ( auto& it : _neutral ) (this->*func)(&it); // Apply to neutrals
 	}
 
 	/**
@@ -178,6 +172,22 @@ class Gamespace final {
 		for ( auto& it : _neutral ) allActors.emplace_back(&it);
 		return allActors;
 	}
+
+	/**
+	 * get_all_npc()
+	 * @brief Returns a vector of pointers containing all NPC actors in the game.
+	 *
+	 * @returns vector<NPC*>
+	 */
+	std::vector<NPC*> get_all_npc()
+	{
+		std::vector<NPC*> allActors;
+		allActors.reserve(_hostile.size() + _neutral.size());
+		for ( auto& it : _hostile ) allActors.emplace_back(&it);
+		for ( auto& it : _neutral ) allActors.emplace_back(&it);
+		return allActors;
+	}
+	
 	/**
 	 * get_all_static_items()
 	 * @brief Returns a vector of pointers containing all actors in the game.
@@ -194,21 +204,6 @@ class Gamespace final {
 	}
 
 	/**
-	 * get_all_npc()
-	 * @brief Returns a vector of pointers containing all NPC actors in the game.
-	 *
-	 * @returns vector<NPC*>
-	 */
-	std::vector<NPC*> get_all_npc()
-	{
-		std::vector<NPC*> allActors;
-		allActors.reserve(_hostile.size() + _neutral.size());
-		for ( auto& it : _hostile ) allActors.emplace_back(&it);
-		for ( auto& it : _neutral ) allActors.emplace_back(&it);
-		return allActors;
-	}
-
-	/**
 	 * regen(ActorBase*)
 	 * @brief Increases an actors stats by the relevant value in ruleset.
 	 *
@@ -218,8 +213,15 @@ class Gamespace final {
 	void regen(ActorBase* actor)
 	{
 		if ( actor != nullptr && !actor->isDead()) {
-			actor->modHealth(_ruleset._regen_health);
-			actor->modStamina(_ruleset._regen_stamina);
+			// If actor is not the player, regen double
+			if ( actor->faction() != FACTION::PLAYER ) {
+				actor->modHealth(_ruleset._regen_health * 2);
+				actor->modStamina(_ruleset._regen_stamina * 2);
+			}
+			else {
+				actor->modHealth(_ruleset._regen_health);
+				actor->modStamina(_ruleset._regen_stamina);
+			}
 		}
 	}
 
@@ -266,54 +268,18 @@ class Gamespace final {
 	}
 
 	/**
-	 * intToDir(int)
-	 * @brief Converts an integer to a direction char
-	 *
-	 * @param i		 - Input integer between 0 and 3
-	 * @returns char - ( 'w' == 0 ) ( 'd' == 1 ) ( 's' == 2 ) ( 'a' == 3 ) ( ' ' == invalid parameter )
-	 */
-	static char intToDir(const int i)
-	{
-		switch ( i ) {
-		case 0: return 'w';
-		case 1: return 'd';
-		case 2: return 's';
-		case 3: return 'a';
-		default:return ' ';
-		}
-	}
-
-	/**
-	 * intToDir(int)
-	 * @brief Converts an integer to a direction char
-	 *
-	 * @param c		 - Input integer between 0 and 3
-	 * @returns int - ( 0 == 'w' ) ( 1 == 'd' ) ( 2 == 's' ) ( 3 == 'a' ) ( -1 == invalid parameter )
-	 */
-	static int dirToInt(const char c)
-	{
-		switch ( c ) {
-		case 'w': return 0;
-		case 'd': return 1;
-		case 's': return 2;
-		case 'a': return 3;
-		default:return -1;
-		}
-	}
-	
-	/**
 	 * getRandomDir()
 	 * @brief Returns a random direction char
 	 * @returns char	- w/a/s/d
 	 */
 	char getRandomDir()
 	{
-		return intToDir(_rng.get(0, 3));
+		return intToDir(_rng.get(3, 0));
 	}
 
 	/**
 	 * canMove(Coord)
-	 * Returns true if the target position can be moved to.
+	 * @brief Returns true if the target position can be moved to, and there is not an actor currently occupying it.
 	 *
 	 * @param pos	 - Target position
 	 * @returns bool - ( false = cannot move ) ( true = can move )
@@ -325,7 +291,7 @@ class Gamespace final {
 
 	/**
 	 * canMove(int, int)
-	 * Returns true if the target position can be moved to.
+	 * @brief Returns true if the target position can be moved to, and there is not an actor currently occupying it.
 	 *
 	 * @param posX	 - Target X position
 	 * @param posY	 - Target Y position
@@ -337,8 +303,28 @@ class Gamespace final {
 	}
 
 	/**
+	 * canMove(Coord&, NPC*)
+	 * @brief Variant of the canMove() function designed for NPCs. Checks for NPCs of the same faction at the target location.
+	 *
+	 * @param pos	 - Target position
+	 * @param myFac	 - The actor who wants to move to target's faction
+	 * @returns bool - ( false = cannot move ) ( true = can move )
+	 */
+	bool canMove(const Coord& pos, const FACTION myFac)
+	{
+		if ( _world.get(pos)._canMove ) {
+			// check pos for an actor
+			auto* target{ getActorAt(pos) };
+			// if there is no target, or if there is a target not of my faction
+			if ( target == nullptr || (target != nullptr && myFac != target->faction()) )
+				return true; // can move to this tile
+		} // else
+		return false; // cannot move to this tile
+	}
+
+	/**
 	 * move(ActorBase*, char)
-	 * Attempts to move the target actor to an adjacent tile, and processes trap & item logic.
+	 * @brief Attempts to move the target actor to an adjacent tile, and processes trap & item logic.
 	 *
 	 * @param actor	 - A pointer to the target actor
 	 * @param dir	 - (w = up / s = down / a = left / d = right) all other characters are ignored.
@@ -378,7 +364,7 @@ class Gamespace final {
 	
 	/**
 	 * attack(ActorBase*, ActorBase*)
-	 * Allows an actor to attack another actor.
+	 * @brief Allows an actor to attack another actor.
 	 *
 	 * @param attacker	- A pointer to the attacking actor
 	 * @param target	- A pointer to the actor being attacked
@@ -392,30 +378,52 @@ class Gamespace final {
 		if (attacker != nullptr && target != nullptr && attacker->faction() != target->faction()) {
 			// damage is a random value between the actor's max damage, and (max damage / 6)
 			const auto dmg = _rng.get(attacker->getMaxDamage(), attacker->getMaxDamage() / 6);
-			if (attacker->getStamina() >= _ruleset._attack_cost_stamina) // actor has enough stamina
+			// FULL-ATTACK (actor has enough stamina) - Can't block or parry
+			if ( attacker->getStamina() >= _ruleset._attack_cost_stamina ) {
+				attacker->modStamina(-_ruleset._attack_cost_stamina);
 				target->modHealth(-dmg);
-			else if (attacker->getStamina()) // actor has stamina, but not enough for a full attack
-				target->modHealth(-(dmg / 2));
-			else {							// actor is out of stamina
-				target->modHealth(-(dmg / 4));
-				attacker->modHealth(-(dmg / 12));
 			}
-			// Subtract stamina
-			attacker->modStamina(-_ruleset._attack_cost_stamina);
-			if (target->isDead()) {			// if target died, add a kill to attacker
-				if ( target->faction() == FACTION::ENEMY ) // add the difference in level to kill count, but only for enemies
-					attacker->addKill(target->getLevel() > attacker->getLevel() ? target->getLevel() - attacker->getLevel() : 1);
-				else attacker->addKill();
+			// HALF-ATTACK (actor has stamina but not enough for a full attack) - Block
+			else if ( attacker->getStamina() >= _ruleset._attack_cost_stamina / 3 ) {
+				// remove stamina from attacker
+				attacker->modStamina(-_ruleset._attack_cost_stamina);
+				// check if the target has enough stamina to block
+				if ( target->getStamina() >= _ruleset._attack_cost_stamina / 2 ) {
+					target->modStamina(-_ruleset._attack_cost_stamina / 2);
+					target->modHealth(-(dmg / 20));
+				}
+				else target->modHealth(-(dmg / 2));
 			}
-			// else set target as hostile to attacker
+			// MINIMAL-ATTACK (actor does not have any stamina) - Parry
+			else { // remove stamina from attacker
+				attacker->modStamina(-_ruleset._attack_cost_stamina);
+				// check if the target has enough stamina to parry
+				if ( target->getStamina() >= _ruleset._attack_cost_stamina / 2 ) {
+					// remove stamina from target
+					target->modStamina(-(_ruleset._attack_cost_stamina / 2));
+					// attacker takes the entire damage value
+					attacker->modHealth(-dmg);
+				}
+				else { // target cannot parry, takes partial damage
+					target->modHealth(-(dmg / 4));
+					attacker->modHealth(-(dmg / 12));
+				}
+			}
+			// POST-ATTACK CHECKS:
+			// if target died
+			if (target->isDead())
+				attacker->addKill(target->getLevel() > attacker->getLevel() ? target->getLevel() - attacker->getLevel() : 1);
+			// if attacker died from parry
+			else if ( attacker->isDead() )
+				target->addKill(attacker->getLevel() > target->getLevel() ? attacker->getLevel() - target->getLevel() : 1);
 			else target->setRelationship(attacker->faction(), true);
 			return target->isDead();
 		}
 		return -1;
 	}
-
+	
 	/**
-	 * moveNPC(NPC*, Coord&)
+	 * moveNPC(NPC*, Coord&, bool)
 	 * @brief Attempt to move an npc with obstacle avoidance
 	 *
 	 * @param npc	 - Pointer to an NPC instance
@@ -427,47 +435,121 @@ class Gamespace final {
 		auto dir{ npc->getDirTo(target, noFear) };
 		const auto dirAsInt{ dirToInt(dir) };
 		// if NPC can move in their chosen direction, return result of move
-		if ( canMove(npc->getPosDir(dir)) )
+		if ( canMove(npc->getPosDir(dir), npc->faction()) )
 			return move(&*npc, dir);
-
 		// else find a new direction
-		switch ( _rng.get(1u, 0u) ) { // randomly choose order
-		case 0: // check adjacent tiles
+		switch ( _rng.get(1, 0) ) { // randomly choose order
+		case 0: // check adjacent tiles clockwise
 			for ( auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it+=2 ) {
 				// check if iterator is a valid direction int
 				if ( it >= 0 && it <= 3 ) {
 					dir = intToDir(it);
-					if ( canMove(npc->getPosDir(dir)) )
-						return move(&*npc, dir);
 				}
-				// else continue
+				// check if iterator went below 0, and correct it
+				else if ( it == -1 ) {
+					dir = intToDir(3);
+				}
+				// check if iterator went above 3, and correct it
+				else if ( it == 4 ) {
+					dir = intToDir(0);
+				}
+				else continue;
+				if ( canMove(npc->getPosDir(dir), npc->faction()) )
+					return move(&*npc, dir);
 			}
 			break;
-		case 1: // check adjacent tiles
+		case 1: // check adjacent tiles counter-clockwise
 			for ( auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it-=2 ) {
 				// check if iterator is a valid direction int
 				if ( it >= 0 && it <= 3 ) {
 					dir = intToDir(it);
-					if ( canMove(npc->getPosDir(dir)) )
-						return move(&*npc, dir);
 				}
-				// else continue
+				// check if iterator went below 0, and correct it
+				else if ( it == -1 ) {
+					dir = intToDir(3);
+				}
+				// check if iterator went above 3, and correct it
+				else if ( it == 4 ) {
+					dir = intToDir(0);
+				}
+				else continue;
+				if ( canMove(npc->getPosDir(dir), npc->faction()) )
+					return move(&*npc, dir);
 			}
 			break;
 		default:break;
 		}
-		
 		// failed, return false
 		return false;
 	}
 	
 	/**
+	 * moveNPC(NPC*, bool)
+	 * @brief Attempt to move an npc with obstacle avoidance towards its current target.
+	 *
+	 * @param npc	 - Pointer to an NPC instance
+	 * @param noFear - NPC will never run away
+	 */
+	bool moveNPC(NPC* npc, const bool noFear = false)
+	{
+		auto dir{ npc->getDirTo(noFear) };
+		const auto dirAsInt{ dirToInt(dir) };
+		// if NPC can move in their chosen direction, return result of move
+		if ( canMove(npc->getPosDir(dir), npc->faction()) )
+			return move(&*npc, dir);
+		// else find a new direction
+		switch ( _rng.get(1, 0) ) { // randomly choose order
+		case 0: // check adjacent tiles clockwise
+			for ( auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it+=2 ) {
+				// check if iterator is a valid direction int
+				if ( it >= 0 && it <= 3 ) {
+					dir = intToDir(it);
+				}
+				// check if iterator went below 0, and correct it
+		/*		else if ( it == -1 ) {
+					dir = intToDir(3);
+				}
+				// check if iterator went above 3, and correct it
+				else if ( it == 4 ) {
+					dir = intToDir(0);
+				}
+				else continue; // undefined
+		*/		if ( canMove(npc->getPosDir(dir), npc->faction()) )
+					return move(&*npc, dir);
+			}
+			break;
+		case 1: // check adjacent tiles counter-clockwise
+			for ( auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it-=2 ) {
+				// check if iterator is a valid direction int
+				if ( it >= 0 && it <= 3 ) {
+					dir = intToDir(it);
+				}
+				// check if iterator went below 0, and correct it
+		/*		else if ( it == -1 ) {
+					dir = intToDir(3);
+				}
+				// check if iterator went above 3, and correct it
+				else if ( it == 4 ) {
+					dir = intToDir(0);
+				}
+				else continue;
+		*/		if ( canMove(npc->getPosDir(dir), npc->faction()) )
+					return move(&*npc, dir);
+			}
+			break;
+		default:break;
+		}
+		// failed, return false
+		return false;
+	}
+
+	/**
 	 * actionNPC(NPC*)
-	 * Performs an action for a single NPC
+	 * @brief Performs an action for a single NPC
 	 *
 	 * @param npc	- Pointer to an NPC instance
 	 */
-	void actionNPC(NPC* npc)
+	void actionNPC(NPC* npc)   /// SWITCH THIS FUNCTION TO USE NEW NPC FUNCTIONS: [hasTarget(), canSee()]
 	{
 		// Finale Challenge Event - enemies always attack player, neutrals attack player if ruleset allows it
 		if ( _final_challenge && (npc->faction() == FACTION::ENEMY || npc->faction() == FACTION::NEUTRAL && _ruleset._challenge_neutral_is_hostile) ) {
@@ -475,40 +557,40 @@ class Gamespace final {
 				npc->maxAggro();
 				npc->setTarget(&_player);
 			}
-			moveNPC(&*npc, _player.pos(), true);
-	//		move(&*npc, npc->getDirTo(&_player, true));
+			moveNPC(&*npc, true);
 		}
 		else { // Normal turn
+			// npc is aggravated
 			if ( npc->isAggro() ) {
-				auto* const target{ npc->getTarget() };
-				if ( target != nullptr )
-					moveNPC(&*npc, target->pos());
-	//				move(&*npc, npc->getDirTo(&*target));
+				if ( npc->hasTarget() )
+					moveNPC(&*npc);
 				npc->decrementAggro();
 			}
-			else if ( npc->isHostileTo(FACTION::PLAYER) && _player.getDist(npc->pos()) <= npc->getVis() ) {
+			// npc can see player and is hostile to player
+			else if ( npc->canSeeHostile(&_player) ) {
 				npc->setTarget(&_player);
 				npc->maxAggro();
-				moveNPC(&*npc, _player.pos());
-	//			move(&*npc, npc->getDirTo(&_player));
+				moveNPC(&*npc);
 			}
+			// npc is idle, check nearby
 			else {
 				auto* const nearest{ getNearbyActor(npc->pos(), npc->getVis()) };
 				if ( nearest != nullptr ) {
-					if ( npc->isHostileTo(nearest->faction()) && getDist(npc->pos(), nearest->pos()) <= npc->getVis() ) {
+					if ( npc->canSeeHostile(&*nearest) ) {
 						npc->setTarget(&*nearest);
 						npc->maxAggro();
-						moveNPC(&*npc, nearest->pos());
-	//					move(&*npc, npc->getDirTo(nearest));
+						moveNPC(&*npc);
 					}
-					else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, getRandomDir());
+					else if ( _rng.get(_ruleset._npc_move_chance, 0) == 0 ) 
+						move(&*npc, getRandomDir());
 				}
-				else if ( _rng.get(_ruleset._enemy_move_chance, 0) == 0 ) move(&*npc, getRandomDir());
+				else if ( _rng.get(_ruleset._npc_move_chance, 0) == 0 ) 
+					move(&*npc, getRandomDir());
 			}
 		}
 	}
 
-	/**
+	/** CONSTEXPR **
 	 * trigger_final_challenge(unsigned int)
 	 * @brief Checks if the finale event should be triggered
 	 *

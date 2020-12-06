@@ -8,7 +8,8 @@
  * 
  * 
  *	[Task List]
-		Add an endgame function that either spawns new enemies that always know where the player is, or lets all remaining enemies know where the player is
+		Add a "Killed by <name>" line to the game over screen
+		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
  */
 #include "game_threads.hpp"
 #include "opt.h"

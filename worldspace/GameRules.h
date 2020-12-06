@@ -25,30 +25,31 @@ struct GameRules {
 	bool _player_godmode{ false };			// When true, Player cannot be attacked
 	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', WinAPI::color::green }; // Player template
 
-	// NPC RELATIONSHIPS
+	// GENERIC NPC
 	std::vector<FACTION>
 		_enemy_hostile_to =	{ FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
 		_neutral_hostile_to = { FACTION::NONE }; // Which factions are neutrals hostile to by default. This changes if NPC is attacked.
+	int _npc_move_chance{ 6 };
 	
-	// ENEMY-SPECIFIC
+	// ENEMIES
 	int
 		_enemy_count{ 20 },					// how many enemies are present when the game starts
-		_enemy_move_chance{ 4 },			// 1 in (this) chance of a hostile moving each cycle (range is 0-this)
-		_enemy_aggro_distance{ 4 };			// Determines from how far away enemies notice the player and become aggressive
-	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Chance to spawn), (Max aggression val in move cycles)
-	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types
-		{ "Bandit",	 ActorStats(1, 40, 55, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 50, 50 },	// Level 1 enemy
-		{ "Marauder",ActorStats(2, 40, 45, 20, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 35, 35 },	// Level 2 enemy
-		{ "Reaver",	 ActorStats(3, 60, 60, 30, _enemy_aggro_distance + 1), 'T', WinAPI::color::magenta, _enemy_hostile_to, 15, 20 },// Level 3 enemy
-		{ "",	 ActorStats(3, 60, 60, 30, _enemy_aggro_distance + 1), 'T', WinAPI::color::magenta, _enemy_hostile_to, 15, 20 },// Level 3 enemy
+		_enemy_aggro_distance{ 3 };			// Determines from how far away enemies notice the player and become aggressive
+	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Max aggression val in move cycles), (Chance to spawn))
+	// Chance to spawn is calculated starting at the end of the list, so the first template should have a chance of 100
+	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types.
+		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 30, 100 },	// Level 1 enemy
+		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 20, 40 },	// Level 2 enemy
+		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', WinAPI::color::magenta, _enemy_hostile_to, 16, 15 },// Level 3 enemy
+		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', WinAPI::color::magenta, _enemy_hostile_to, 14, 1 },// Level 4 enemy
 	};
 
 	// NEUTRALS
-	int	_neutral_count{ 20 };				// how many neutrals are present when the game starts
+	int	_neutral_count{ 12 };				// how many neutrals are present when the game starts
 	std::vector<ActorTemplate> _neutral_template{	// Neutral templates, aka default values for neutral types
-		{ "Chicken",ActorStats(1, 20, 25, 5, 3), '`', WinAPI::color::cyan, _neutral_hostile_to, 50, 50 },
-		{ "Sheep",	ActorStats(2, 25, 25, 10, 4), '@', WinAPI::color::cyan, _neutral_hostile_to, 35, 30 },
-		{ "Cow",	ActorStats(3, 40, 25, 15, 5), '%', WinAPI::color::blue, _neutral_hostile_to, 15, 20 },
+		{ "Chicken",ActorStats(1, 30, 30, 5, 5), '`', WinAPI::color::cyan, _neutral_hostile_to, 100, 100 },
+		{ "Sheep",	ActorStats(2, 30, 30, 5, 4), '@', WinAPI::color::cyan, _neutral_hostile_to, 50, 45 },
+		{ "Cow",	ActorStats(3, 30, 30, 5, 4), '%', WinAPI::color::blue, _neutral_hostile_to, 35, 20 },
 	};
 
 	// PASSIVE EFFECTS

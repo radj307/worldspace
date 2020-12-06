@@ -28,9 +28,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="resource.h">
-      <Filter>VS Resources</Filter>
-    </ClInclude>
     <ClInclude Include="settings.h">
       <Filter>0 Utilities &amp; Defaults</Filter>
     </ClInclude>
@@ -64,6 +61,7 @@
     <ClInclude Include="game_threads.hpp">
       <Filter>5 HighLevel Operations</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">
@@ -71,18 +69,18 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
     <ResourceCompile Include="worldspace.rc">
       <Filter>VS Resources</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="AceOfSpades.ico">
+    <Image Include="MAINICON.ico">
       <Filter>VS Resources</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>5 HighLevel Operations</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

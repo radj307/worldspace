@@ -8,17 +8,29 @@
 #include <exception>
 
 struct Coord {
-	long _y;	// VERTICAL
-	long _x;	// HORIZONTAL
+	long _y{};	// VERTICAL
+	long _x{};	// HORIZONTAL
+	/** CONSTRUCTOR **  
+	 * Coord(long, long)
+	 *
+	 * @param x	- X-axis index.
+	 * @param y	- Y-axis index.
+	 */
 	Coord(const long x, const long y) : _y(y), _x(x) {}
+	/**
+	 * Coord()
+	 * @brief Default constructor with uninitialized values.
+	 */
 	Coord() = default;
 
+	// Comparison operator
 	bool operator==(const Coord &o) const
 	{
 		if ( _y == o._y && _x == o._x )
 			return true;
 		return false;
 	}
+	// Inverse comparison operator
 	bool operator!=(const Coord &o) const
 	{
 		if ( _y != o._y && _x != o._x )
@@ -29,15 +41,57 @@ struct Coord {
 
 /** FUNCTOR **
  * struct checkDistance
- * Returns the distance between 2 given points. This functor does not have a constructor.
+ * @brief Returns the distance between 2 given points. This functor does not have a constructor.
  */
 struct checkDistance {
-	// Returns the distance in tiles from pos1 to pos2
-	long operator()(const Coord& pos1, const Coord& pos2, bool positiveOnly = true) const
+	/**
+	 * get(Coord&, Coord&)
+	 * @brief Get the distance between 2 points. Always returns a positive value.
+	 *
+	 * @param pos1	- First position
+	 * @param pos2	- Second position
+	 * @returns long
+	 */
+	static long get(const Coord& pos1, const Coord& pos2)
 	{
 		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
 	}
-	// Returns the distance in tiles from pos1 to pos2
+	/**
+	 * get(long, long, long, long)
+	 * @brief Get the distance between 2 points. Always returns a positive value.
+	 *
+	 * @param pos1X - First position's X-axis
+	 * @param pos1Y	- First position's Y-axis
+	 * @param pos2X	- Second position's X-axis
+	 * @param pos2Y	- Second position's Y-axis
+	 * @returns long
+	 */
+	static long get(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y)
+	{
+		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
+	}
+	/**
+	 * operator()
+	 * @brief Returns the distance between 2 given points.
+	 *
+	 * @param pos1	- First point
+	 * @param pos2	- Second point
+	 * @returns long
+	 */
+	long operator()(const Coord& pos1, const Coord& pos2) const
+	{
+		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
+	}
+	/**
+	 * operator()
+	 * @brief Returns the distance between 2 given points.
+	 *
+	 * @param pos1X	- First point's X (horizontal) index.
+	 * @param pos1Y	- First point's Y (vertical) index.
+	 * @param pos2X	- Second point's X (horizontal) index.
+	 * @param pos2Y	- Second point's Y (vertical) index.
+	 * @returns long
+	 */
 	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) const
 	{
 		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
@@ -46,7 +100,7 @@ struct checkDistance {
 
 /** FUNCTOR **
  * struct checkDistanceFrom
- * Returns the distance between a given point and a member Coord pointer given in constructor
+ * @brief Returns the distance between a given point and a member Coord pointer given in constructor
  */
 struct checkDistanceFrom {
 	// member coord pointer to follow, such as the player
@@ -54,7 +108,7 @@ struct checkDistanceFrom {
 
 	/** CONSTRUCTOR **
 	 * checkDistanceFrom(Coord*)
-	 * Instantiate a checkDistanceFrom functor with a pointer to a Coord instance
+	 * @brief Instantiate a checkDistanceFrom functor with a pointer to a Coord instance
 	 *
 	 * @param followThis	- A pointer to a Coord instance to use when checking distance.
 	 */
@@ -63,12 +117,25 @@ struct checkDistanceFrom {
 		if ( _follow == nullptr ) throw std::exception("checkDistanceFrom() exception: Given coord to follow was nullptr");
 	}
 
-	// Returns the distance in tiles from the given pos
+	/**
+	 * operator()
+	 * @brief Returns the distance between this instance's coord pointer and a given point.
+	 *
+	 * @param pos	- Target position to check
+	 * @returns long
+	 */
 	long operator()(const Coord& pos) const noexcept
 	{
 		return abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y);
 	}
-	// Returns the distance in tiles from the given pos
+	/**
+	 * operator()
+	 * @brief Returns the distance between this instance's coord pointer and a given point.
+	 *
+	 * @param posX	- Target X (horizontal) position to check
+	 * @param posY	- Target Y (vertical) position to check
+	 * @returns long
+	 */
 	long operator()(const long posX, const long posY) const noexcept
 	{
 		return abs(_follow->_x - posX) + abs(_follow->_y - posY);
@@ -77,7 +144,7 @@ struct checkDistanceFrom {
 
 /** FUNCTOR **
  * struct checkBounds
- * Used to check if a given Coord is within a boundary.
+ * @brief Used to check if a given Coord is within a boundary.
  */
 struct checkBounds {
 	// The max & min allowable positions 
@@ -103,9 +170,10 @@ struct checkBounds {
 
 	/**
 	 * operator()  
-	 * Returns true if the given position is within boundaries
+	 * @brief Returns true if the given position is within boundaries
 	 * 
 	 * @param pos		- Target position to check
+	 * @returns bool
 	 */
 	bool operator()(const Coord& pos) const
 	{
@@ -116,10 +184,11 @@ struct checkBounds {
 
 	/**
 	 * operator()
-	 * Returns true if the given position is within boundaries
+	 * @brief Returns true if the given position is within boundaries
 	 *
 	 * @param x			- Target X (horizontal) position to check
 	 * @param y			- Target Y (vertical) position to check
+	 * @returns bool
 	 */
 	bool operator()(const long x, const long y) const
 	{
@@ -128,3 +197,40 @@ struct checkBounds {
 		return false;
 	}
 };
+
+
+/**
+ * intToDir(int)
+ * @brief Converts an integer to a direction char
+ *
+ * @param i		 - Input integer between 0 and 3
+ * @returns char - ( 'w' == 0 ) ( 'd' == 1 ) ( 's' == 2 ) ( 'a' == 3 ) ( ' ' == invalid parameter )
+ */
+inline char intToDir(const int i)
+{
+	switch ( i ) {
+	case 0: return 'w';
+	case 1: return 'd';
+	case 2: return 's';
+	case 3: return 'a';
+	default:return ' ';
+	}
+}
+
+/**
+ * intToDir(int)
+ * @brief Converts an integer to a direction char
+ *
+ * @param c		 - Input integer between 0 and 3
+ * @returns int - ( 0 == 'w' ) ( 1 == 'd' ) ( 2 == 's' ) ( 3 == 'a' ) ( -1 == invalid parameter )
+ */
+inline int dirToInt(const char c)
+{
+	switch ( c ) {
+	case 'w': return 0;
+	case 'd': return 1;
+	case 's': return 2;
+	case 'a': return 3;
+	default:return -1;
+	}
+}
