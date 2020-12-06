@@ -31,6 +31,7 @@ class Gamespace final {
 	std::vector<Enemy> _hostile;
 	// neutral actors
 	std::vector<Neutral> _neutral;
+	
 	// Static Items - Health
 	std::vector<ItemStaticHealth> _item_static_health;
 	// Static Items - Stamina
@@ -41,7 +42,7 @@ class Gamespace final {
 	FlareChallenge _FLARE_DEF_CHALLENGE;	// Flare used when the final challenge mode begins
 	Flare* _flare;	// Pointer to one of the above instances, this should only be accessed through the flare functions.
 	
-	bool // Flags
+	bool // Game State Flags
 		_final_challenge{ false },	// When true, all enemies (& neutrals if set in gamerules) attack the player.
 		_allEnemiesDead{ false },	// When true, the player wins
 		_playerDead{ false };		// When true, the player loses
@@ -423,67 +424,6 @@ class Gamespace final {
 	}
 	
 	/**
-	 * moveNPC(NPC*, Coord&, bool)
-	 * @brief Attempt to move an npc with obstacle avoidance
-	 *
-	 * @param npc	 - Pointer to an NPC instance
-	 * @param target - Ref of a target coordinate
-	 * @param noFear - NPC will never run away
-	 */
-	bool moveNPC(NPC* npc, const Coord& target, const bool noFear = false)
-	{
-		auto dir{ npc->getDirTo(target, noFear) };
-		const auto dirAsInt{ dirToInt(dir) };
-		// if NPC can move in their chosen direction, return result of move
-		if ( canMove(npc->getPosDir(dir), npc->faction()) )
-			return move(&*npc, dir);
-		// else find a new direction
-		switch ( _rng.get(1, 0) ) { // randomly choose order
-		case 0: // check adjacent tiles clockwise
-			for ( auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it+=2 ) {
-				// check if iterator is a valid direction int
-				if ( it >= 0 && it <= 3 ) {
-					dir = intToDir(it);
-				}
-				// check if iterator went below 0, and correct it
-				else if ( it == -1 ) {
-					dir = intToDir(3);
-				}
-				// check if iterator went above 3, and correct it
-				else if ( it == 4 ) {
-					dir = intToDir(0);
-				}
-				else continue;
-				if ( canMove(npc->getPosDir(dir), npc->faction()) )
-					return move(&*npc, dir);
-			}
-			break;
-		case 1: // check adjacent tiles counter-clockwise
-			for ( auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it-=2 ) {
-				// check if iterator is a valid direction int
-				if ( it >= 0 && it <= 3 ) {
-					dir = intToDir(it);
-				}
-				// check if iterator went below 0, and correct it
-				else if ( it == -1 ) {
-					dir = intToDir(3);
-				}
-				// check if iterator went above 3, and correct it
-				else if ( it == 4 ) {
-					dir = intToDir(0);
-				}
-				else continue;
-				if ( canMove(npc->getPosDir(dir), npc->faction()) )
-					return move(&*npc, dir);
-			}
-			break;
-		default:break;
-		}
-		// failed, return false
-		return false;
-	}
-	
-	/**
 	 * moveNPC(NPC*, bool)
 	 * @brief Attempt to move an npc with obstacle avoidance towards its current target.
 	 *
@@ -561,7 +501,7 @@ class Gamespace final {
 		}
 		else { // Normal turn
 			// npc is aggravated
-			if ( npc->isAggro() ) {
+			if ( npc->isAggro() && _rng.get(_ruleset._npc_move_chance_aggro, 0) != 0 ) {
 				if ( npc->hasTarget() )
 					moveNPC(&*npc);
 				npc->decrementAggro();
@@ -613,7 +553,7 @@ public:
 		_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
 		_item_static_health = generate_items<ItemStaticHealth>(10, true);
 		_item_static_stamina = generate_items<ItemStaticStamina>(10);
-		_world.modVis(true, _player.pos(), _player.getVis()); // allow the player to see the area around them
+		_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them
 
 	#ifdef _DEBUG // debug section
 		_final_challenge = true;
@@ -647,7 +587,7 @@ public:
 		// if not dead and move was successful
 		if (!_player.isDead() && move(&_player, key)) {
 			// player specific post-movement functions
-			_world.modVis(true, _player.pos(), _player.getVis()); // allow the player to see the area around them
+			_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them
 		}
 	}
 

@@ -45,6 +45,33 @@ struct Coord {
  */
 struct checkDistance {
 	/**
+	 * get_circle(Coord&, Coord&, int)
+	 * @brief Returns true if a given coordinate is within a circular radius of a given point
+	 *
+	 * @param pos		- The point to check
+	 * @param center	- The centerpoint of the circle
+	 * @param radius	- The radius of the circle
+	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
+	 */
+	static bool get_circle(const Coord& pos, const Coord& center, const int radius)
+	{
+		return (pos._x - center._x) * (pos._x - center._x) + (pos._y - center._y) * (pos._y - center._y) <= radius * radius;
+	}
+	/**
+	 * get_circle(Coord&, Coord&, int)
+	 * @brief Returns true if a given coordinate is within a circular radius of a given point
+	 *
+	 * @param posX		- The X-axis index of the point to check
+	 * @param posY		- The Y-axis index of the point to check
+	 * @param center	- The centerpoint of the circle
+	 * @param radius	- The radius of the circle
+	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
+	 */
+	static bool get_circle(const int posX, const int posY, const Coord& center, const int radius)
+	{
+		return (posX - center._x) * (posX - center._x) + (posY - center._y) * (posY - center._y) <= radius * radius;
+	}
+	/**
 	 * get(Coord&, Coord&)
 	 * @brief Get the distance between 2 points. Always returns a positive value.
 	 *

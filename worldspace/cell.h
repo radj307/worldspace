@@ -267,17 +267,33 @@ public:
 
 	/**
 	 * modVis(bool, Coord, const int)  
-	 * Modifies the visibility of an area around a given center-point in the cell.
+	 * @brief Modifies the visibility of a square area around a given center-point in the cell.
 	 * 
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
-	 * @param diameter	- The distance away from the center-point that will also be discovered.
+	 * @param radius	- The distance away from the center-point that will also be discovered.
 	 */
-	void modVis(const bool to, const Coord& pos, const int diameter = 3)
+	void modVis(const bool to, const Coord& pos, const int radius)
 	{
-		for ( int y = pos._y - diameter; y <= pos._y + diameter; y++ )
-			for ( int x = pos._x - diameter; x <= pos._x + diameter; x++ )
+		for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
+			for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
 				if ( isValidPos(x, y) )
+					_matrix.at(y).at(x)._isKnown = to;
+	}
+	
+	/**
+	 * modVis(bool, Coord, const int)  
+	 * @brief Modifies the visibility of a circular area around a given center-point in the cell.
+	 * 
+	 * @param to		- ( true = visible ) ( false = invisible )
+	 * @param pos		- The center-point
+	 * @param radius	- The distance away from the center-point that will also be discovered.
+	 */
+	void modVisCircle(const bool to, const Coord& pos, const int radius)
+	{
+		for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
+			for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
+				if ( isValidPos(x, y) && checkDistance::get_circle(x, y, pos, radius) )
 					_matrix.at(y).at(x)._isKnown = to;
 	}
 

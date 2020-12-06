@@ -29,7 +29,9 @@ struct GameRules {
 	std::vector<FACTION>
 		_enemy_hostile_to =	{ FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
 		_neutral_hostile_to = { FACTION::NONE }; // Which factions are neutrals hostile to by default. This changes if NPC is attacked.
-	int _npc_move_chance{ 6 };
+	int
+		_npc_move_chance{ 6 },				// The chance an NPC will move when idle (1 in (this) chance)
+		_npc_move_chance_aggro{ 6 };		// The chance an NPC will move when aggravated ((this) to 1 chance)
 	
 	// ENEMIES
 	int
@@ -38,8 +40,8 @@ struct GameRules {
 	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Max aggression val in move cycles), (Chance to spawn))
 	// Chance to spawn is calculated starting at the end of the list, so the first template should have a chance of 100
 	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types.
-		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 30, 100 },	// Level 1 enemy
-		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 20, 40 },	// Level 2 enemy
+		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 30, 100 },	// Level 1 enemy
+		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1), 'T', WinAPI::color::red, _enemy_hostile_to, 20, 40 },	// Level 2 enemy
 		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', WinAPI::color::magenta, _enemy_hostile_to, 20, 15 },// Level 3 enemy
 		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', WinAPI::color::magenta, _enemy_hostile_to, 30, 1 },// Level 4 enemy
 	};
@@ -75,9 +77,6 @@ struct GameRules {
 	bool		 // if true, neutral NPCs will also attack the player during the finale
 		_challenge_neutral_is_hostile{ false }; 
 	
-	// Default constructor
-	GameRules() = default;
-
 	/**
 	 * canLevelUp(ActorBase*)
 	 * Returns true if a given actor can level up.
@@ -110,4 +109,7 @@ struct GameRules {
 		if ( settings._player_damage != NOT_SET )	// Check damage
 			_player_template._stats.setMaxDamage(settings._player_damage);
 	}
+
+	// Default constructor
+	GameRules() = default;
 };
