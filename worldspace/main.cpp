@@ -3,10 +3,10 @@
  * Wrapper for a matrix of tiles that can be used for simple games. Contains built-in console output functions, but can be used as a backend for graphical applications.
  * ~ Evolved into a basic real-time game application utilizing multi-threading.
  * by radj307
- * 
- * 
- * 
- * 
+ *
+ *
+ *
+ *
  *	[Task List]
 		Add a "Killed by <name>" line to the game over screen
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
@@ -20,7 +20,7 @@ inline GLOBAL interpret(int argc, char* argv[]);
 
 /**
  * main(const int, char*[])
- * 
+ *
  * @param argc	- Argument count
  * @param argv	- Argument array
  */
@@ -28,8 +28,7 @@ int main(const int argc, char* argv[])
 {
 	// Interpret commandline options
 	GLOBAL settings;
-	try { settings = { interpret(argc, argv) }; }
-	catch( std::exception & ex ) {
+	try { settings = { interpret(argc, argv) }; } catch ( std::exception & ex ) {
 		msg(sys::error, "\"" + std::string(ex.what()) + "\" was thrown while interpreting command-line arguments.", "Press any key to exit....");
 		return -1;
 	}
@@ -91,16 +90,16 @@ inline GLOBAL interpret(const int argc, char* argv[])
 	GLOBAL glob;
 
 	opt::list args(argc, argv, "world:,file:,player:");
-	for (auto& _command : args._commands) {
+	for ( auto& _command : args._commands ) {
 		// "-world <arg>"
-		if (_command.checkName("world") && _command._hasArg ) {
+		if ( _command.checkName("world") && _command._hasArg ) {
 			// "-world showalltiles"
-			if (_command.checkArg("showalltiles") ) {
+			if ( _command.checkArg("showalltiles") ) {
 				glob._override_known_tiles = true;
 			}
 			// "-world size=XX:XX"
-			else if (_command._arg.size() >= 8 && _command._arg.substr(0, _command._arg.find('=')) == "size" ) {
-				if (_command._arg.find(':') != std::string::npos ) {
+			else if ( _command._arg.size() >= 8 && _command._arg.substr(0, _command._arg.find('=')) == "size" ) {
+				if ( _command._arg.find(':') != std::string::npos ) {
 					auto str{ (_command._arg.substr(_command._arg.find('=') + 1, _command._arg.size())) };
 					try {
 						const auto index_of_colon{ str.find(':') };
@@ -112,15 +111,15 @@ inline GLOBAL interpret(const int argc, char* argv[])
 			}
 		}
 		// "-file <filename>"
-		else if (_command.checkName("file") && _command._hasArg ) {
+		else if ( _command.checkName("file") && _command._hasArg ) {
 			glob._import_filename = _command._arg;
 		}
 		// "-player <arg>"
-		else if (_command.checkName("player") ) {
+		else if ( _command.checkName("player") ) {
 			// Check complex arguments
-			const auto index{_command._arg.find('=') };
+			const auto index{ _command._arg.find('=') };
 			if ( index != std::string::npos ) {
-				auto arg{_command._arg.substr(0, index) };
+				auto arg{ _command._arg.substr(0, index) };
 				try {
 					if ( arg == "health" )
 						glob._player_health = std::stoi(_command._arg.substr(index + 1));
@@ -136,7 +135,7 @@ inline GLOBAL interpret(const int argc, char* argv[])
 			}
 			// Check simple arguments
 			else {
-				if (_command.checkArg("godmode") )
+				if ( _command.checkArg("godmode") )
 					glob._player_godmode = true;
 			}
 		}

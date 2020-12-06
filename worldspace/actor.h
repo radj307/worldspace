@@ -41,7 +41,7 @@ protected:
 	virtual ~ActorMaxStats() = default;
 	ActorMaxStats& operator=(const ActorMaxStats&) = default;
 	ActorMaxStats& operator=(ActorMaxStats&&) = default;
-	
+
 public:
 	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
 	[[nodiscard]] int getMaxStamina() const { return _MAX_STAMINA; }
@@ -76,12 +76,12 @@ protected:
 		_health = _MAX_HEALTH;
 		_stamina = _MAX_STAMINA;
 	}
-	
+
 public:
 	/**
 	 * ActorStats(int, int, int)
 	 * These values are used to determine my maximum stats.
-	 * 
+	 *
 	 * @param level		- My level
 	 * @param health	- My health value
 	 * @param stamina	- My stamina value
@@ -117,8 +117,8 @@ public:
 	// Get this actor's visibility range
 	[[nodiscard]] auto getVis() const -> int { return _visRange; }
 	// Increases this actor's level by one
-	void addLevel() 
-	{ 
+	void addLevel()
+	{
 		update_stats(++_level);
 	}
 	// Decreases this actor's level by one
@@ -281,23 +281,23 @@ protected:
 	WinAPI::color _color;	// My displayed char's color in the console
 	std::vector<FACTION> _hostileTo;
 	int _kill_count;
-		
+
 private:
 	// Initialize this actor's hostile faction list -- Sets all factions as hostile
 	void initHostilities()
 	{
-		for (auto i = static_cast<int>(FACTION::PLAYER); i < static_cast<int>(FACTION::NONE); i++ ) {
+		for ( auto i = static_cast<int>(FACTION::PLAYER); i < static_cast<int>(FACTION::NONE); i++ ) {
 			auto thisFaction{ static_cast<FACTION>(i) };
 			if ( thisFaction != _faction )
 				_hostileTo.push_back(thisFaction);
 		}
 	}
-	
+
 public:
 	/** CONSTRUCTOR **
 	 * ActorBase(FACTION, string, Coord, char, WinAPI::color, int, int, int)
 	 * This is the base constructor for actor types.
-	 * 
+	 *
 	 * @param myFaction	- My faction / group of actors.
 	 * @param myName	- My reporting name.
 	 * @param myPos		- My current position as a matrix coordinate
@@ -312,7 +312,7 @@ public:
 	virtual ~ActorBase() = default;
 	ActorBase& operator=(const ActorBase&) = default;
 	ActorBase& operator=(ActorBase&&) = default;
-	
+
 	// Movement functions, these do not check if a movement was possible, they are simply a wrapper for incrementing/decrementing _pos
 	void moveU() { _pos._y--; } // decrement y by 1
 	void moveD() { _pos._y++; } // increment y by 1
@@ -361,7 +361,7 @@ public:
 		case 'd':
 		case 'D':
 			return getPosR();
-		default:return{-1,-1};
+		default:return{ -1,-1 };
 		}
 	}
 	// Set this actor's relationship to another faction
@@ -420,7 +420,7 @@ public:
 // human player
 struct Player final : ActorBase {
 	checkDistanceFrom getDist;		// Functor that gets the distance from _pos to a given Coord point
-	
+
 	/** CONSTRUCTOR **
 	 * Player(FACTION, string, Coord, char, WinAPI::color, int)
 	 * This is the base constructor for actor types.
@@ -432,7 +432,9 @@ struct Player final : ActorBase {
 	 * @param myStats	- My statistics
 	 */
 	Player(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-		   & myStats) : ActorBase(FACTION::PLAYER, myName, myPos, myChar, myColor, myStats), getDist(_pos) {}
+		& myStats) : ActorBase(FACTION::PLAYER, myName, myPos, myChar, myColor, myStats), getDist(_pos)
+	{
+	}
 	Player(const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(FACTION::PLAYER, myPos, myTemplate), getDist(_pos) {}
 };
 
@@ -569,7 +571,7 @@ public:
 	/**
 	 * canSee(int)
 	 * @brief Returns true if this NPC has a target, and the target is within sight range.
-	 * 
+	 *
 	 * @param visMod	- Optional modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool
 	 */
@@ -579,7 +581,7 @@ public:
 			return true;
 		return false;
 	}
-	
+
 	/**
 	 * getDirTo(Coord&)
 	 * Returns a direction char from a given target position.
@@ -592,7 +594,7 @@ public:
 	{
 		return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid());
 	}
-	
+
 	/**
 	 * getDirTo(ActorBase*)
 	 * Returns a direction char from a given target actor's position.
@@ -607,7 +609,7 @@ public:
 			return getDir({ _pos._x - target->pos()._x, _pos._y - target->pos()._y }, noFear ? false : afraid());
 		return ' ';
 	}
-	
+
 	/**
 	 * getDirTo(ActorBase*)
 	 * Returns a direction char from this NPC's current target's position.
@@ -621,7 +623,7 @@ public:
 			return getDir({ _pos._x - _target->pos()._x, _pos._y - _target->pos()._y }, noFear ? false : afraid());
 		return ' ';
 	}
-	
+
 	// Returns true if this NPC is currently aggravated
 	[[nodiscard]] bool isAggro() const
 	{
@@ -647,7 +649,7 @@ public:
 		_aggro = _MAX_AGGRO;
 	}
 	// Remove this NPC's aggression
-	void removeAggro() { _aggro = 0; if (_target != nullptr) removeTarget(); }
+	void removeAggro() { _aggro = 0; if ( _target != nullptr ) removeTarget(); }
 	// Decreases this NPC's aggression by 1
 	void decrementAggro()
 	{
@@ -661,8 +663,8 @@ public:
 	// Returns this NPC's current target
 	[[nodiscard]] ActorBase* getTarget() const { return _target; }
 	// Set this NPC's current target
-	void setTarget(ActorBase* target) 
-	{ 
+	void setTarget(ActorBase* target)
+	{
 		if ( !isHostileTo(target->faction()) )
 			setRelationship(target->faction(), true);
 		_target = target;
@@ -701,8 +703,10 @@ struct Enemy final : NPC {
 	 * @param MAX_AGGRO	- My maximum aggression
 	 */
 	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-		  &
-		  myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
+		&
+		myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO)
+	{
+	}
 	Enemy(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::ENEMY, myPos, myTemplate) {}
 };
 
@@ -723,6 +727,8 @@ struct Neutral final : NPC {
 	 */
 	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
 	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-			& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
+		& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO)
+	{
+	}
 	Neutral(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::NEUTRAL, myPos, myTemplate) {}
 };

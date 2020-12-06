@@ -14,7 +14,6 @@
 
 namespace game {
 	namespace _internal {
-
 		constexpr int PLAYER_WIN_CODE{ 1 }; // Player wins when this code is set
 		constexpr int PLAYER_LOSE_CODE{ 0 }; // Player loses when this code is set
 		constexpr int PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set

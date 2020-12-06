@@ -46,9 +46,9 @@ private:
 			break;
 		}
 	}
-	
+
 public:
-	
+
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
@@ -67,11 +67,11 @@ public:
 	bool _canMove;									// true if this tile allows actors to move to it
 	bool _isTrap;									// true if this tile is a trap, and will damage actors when stepped on.
 	bool _canSpawn;
-	
+
 	/** CONSTRUCTOR **
-	 * Tile(Tile::display, int, int, bool)  
+	 * Tile(Tile::display, int, int, bool)
 	 * Construct a tile with the default color. (white)
-	 * 
+	 *
 	 * @param as				- This tile's type (display character)
 	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
@@ -126,7 +126,7 @@ static Tile __TILE_ERROR;
 /**
  * importMatrix(string, bool)
  * Imports a tile matrix from the specified file
- * 
+ *
  * @param filename				- The target file to load
  * @param makeWallsVisible		- When true, wall tiles will always be visible.
  * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
@@ -154,7 +154,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 				// iterate through line
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
 					auto isValid{ false };
-					for (auto it : __VALID_TILES) {
+					for ( auto it : __VALID_TILES ) {
 						if ( line.at(x) == static_cast<char>(it) )
 							isValid = true;
 					}
@@ -178,7 +178,7 @@ protected:
 	/**
 	 * generate(bool, bool)
 	 * Generates the tile matrix using RNG
-	 * 
+	 *
 	 * @param makeWallsVisible		- When true, wall tiles will always be visible.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
@@ -186,9 +186,9 @@ protected:
 	{
 		if ( _max._y >= 10 && _max._x >= 10 ) {
 			tRand rng;
-			for (auto y = 0; y < _max._y; y++ ) {
+			for ( auto y = 0; y < _max._y; y++ ) {
 				std::vector<Tile> _row;
-				for (auto x = 0; x < _max._x; x++ ) {
+				for ( auto x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
 					if ( x == 0 || x == _max._x - 1 || (y == 0 || y == _max._y - 1) )
 						_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
@@ -216,7 +216,7 @@ public:
 	/** CONSTRUCTOR **
 	 * Cell(Coord, bool)
 	 * Generate a new cell with the given size parameters. Minimum size is 10x10
-	 * 
+	 *
 	 * @param cellSize				- The size of the cell
 	 * @param makeWallsVisible		- walls are always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
@@ -229,23 +229,25 @@ public:
 	/** CONSTRUCTOR **
 	 * Cell(string, bool)
 	 * Load a cell from a specified file
-	 * 
+	 *
 	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
 	 * @param makeWallsVisible		- walls always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : 
-		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), 
+	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) :
+		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)),
 		_max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)),
-		isValidPos(_max) {}
+		isValidPos(_max)
+	{
+	}
 
-	/**
-	 * getDisplayChar(Coord)
-	 * Returns the display character of a given tile
-	 *
-	 * @param pos	 - Target position
-	 * @returns char - ( ' ' for invalid position )
-	 */
+	  /**
+	   * getDisplayChar(Coord)
+	   * Returns the display character of a given tile
+	   *
+	   * @param pos	 - Target position
+	   * @returns char - ( ' ' for invalid position )
+	   */
 	char getDisplayChar(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
@@ -254,21 +256,21 @@ public:
 	}
 
 	/**
-	 * modVis(bool)  
+	 * modVis(bool)
 	 * Modifies the visibility of all tiles in the cell.
-	 * 
+	 *
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 */
 	void modVis(const bool to)
 	{
-		for (auto& y : _matrix)
-			for (auto& x : y) x._isKnown = to;
+		for ( auto& y : _matrix )
+			for ( auto& x : y ) x._isKnown = to;
 	}
 
 	/**
-	 * modVis(bool, Coord, const int)  
+	 * modVis(bool, Coord, const int)
 	 * @brief Modifies the visibility of a square area around a given center-point in the cell.
-	 * 
+	 *
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
 	 * @param radius	- The distance away from the center-point that will also be discovered.
@@ -280,11 +282,11 @@ public:
 				if ( isValidPos(x, y) )
 					_matrix.at(y).at(x)._isKnown = to;
 	}
-	
+
 	/**
-	 * modVis(bool, Coord, const int)  
+	 * modVis(bool, Coord, const int)
 	 * @brief Modifies the visibility of a circular area around a given center-point in the cell.
-	 * 
+	 *
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
 	 * @param radius	- The distance away from the center-point that will also be discovered.
@@ -314,25 +316,25 @@ public:
 	}
 
 	/**
-	 * sstream()  
+	 * sstream()
 	 * Returns the entire matrix as a stringstream for file export/import
-	 * 
+	 *
 	 * @returns stringstream
 	 */
 	std::stringstream sstream()
 	{
 		std::stringstream buf;
-		for (auto& y : _matrix) {
-			for (auto& x : y) buf << x;
+		for ( auto& y : _matrix ) {
+			for ( auto& x : y ) buf << x;
 			buf << std::endl;
 		}
 		return buf;
 	}
 
 	/**
-	 * get(Coord, const bool)  
+	 * get(Coord, const bool)
 	 * Returns a reference to the target tile.
-	 * 
+	 *
 	 * @param pos			- The target tile
 	 */
 	Tile &get(const Coord& pos)

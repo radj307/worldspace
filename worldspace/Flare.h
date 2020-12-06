@@ -8,7 +8,7 @@ protected:
 	unsigned short
 		_time,			// How many frames to display the flare for
 		_color;			// which color to use for flare
-	
+
 	/**
 	 * Flare(Coord&, unsigned short, unsigned short)
 	 * @brief Construct a flare instance
@@ -32,7 +32,7 @@ public:
 	 * @returns bool - ( true = flare this tile ) ( false = do not flare this tile )
 	 */
 	virtual bool pattern(int x, int y) = 0;
-	
+
 	/**
 	 * time()
 	 * @brief Returns the remaining flare time.
@@ -40,7 +40,7 @@ public:
 	 * @returns unsigned short
 	 */
 	[[nodiscard]] unsigned short time() const { return _time; }
-	
+
 	/**
 	 * color()
 	 * @brief Returns the flare color
@@ -61,7 +61,6 @@ public:
 	virtual ~Flare() = default;
 	Flare& operator=(const Flare&) = default;
 	Flare& operator=(Flare&&) = default;
-
 };
 
 // Level-up flare
@@ -84,7 +83,7 @@ struct FlareLevel final : Flare {
 	 * @brief Default constructor with preset color of BACKGROUND_GREEN, and a time of 6 frames.
 	 */
 	FlareLevel() : Flare(6, BACKGROUND_GREEN) {}
-	
+
 	/**
 	 * FlareLevel(unsigned short, WinAPI::color)
 	 * @brief Constructor with defined time & color values.
@@ -93,7 +92,7 @@ struct FlareLevel final : Flare {
 	 * @param flareColor - The color to flare.
 	 */
 	FlareLevel(const unsigned short flareTime, const WinAPI::color flareColor) : Flare(flareTime, flareColor) {}
-	
+
 	/**
 	 * FlareLevel(unsigned short, WinAPI::color)
 	 * @brief Constructor with defined time & color values.
@@ -108,7 +107,7 @@ struct FlareLevel final : Flare {
 struct FlareChallenge final : Flare {
 private:
 	Coord _cell_size;	// This is needed to determine the bottom & right edge indexes
-	
+
 public:
 	/**
 	 * pattern(int, int)
@@ -126,13 +125,13 @@ public:
 	/**
 	 * FlareChallenge(Coord&, unsigned short, WinAPI::color)
 	 * @brief Constructor with defined time & color values.
-	 * 
+	 *
 	 * @param cellSize	 - A ref to the cell's _max member, representing the size of the tile matrix.
 	 * @param flareTime  - The amount of frames to show a flare.
 	 * @param flareColor - The color to flare.
 	 */
 	FlareChallenge(const Coord& cellSize, const unsigned short flareTime, const WinAPI::color flareColor) : Flare(flareTime, flareColor), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
-	
+
 	/**
 	 * FlareChallenge(Coord&, unsigned short, unsigned short)
 	 * @brief Constructor with defined time & color values. This constructor takes a direct unsigned short.
@@ -142,7 +141,7 @@ public:
 	 * @param flareColor - The color to flare.
 	 */
 	FlareChallenge(const Coord& cellSize, const unsigned short flareTime, const unsigned short flareColor) : Flare(flareTime, flareColor), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
-	
+
 	/**
 	 * FlareChallenge(Coord&)
 	 * @brief Default constructor. Uses BACKGROUND_RED & time of 10 frames.

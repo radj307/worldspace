@@ -88,7 +88,7 @@ public:
 	ItemStats& operator=(const ItemStats&) = default;
 	ItemStats& operator=(ItemStats&&) = default;
 #pragma endregion DEFAULT
-	
+
 	/**
 	 * getUses()
 	 * Returns this item's remaining uses.
@@ -107,7 +107,7 @@ protected:
 	/**
 	 * virtual func(ActorBase*)
 	 * @brief This item's function. This is overridden in derived classes to provide item with various usages.
-	 * 
+	 *
 	 * @param target	- Pointer to a target actor
 	 */
 	virtual void func(ActorBase* target) {}
@@ -132,7 +132,7 @@ public:
 	 * @param myPos			- Ref to a coord position
 	 */
 	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
-	
+
 	/**
 	 * ItemStaticBase(char, WinAPI::color, string, int, Coord&, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions.
@@ -163,7 +163,7 @@ public:
 	ItemStaticBase& operator=(const ItemStaticBase&) = default;
 	ItemStaticBase& operator=(ItemStaticBase&&) = default;
 #pragma endregion DEFAULT
-	
+
 	/**
 	 * attempt_use(ActorBase*)
 	 * Given actor pointer will try to use this item, if actor's faction is allowed.
@@ -231,9 +231,9 @@ protected:
 			return true;
 		return false;
 	}
-	
+
 public:
-	
+
 	/**
 	 * ItemStaticHealth(Coord&, int)
 	 * @brief Default constructor that allows all factions to use this item
@@ -242,7 +242,7 @@ public:
 	 * @param amountRestored	- The amount of health this item restores
 	 */
 	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', WinAPI::color::red, "Restore Health", 1, myPos), _amount(amountRestored) {}
-	
+
 	/**
 	 * ItemStaticHealth(Coord&, int, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions
@@ -290,9 +290,9 @@ protected:
 			return true;
 		return false;
 	}
-	
+
 public:
-	
+
 	/**
 	 * ItemStaticStamina(Coord&, int)
 	 * @brief Default constructor that allows all factions to use this item
@@ -301,7 +301,7 @@ public:
 	 * @param amountRestored	- The amount of stamina this item restores
 	 */
 	ItemStaticStamina(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', static_cast<WinAPI::color>(BACKGROUND_GREEN), "Restore Health", 1, myPos), _amount(amountRestored) {}
-	
+
 	/**
 	 * ItemStaticStamina(Coord&, int, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions
@@ -311,7 +311,7 @@ public:
 	 * @param lockToFaction		- Vector of factions allowed to use this item
 	 */
 	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', WinAPI::color::b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
-	
+
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
 	ItemStaticStamina(const ItemStaticStamina&) = default;

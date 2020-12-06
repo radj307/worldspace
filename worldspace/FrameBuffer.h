@@ -36,7 +36,7 @@ struct Frame {
 	Coord getSize()
 	{
 		auto Y{ 0 }, X{ 0 };
-		for (auto& y : _frame) {
+		for ( auto& y : _frame ) {
 			Y++;
 			for ( auto x = y.begin(); x != y.end(); ++x )
 				X++;
@@ -72,9 +72,9 @@ struct Frame {
 	static Frame buildFromCell(Cell& cell, const Coord& displayOrigin = Coord(0, 0))
 	{
 		std::vector<std::vector<char>> matrix;
-		for (auto y = 0; y < cell._max._y; y++ ) { // iterate Y-axis
+		for ( auto y = 0; y < cell._max._y; y++ ) { // iterate Y-axis
 			std::vector<char> row;
-			for (auto x = 0; x < cell._max._x; x++ ) { // iterate X-axis
+			for ( auto x = 0; x < cell._max._x; x++ ) { // iterate X-axis
 				row.push_back(static_cast<char>(cell.get(x, y)._display));
 			}
 			matrix.push_back(row);
@@ -113,15 +113,15 @@ struct Frame {
 					if ( line.size() > longest_line )
 						longest_line = line.size();
 					// iterate through each line
-					for (auto& x : line) {
+					for ( auto& x : line ) {
 						row.push_back(x);
 					}
 					matrix.push_back(row);
 					line.clear();
 				}
 				// fill in any lines that are too short with blanks
-				for (auto& it : matrix) {
-					if (it.size() < longest_line ) it.push_back(' ');
+				for ( auto& it : matrix ) {
+					if ( it.size() < longest_line ) it.push_back(' ');
 				}
 			}
 		}
@@ -131,8 +131,8 @@ struct Frame {
 	// Stream insertion operator
 	friend std::ostream &operator<<(std::ostream &os, const Frame &f)
 	{
-		for (const auto& y : f._frame) {
-			for (auto x : y) {
+		for ( const auto& y : f._frame ) {
+			for ( auto x : y ) {
 				os << x << ' ';
 			}
 			os << std::endl;
@@ -306,7 +306,7 @@ public:
 	 * @param origin		- Display origin point, measured in chars. This is the top-left corner.
 	 * @param windowOrigin	- Position of the window on the monitor
 	 */
-	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1,1)) : _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _game(gamespace)
+	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1, 1)) : _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _game(gamespace)
 	{
 		initConsole();
 	}

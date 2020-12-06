@@ -10,7 +10,7 @@
 struct Coord {
 	long _y{};	// VERTICAL
 	long _x{};	// HORIZONTAL
-	/** CONSTRUCTOR **  
+	/** CONSTRUCTOR **
 	 * Coord(long, long)
 	 *
 	 * @param x	- X-axis index.
@@ -174,12 +174,12 @@ struct checkDistanceFrom {
  * @brief Used to check if a given Coord is within a boundary.
  */
 struct checkBounds {
-	// The max & min allowable positions 
+	// The max & min allowable positions
 	Coord _maxPos, _minPos;
 
 	/** CONSTRUCTOR **
 	 * checkBounds(const Coord, const Coord)
-	 * 
+	 *
 	 * @param maxPos	- The maximum allowed x & y indexes
 	 * @param minPos	- (Default: [0,0]) The minimum allowed x & y indexes
 	 */
@@ -196,9 +196,9 @@ struct checkBounds {
 	checkBounds(const long maxPosX, const long maxPosY, const long minPosX = 0, const long minPosY = 0) : _maxPos(maxPosX, maxPosY), _minPos(minPosX, minPosY) {}
 
 	/**
-	 * operator()  
+	 * operator()
 	 * @brief Returns true if the given position is within boundaries
-	 * 
+	 *
 	 * @param pos		- Target position to check
 	 * @returns bool
 	 */
@@ -224,7 +224,6 @@ struct checkBounds {
 		return false;
 	}
 };
-
 
 /**
  * intToDir(int)

@@ -27,12 +27,12 @@ struct GameRules {
 
 	// GENERIC NPC
 	std::vector<FACTION>
-		_enemy_hostile_to =	{ FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
+		_enemy_hostile_to = { FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
 		_neutral_hostile_to = { FACTION::NONE }; // Which factions are neutrals hostile to by default. This changes if NPC is attacked.
 	int
 		_npc_move_chance{ 6 },				// The chance an NPC will move when idle (1 in (this) chance)
 		_npc_move_chance_aggro{ 6 };		// The chance an NPC will move when aggravated ((this) to 1 chance)
-	
+
 	// ENEMIES
 	int
 		_enemy_count{ 20 },					// how many enemies are present when the game starts
@@ -67,16 +67,16 @@ struct GameRules {
 		_level_up_restore_percent{ 50 };	// How much health/stamina is regenerated when the player levels up ( 0 - 100 )
 	unsigned short
 		_level_up_flare_time{ 6 };			// How many frames to flare when the player levels up. Must be a multiple of 2
-	
+
 	// The level up algorithm
 	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
 
 	// CHALLENGES
 	unsigned int // Percentage of remaining enemies to trigger finale. (0 to disable.)
-		_challenge_final_trigger_percent{ 25 }; 
+		_challenge_final_trigger_percent{ 25 };
 	bool		 // if true, neutral NPCs will also attack the player during the finale
-		_challenge_neutral_is_hostile{ false }; 
-	
+		_challenge_neutral_is_hostile{ false };
+
 	/**
 	 * canLevelUp(ActorBase*)
 	 * Returns true if a given actor can level up.
@@ -90,7 +90,7 @@ struct GameRules {
 			return true;
 		return false;
 	}
-	
+
 	/**
 	 * GameRules(GLOBAL&)
 	 * Construct a GameRules instance from a GLOBAL settings instance.
