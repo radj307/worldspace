@@ -506,7 +506,7 @@ class Gamespace final {
 					dir = intToDir(it);
 				}
 				// check if iterator went below 0, and correct it
-		/*		else if ( it == -1 ) {
+				else if ( it == -1 ) {
 					dir = intToDir(3);
 				}
 				// check if iterator went above 3, and correct it
@@ -514,7 +514,7 @@ class Gamespace final {
 					dir = intToDir(0);
 				}
 				else continue; // undefined
-		*/		if ( canMove(npc->getPosDir(dir), npc->faction()) )
+				if ( canMove(npc->getPosDir(dir), npc->faction()) )
 					return move(&*npc, dir);
 			}
 			break;
@@ -525,7 +525,7 @@ class Gamespace final {
 					dir = intToDir(it);
 				}
 				// check if iterator went below 0, and correct it
-		/*		else if ( it == -1 ) {
+				else if ( it == -1 ) {
 					dir = intToDir(3);
 				}
 				// check if iterator went above 3, and correct it
@@ -533,7 +533,7 @@ class Gamespace final {
 					dir = intToDir(0);
 				}
 				else continue;
-		*/		if ( canMove(npc->getPosDir(dir), npc->faction()) )
+				if ( canMove(npc->getPosDir(dir), npc->faction()) )
 					return move(&*npc, dir);
 			}
 			break;

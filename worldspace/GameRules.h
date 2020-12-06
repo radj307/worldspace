@@ -40,8 +40,8 @@ struct GameRules {
 	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types.
 		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 30, 100 },	// Level 1 enemy
 		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance), 'T', WinAPI::color::red, _enemy_hostile_to, 20, 40 },	// Level 2 enemy
-		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', WinAPI::color::magenta, _enemy_hostile_to, 16, 15 },// Level 3 enemy
-		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', WinAPI::color::magenta, _enemy_hostile_to, 14, 1 },// Level 4 enemy
+		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', WinAPI::color::magenta, _enemy_hostile_to, 20, 15 },// Level 3 enemy
+		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', WinAPI::color::magenta, _enemy_hostile_to, 30, 1 },// Level 4 enemy
 	};
 
 	// NEUTRALS
