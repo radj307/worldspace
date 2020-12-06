@@ -76,13 +76,38 @@ protected:
 
 	/**
 	 * virtual func(ActorBase*)
-	 * This item's function. This is overridden in derived classes to provide item with various usages.
+	 * @brief This item's function. This is overridden in derived classes to provide item with various usages.
+	 * 
+	 * @param target	- Pointer to a target actor
 	 */
 	virtual void func(ActorBase* target) {}
 
+	/**
+	 * virtual cond(ActorBase*)
+	 * @brief This item's use condition. This is overridden in derived classes to provide item with use logic.
+	 *
+	 * @param target	- Pointer to a target actor
+	 */
+	virtual bool cond(ActorBase* target) { return true; }
+
 public:
-	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
+	/**
+	 * ItemStaticBase(char, WinAPI::color, string, int, Coord&, vector<FACTION>)
+	 */
 	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos, std::vector<FACTION> lockToFaction) : ItemStats(display, displayColor, std::move(myName), myUses, std::move(lockToFaction)), _pos(myPos) {}
+	
+	/**
+	 * 
+	 */
+	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
+	
+	/**
+	 * ItemStaticBase(ItemStats&, Coord&)
+	 * @brief Constructor using a pre-made ItemStats instance.
+	 *
+	 * @param myStats	- Ref to an instance of ItemStats
+	 * @param myPos		- Ref to a coord position
+	 */
 	ItemStaticBase(ItemStats& myStats, const Coord& myPos) : ItemStats(myStats), _pos(myPos) {}
 	// Default constructors/destructor/operators
 	ItemStaticBase(const ItemStaticBase&) = default;
@@ -99,8 +124,8 @@ public:
 	 */
 	void attempt_use(ActorBase* actor)
 	{
-		// If actor is not a nullptr, item has remaining uses, and actor can use this item
-		if ( actor != nullptr && canUse(actor->faction()) && _use_count > 0 ) {
+		// If actor is not a nullptr, item has remaining uses, actor can use this item
+		if ( actor != nullptr && canUse(actor->faction()) && _use_count > 0 && cond(actor) ) {
 			func(actor); // use this item
 			_use_count--; // decrement item's remaining use count
 		}
@@ -145,6 +170,19 @@ protected:
 	{
 		target->modHealth(_amount);
 	}
+
+	/**
+	 * cond(ActorBase*)
+	 * @brief Checks if an actor's health is below max
+	 *
+	 * @param target	- Pointer to target actor
+	 */
+	bool cond(ActorBase* target) override
+	{
+		if ( target->getHealth() < target->getMaxHealth() )
+			return true;
+		return false;
+	}
 	
 public:
 	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', WinAPI::color::red, "Restore Health", 1, myPos), _amount(amountRestored) {}
@@ -171,6 +209,19 @@ protected:
 	void func(ActorBase* target) override
 	{
 		target->modStamina(_amount);
+	}
+
+	/**
+	 * cond(ActorBase*)
+	 * @brief Checks if an actor's stamina is below max
+	 *
+	 * @param target	- Pointer to target actor
+	 */
+	bool cond(ActorBase* target) override
+	{
+		if ( target->getStamina() < target->getMaxStamina() )
+			return true;
+		return false;
 	}
 	
 public:

@@ -4,25 +4,27 @@ Worldspace Project
 
 ///  FILE INHERITANCE  ///
 
-			"Coord.h"  "settings.h"
-				v	       	v
-	   {-------------------------------}
-		v	      v		    v		  v
-	"actor.h"  "cell.h"  "item.h"  "Flare.h"
-		v	       v		v		  v
-		{---------------------}		   
-					   v			  v
-				 "GameRules.h"		   
-					   v			  v
-					 {------------------}
-							  v
-						"Gamespace.h"
-							  v
-					   "FrameBuffer.h"
-						      v
-					  "game_threads.hpp"
-					          v
-						 "main.cpp"
+		  "Coord.h"  "settings.h"
+		 	  v	       	  v
+	   {-------------------------}
+		v	      v		    	v
+	"actor.h"  "cell.h"  	"Flare.h"
+		v	      v				v
+	 "item.h"	  |				|
+		v		  v				v
+		{---------------}		|  
+					   v		v
+				 "GameRules.h"	|	   
+					   v		v
+					  {----------}
+						   v
+					 "Gamespace.h"
+					 	   v
+					"FrameBuffer.h"
+						   v
+				   "game_threads.hpp"
+					       v
+					   "main.cpp"
 
 
 
