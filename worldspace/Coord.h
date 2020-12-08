@@ -127,7 +127,7 @@ struct checkDistance {
 
 /** FUNCTOR **
  * struct checkDistanceFrom
- * @brief Returns the distance between a given point and a member Coord pointer given in constructor
+ * @brief Specialized variant of checkDistance that maintains a pointer to a single Coord instance, and checks the distance between it and a given point.
  */
 struct checkDistanceFrom {
 	// member coord pointer to follow, such as the player
@@ -224,39 +224,3 @@ struct checkBounds {
 		return false;
 	}
 };
-
-/**
- * intToDir(int)
- * @brief Converts an integer to a direction char
- *
- * @param i		 - Input integer between 0 and 3
- * @returns char - ( 'w' == 0 ) ( 'd' == 1 ) ( 's' == 2 ) ( 'a' == 3 ) ( ' ' == invalid parameter )
- */
-inline char intToDir(const int i)
-{
-	switch ( i ) {
-	case 0: return 'w';
-	case 1: return 'd';
-	case 2: return 's';
-	case 3: return 'a';
-	default:return ' ';
-	}
-}
-
-/**
- * intToDir(int)
- * @brief Converts an integer to a direction char
- *
- * @param c		 - Input integer between 0 and 3
- * @returns int - ( 0 == 'w' ) ( 1 == 'd' ) ( 2 == 's' ) ( 3 == 'a' ) ( -1 == invalid parameter )
- */
-inline int dirToInt(const char c)
-{
-	switch ( c ) {
-	case 'w': return 0;
-	case 'd': return 1;
-	case 's': return 2;
-	case 'a': return 3;
-	default:return -1;
-	}
-}

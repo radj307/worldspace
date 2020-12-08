@@ -10,6 +10,10 @@
  *	[Task List]
 		Add a "Killed by <name>" line to the game over screen
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
+		Use the get_circle() function to output localized flares rather than full-screen ones.
+
+	bug: When an NPC's target is erased, occasionally the NPC does not remove this target.
+	bug: When a flare is activated while another flare is currently displaying, neither are cleared correctly.
  */
 #include "game_threads.hpp"
 #include "opt.h"
@@ -26,22 +30,21 @@ inline GLOBAL interpret(int argc, char* argv[]);
  */
 int main(const int argc, char* argv[])
 {
-	// Interpret commandline options
-	GLOBAL settings;
-	try { settings = { interpret(argc, argv) }; } catch ( std::exception & ex ) {
-		msg(sys::error, "\"" + std::string(ex.what()) + "\" was thrown while interpreting command-line arguments.", "Press any key to exit....");
+	try {
+		// Interpret commandline arguments as a GLOBAL settings instance
+		const auto settings{ interpret(argc, argv) };
+		// Keep starting the game until the player doesn't press restart
+		do if ( !game::start(settings) ) break; while ( prompt_restart() );
+		// Return a success code
+		return 0;
+	} catch ( std::exception& ex ) {
+		// Fill the screen buffer with spaces
+		WinAPI::cls();
+		// Print the exception message
+		msg(sys::error, "The game crashed because of an exception: " + std::string(ex.what()), "Press any key to exit....");
+		// Return an error code
 		return -1;
 	}
-	do { // Start the game, loop until player declines to restart, or player pressed the quit button
-		try { // Check the return code from game::start
-			if ( game::start(settings) ) break; // Break without prompting for a restart
-		} catch ( std::exception& ex ) {
-			WinAPI::cls();
-			msg(sys::error, "The game crashed with exception: \"" + std::string(ex.what()) + "\"", "PRESS ANY KEY TO EXIT....");
-			return -1;
-		}
-	} while ( prompt_restart() );
-	return 0;
 }
 
 /**

@@ -62,7 +62,8 @@ namespace WinAPI {
 	 */
 	inline void visibleCursor(const bool isVisible = false)
 	{
-		CONSOLE_CURSOR_INFO info;
+		// ReSharper disable once CppInitializedValueIsAlwaysRewritten
+		CONSOLE_CURSOR_INFO info{};
 		info.dwSize = 100;
 		info.bVisible = isVisible;
 		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
@@ -99,30 +100,33 @@ namespace WinAPI {
 	 */
 	inline void cls()
 	{
-		// Get the Win32 handle representing standard output.
-		// This generally only has to be done once, so we make it static.
-		static auto* const hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+		try { // catch potential exceptions
+			// Get the Win32 handle representing standard output.
+			// This generally only has to be done once, so we make it static.
+			static auto* const hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 
-		CONSOLE_SCREEN_BUFFER_INFO csbi;
+			CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-		// set origin point to top left corner
-		const COORD topLeft = { 0, 0 };
+			// set origin point to top left corner
+			const COORD topLeft{ 0, 0 };
 
-		// flush the cout buffer to prevent garbage characters being written
-		std::cout.flush();
+			// flush the cout buffer to prevent garbage characters being written
+			std::cout.flush();
 
-		// Figure out the current width and height of the console window
-		if ( !GetConsoleScreenBufferInfo(hOut, &csbi) ) return;
-		DWORD length = csbi.dwSize.X * csbi.dwSize.Y, written;
+			// Figure out the current width and height of the console window
+			if ( !GetConsoleScreenBufferInfo(hOut, &csbi) ) return;
+			const DWORD length = csbi.dwSize.X * csbi.dwSize.Y;
+			DWORD written;
 
-		// Flood-fill the console with spaces to clear it
-		FillConsoleOutputCharacter(hOut, TEXT(' '), length, topLeft, &written);
+			// Flood-fill the console with spaces to clear it
+			FillConsoleOutputCharacter(hOut, TEXT(' '), length, topLeft, &written);
 
-		// Reset the attributes of every character to the default.
-		// This clears all background color formatting, if any.
-		FillConsoleOutputAttribute(hOut, csbi.wAttributes, length, topLeft, &written);
+			// Reset the attributes of every character to the default.
+			// This clears all background color formatting, if any.
+			FillConsoleOutputAttribute(hOut, csbi.wAttributes, length, topLeft, &written);
 
-		// Move the cursor back to the top left for the next sequence of writes
-		SetConsoleCursorPosition(hOut, topLeft);
+			// Move the cursor back to the top left for the next sequence of writes
+			SetConsoleCursorPosition(hOut, topLeft);
+		} catch( ... ) {}
 	}
 }

@@ -14,17 +14,17 @@ Worldspace Project
 		v		  v				v
 		{---------------}		|  
 					   v		v
-				 "GameRules.h"	|	   
-					   v		v
-					  {----------}
-						   v
-					 "Gamespace.h"
-					 	   v
-					"FrameBuffer.h"
-						   v
-				   "game_threads.hpp"
-					       v
-					   "main.cpp"
+  "GameState.h"  "GameRules.h"	|	   
+		v			   v		v
+	    {-----------------------}
+				   v
+			 "Gamespace.h"
+				   v
+			"FrameBuffer.h"
+				   v
+		   "game_threads.hpp"
+				   v
+			   "main.cpp"
 
 
 
@@ -43,8 +43,7 @@ Worldspace Project
 	/*| UTILITIES & DEFAULTS |*/
 	{
 		"settings.h"
-			->  <WorldAttributes>			// Basic attributes required to generate/load a Cell.
-				->  <GLOBAL>				// Global commandline settings & their defaults
+			->  <GLOBAL>					// Global commandline settings & their defaults, as well as world generation defaults.
 
 		"Coord.h"
 			->  <Coord>						// Wrapper for a x/y coordinate
@@ -95,6 +94,9 @@ Worldspace Project
 	}
 	/*| GAME FUNCTIONS & OPERATION |*/
 	{	
+		"GameState.h"
+			->  <GameState>					// Contains all game outcome information 
+			
 		"Gamespace.h"
 			->  <Gamespace>					// Contains all game elements & game functions, as well as implementation of actor AI.
 	}

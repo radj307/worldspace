@@ -2,7 +2,7 @@
 #include <utility>
 
 #include "Gamespace.h"
-#include "group.hpp"
+#include "termcolor/termcolor.hpp"
 
 /**
  * struct Frame
@@ -150,10 +150,10 @@ class FrameBuffer {
 	bool _initialized{ false };
 	// The last frame printed to the console. (Or the currently displayed frame if this frame-buffer is currently running.)
 	Frame _last;
-	// The origin-point of this frame, which is the top-left corner of the matrix. Measured in screen buffer characters
-	Coord _window_origin, _origin, _size;
 	// A reference to the attached gamespace
 	Gamespace& _game;
+	// The origin-point of this frame, which is the top-left corner of the matrix. Measured in screen buffer characters
+	Coord _window_origin, _origin, _size, _playerStatOrigin;
 
 	/**
 	 * initConsole()
@@ -229,70 +229,73 @@ class FrameBuffer {
 	 * playerStatDisplay()
 	 * The player statistics bar
 	 */
-	void playerStatDisplay() const
+	void playerStatDisplay(const bool showValues = false) const
 	{
-		const auto HEADER{ _game.getPlayer().name() + " Stats Level " + std::to_string(_game.getPlayer().getLevel()) };
+		setConsoleColor(WinAPI::color::reset);
+
+		// Get a pointer to the player
+		auto* player{ &_game.getPlayer() };
+		
+		const auto // Get player integer stats
+			health{ player->getHealth() },
+			maxHealth{ player->getMaxHealth() },
+			healthSegment{ maxHealth / 10 },
+			stamina{ player->getStamina() },
+			maxStamina{ player->getMaxStamina() },
+			staminaSegment{ maxStamina / 10 };
+		
+		const auto HEADER{ player->name() + " Stats Level " + std::to_string(player->getLevel()) };
 
 		// { (((each box length) + (4 for bar edges & padding)) * (number of stat bars)) }
 		const auto lineLength = 28;// (10 + 4) * 2;
 
-		// calculate the position to display at
-		const Coord targetDisplayPos{ ((_origin._x + _game.getCellSize()._x) * 2 / 4), (_origin._y + _game.getCellSize()._y + _game.getCellSize()._y / 10) };
-		WinAPI::setCursorPos(lineLength / 2 - static_cast<signed>(HEADER.size()) / 2 + static_cast<int>(targetDisplayPos._x), static_cast<int>(targetDisplayPos._y));
-		std::cout << termcolor::reset << HEADER;
+		WinAPI::setCursorPos(lineLength / 2 - static_cast<signed>(HEADER.size()) / 2 + static_cast<int>(_playerStatOrigin._x), static_cast<int>(_playerStatOrigin._y));
+		printf("%s", HEADER.c_str());
 
 		// next line
-		WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 1);
-
-		// calculate the step value for _game.getPlayer() health
-		auto segment{ _game.getPlayer().getMaxHealth() / 10 };
+		WinAPI::setCursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 1);
 
 		// Print the health bar
-		std::cout << '[' << termcolor::red;
-		for ( auto i = 1; i <= 10; i++ ) {
-			if ( _game.getPlayer().getHealth() >= (i * segment) )
-				std::cout << '@';
-			else std::cout << ' ';
+		printf("[");
+		setConsoleColor(WinAPI::color::red);
+		for ( auto i = 1; i <= 10; ++i ) {
+			if ( health >= i * healthSegment )
+				printf("@");
+			else 
+				printf(" ");
 		}
+		
 		// Print health/stamina bar buffer
-		std::cout << termcolor::reset << "]  [" << termcolor::green;
-
-		// calculate the step value for _game.getPlayer() stamina
-		segment = { _game.getPlayer().getMaxStamina() / 10 };
-
+		setConsoleColor(WinAPI::color::reset);
+		printf("]  [");
+		setConsoleColor(WinAPI::color::green);
+		
 		// Print the stamina bar
-		for ( auto i = 1; i <= 10; i++ ) {
-			if ( _game.getPlayer().getStamina() >= (i * segment) )
-				std::cout << '@';
-			else std::cout << ' ';
+		for ( auto i = 1; i <= 10; ++i ) {
+			if ( stamina >= i * staminaSegment )
+				printf("@");
+			else 
+				printf(" ");
 		}
 		// Print stamina bar end buffer
-		std::cout << termcolor::reset << ']';
+		setConsoleColor(WinAPI::color::reset);
+		printf("]");
 
+		if ( showValues ) {
 		// Set the cursor position to the next line
-		WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 2);
-
-		// get health/stamina values
-		const auto health{ _game.getPlayer().getHealth() }, stamina{ _game.getPlayer().getStamina() };
-
-		// Print health values
-		std::cout << "Health: " << termcolor::red << health << termcolor::reset;
-		if ( health < 10 )	 std::cout << ' ';
-		if ( health < 100 )	 std::cout << ' ';
-
-		// Print stamina values
-		std::cout << "\tStamina: " << termcolor::green << stamina << termcolor::reset;
-		if ( stamina < 10 )	 std::cout << ' ';
-		if ( stamina < 100 ) std::cout << ' ';
-
-		// Set the cursor position to the next line
-		WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 3);
-
-		std::cout << "Kills: " << termcolor::red << _game.getPlayer().getKills() << termcolor::reset;
-
-		// Set the cursor position to the next line
-		//WinAPI::setCursorPos(targetDisplayPos._x + 1, targetDisplayPos._y + 3);
-		//std::cout << "Next Level: " << ((_game.getRuleset()._level_up_kills * (_game.getRuleset()._level_up_mult * _game.getPlayer().getLevel()))_game.getPlayer().getKills());
+			WinAPI::setCursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 2);
+			std::cout << "Health: " << termcolor::red << health << termcolor::reset;
+			if ( health < 10 )	 std::cout << ' ';
+			if ( health < 100 )	 std::cout << ' ';
+			// Print stamina values
+			std::cout << "\tStamina: " << termcolor::green << stamina << termcolor::reset;
+			if ( stamina < 10 )	 std::cout << ' ';
+			if ( stamina < 100 ) std::cout << ' ';
+			// Set the cursor position to the next line
+			WinAPI::setCursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 3);
+		}
+		else WinAPI::setCursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 2);
+		std::cout << "Kills: " << termcolor::red << player->getKills() << termcolor::reset;
 
 		std::cout.flush();
 	}
@@ -306,7 +309,7 @@ public:
 	 * @param origin		- Display origin point, measured in chars. This is the top-left corner.
 	 * @param windowOrigin	- Position of the window on the monitor
 	 */
-	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1, 1)) : _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _game(gamespace)
+	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1, 1)) : _game(gamespace), _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _playerStatOrigin((_origin._x + _size._x) * 2 / 4, _origin._y + _size._y + _size._y / 10)
 	{
 		initConsole();
 	}
@@ -321,8 +324,11 @@ public:
 	 */
 	void display()
 	{
+		std::cout.flush();
 		// Remove dead actors
 		_game.cleanupDead();
+		// get a pointer to the game flare
+		auto* flare{ _game.getFlare() };
 		// Check if the frame is already initialized
 		if ( _initialized ) {
 			// flush the output buffer to prevent garbage characters from being displayed.
@@ -336,42 +342,38 @@ public:
 					setConsoleColor(WinAPI::color::reset);
 					// check if the tile at this pos is known to the player
 					if ( _game.getTile(frameX, frameY)._isKnown ) {
-						auto* const actor = _game.getActorAt(frameX, frameY); // set a pointer to actor at this pos if they exist
+						auto* const actor = _game.getActorAt(frameX, frameY);
 						auto* const item = _game.getItemAt(frameX, frameY);
 						// Check if an actor is located here
 						if ( actor != nullptr ) {
 							// set the cursor position to target
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
 							// output actor with their color
-							std::cout << *actor << ' ';
+							std::cout << *actor;
 						}
 						else if ( item != nullptr ) {
 							// set the cursor position to target
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
 							// output item with their color
-							std::cout << *item << ' ';
+							std::cout << *item;
 						}
 						// Check if the game wants a screen color flare
-						else if ( _game.getFlare() != nullptr && _game.getFlare()->pattern(frameX, frameY) ) {
+						else if ( flare != nullptr && flare->pattern(frameX, frameY) ) {
 							// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
-							if ( _game.getFlare()->time() % 2 == 0 && _game.getFlare()->time() != 1 ) {
-								WinAPI::setConsoleColor(_game.getFlare()->color());
-								std::cout << next._frame.at(frameY).at(frameX);
+							if ( flare->time() % 2 == 0 && flare->time() != 1 ) {
+								WinAPI::setConsoleColor(flare->color());
+								printf("%c", next._frame.at(frameY).at(frameX));
 								setConsoleColor(WinAPI::color::reset);
-								std::cout << ' ';
 							}
 							else
-								std::cout << next._frame.at(frameY).at(frameX) << ' ';
+								std::cout << next._frame.at(frameY).at(frameX);
 						}
 						// Actor is not located here, show the tile char.
 						else if ( next._frame.at(frameY).at(frameX) != _last._frame.at(frameY).at(frameX) ) {
 							// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
 							WinAPI::setCursorPos(consoleX * 2, consoleY);
-					//		WinAPI::setConsoleColor(_game.getTile(frameX, frameY)._myColor);
-							// print next frame's character to position, followed by a blank space.
-							std::cout << next._frame.at(frameY).at(frameX) << ' ';
-					//		WinAPI::setConsoleColor(WinAPI::color::reset);
+							printf("%c", next._frame.at(frameY).at(frameX));
 						} // else tile has not changed, do nothing
 					}
 					// if the tile is not known, show a blank space instead.
@@ -379,7 +381,7 @@ public:
 						// set the cursor position to target
 						WinAPI::setCursorPos(consoleX * 2, consoleY);
 						// output blank
-						std::cout << "  ";
+						printf(" ");
 					}
 				}
 			}
@@ -387,13 +389,15 @@ public:
 			_last = next;
 		}
 		else initFrame();
-		if ( _game.getFlare() != nullptr ) {
-			if ( _game.getFlare()->time() > 1 )
-				_game.getFlare()->decrement();
-			else // turn off flare
+		// display the player stat bar
+		playerStatDisplay();
+		// do flare functions
+		if ( flare != nullptr ) {
+			if ( flare->time() > 1 ) 
+				flare->decrement();
+			else 
 				_game.resetFlare();
 		}
-		playerStatDisplay();
 	}
 
 	/**

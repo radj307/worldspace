@@ -63,6 +63,15 @@ public:
 	Flare& operator=(Flare&&) = default;
 };
 
+struct FlareClear final : Flare {
+	bool pattern(const int x, const int y) override
+	{
+		return true;
+	}
+
+	FlareClear() : Flare(1, WinAPI::color::reset) {}
+};
+
 // Level-up flare
 struct FlareLevel final : Flare {
 	/**

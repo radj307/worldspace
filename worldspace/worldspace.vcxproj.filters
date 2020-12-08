@@ -61,7 +61,15 @@
     <ClInclude Include="game_threads.hpp">
       <Filter>5 HighLevel Operations</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h" />
+    <ClInclude Include="INI_Include.h">
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>VS Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="GameState.h">
+      <Filter>3 Game Operation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">
@@ -71,6 +79,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>5 HighLevel Operations</Filter>
+    </ClCompile>
+    <ClCompile Include="Gamespace.cpp">
+      <Filter>3 Game Operation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

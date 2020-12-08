@@ -8,11 +8,9 @@
 //#include <iostream>
 #include <sstream>
 #include <vector>
-#include <Windows.h>
 
 #include "Coord.h"
 #include "file.h"
-#include "WinAPI.h"
 #include "xRand.h"
 
 /**
@@ -24,18 +22,11 @@ private:
 	/**
 	 * initTraits(bool)
 	 * Initialize this tile's variables based on type.
-	 *
-	 * @param makeWallsVisible	- When true, all wall tiles will always be known to the player
 	 */
-	void initTraits(const bool makeWallsVisible)
+	void initTraits()
 	{
 		// check if tile attributes are correct
-		switch ( _display ) {
-		case display::none:break;
-		case display::wall:
-			if ( makeWallsVisible )
-				_isKnown = true;
-			break;
+		switch ( _display ) {  // NOLINT(clang-diagnostic-switch-enum)
 		case display::hole:
 			_canMove = true;
 			_isTrap = true;
@@ -44,6 +35,7 @@ private:
 			_canMove = true;
 			_canSpawn = true;
 			break;
+		default:break;
 		}
 	}
 
@@ -52,7 +44,7 @@ public:
 	/**
 	 * enum class display
 	 * Defines valid tile types/display characters.
-	 * Remember to add new entries to vector __VALID_TILES below
+	 * Remember to add new entries to vector __VALID_TILE_TYPES below
 	 */
 	enum class display {
 		empty = '_',
@@ -62,7 +54,6 @@ public:
 	};
 
 	display _display;								// the display character
-	WinAPI::color _myColor{ WinAPI::color::white };	// The color of the display character
 	bool _isKnown;									// true if this tile is known to the player
 	bool _canMove;									// true if this tile allows actors to move to it
 	bool _isTrap;									// true if this tile is a trap, and will damage actors when stepped on.
@@ -70,58 +61,29 @@ public:
 
 	/** CONSTRUCTOR **
 	 * Tile(Tile::display, int, int, bool)
-	 * Construct a tile with the default color. (white)
-	 *
+	 * @brief Construct a tile with the default color.
 	 * @param as				- This tile's type (display character)
 	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
 	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
-	 * @param makeWallsVisible	- When true, all wall tiles are always visible to the player
-	 * @param isKnownOverride	- When true, this tile is visible to the player.
+	 * @param isVisible			- When true, this tile is visible to the player by default
 	 */
-	Tile(const display as, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride) : Coord(xPos, yPos), _display(as), _isKnown(isKnownOverride), _canMove(false), _isTrap(false), _canSpawn(false)
+	Tile(const display as, const int xPos, const int yPos, const bool isVisible) : Coord(xPos, yPos), _display(as), _isKnown(isVisible), _canMove(false), _isTrap(false), _canSpawn(false)
 	{
-		initTraits(makeWallsVisible);
+		initTraits();
 	}
-
-	/** CONSTRUCTOR **
-	 * Tile(Tile::display, int, int, bool)
-	 * Construct a tile with a defined color.
-	 *
-	 * @param as				- This tile's type (display character)
-	 * @param color				- This tile's color when inserted into a stream.
-	 * @param xPos				- The X (horizontal) index of this tile in relation to the matrix
-	 * @param yPos				- The Y (vertical) index of this tile in relation to the matrix
-	 * @param makeWallsVisible	- walls are always visible
-	 * @param isKnownOverride	- When true, this tile is visible to the player.
-	 */
-	Tile(const display as, const WinAPI::color color, const int xPos, const int yPos, const bool makeWallsVisible, const bool isKnownOverride)
-		: Coord(xPos, yPos), _display(as), _myColor(color), _isKnown(isKnownOverride), _canMove(true), _isTrap(false), _canSpawn(false)
-	{
-		initTraits(makeWallsVisible);
-	}
-
-	/** CONSTRUCTOR **
-	 * Tile()
-	 * Instantiate a blank tile with coordinate of (-1,-1) and no type.
-	 */
-	Tile() : Coord(-1, -1), _display(display::none), _isKnown(true), _canMove(false), _isTrap(false), _canSpawn(false) {}
 
 	// Stream insertion operator
 	friend std::ostream& operator<<(std::ostream& os, const Tile& t)
 	{
-		if ( t._myColor != WinAPI::color::white ) // if this tile has a color, set it
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<unsigned short>(t._myColor));
 		if ( t._isKnown ) // if this tile is known, insert its char
-			os << static_cast<char>(t._display) << ' ';
+			os << static_cast<char>(t._display);
 		else // if this tile is not known, insert a blank
-			os << ' ' << ' ';
-		// reset color
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0);
+			os << ' ';
 		return os;
 	}
 };
-static const std::vector<Tile::display> __VALID_TILES{ Tile::display::none, Tile::display::empty, Tile::display::wall, Tile::display::hole };
-static Tile __TILE_ERROR;
+static const std::vector<Tile::display> __VALID_TILE_TYPES{ Tile::display::none, Tile::display::empty, Tile::display::wall, Tile::display::hole };
+static Tile __TILE_ERROR(Tile::display::none, -1, -1, false);
 
 /**
  * importMatrix(string, bool)
@@ -154,12 +116,12 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 				// iterate through line
 				for ( unsigned int x = 0; x < line.size(); x++ ) {
 					auto isValid{ false };
-					for ( auto it : __VALID_TILES ) {
+					for ( auto it : __VALID_TILE_TYPES ) {
 						if ( line.at(x) == static_cast<char>(it) )
 							isValid = true;
 					}
-					if ( isValid )	row.emplace_back(static_cast<Tile::display>(line.at(x)), x, y, makeWallsVisible, override_known_tiles);
-					else			row.emplace_back(Tile::display::none, x, y, makeWallsVisible, override_known_tiles);
+					if ( isValid )	row.emplace_back(static_cast<Tile::display>(line.at(x)), x, y, override_known_tiles ? true : makeWallsVisible ? true : false);
+					else			row.emplace_back(Tile::display::none, x, y, override_known_tiles ? true : makeWallsVisible ? true : false);
 				}
 				matrix.push_back(row);
 				line.clear();
@@ -176,30 +138,48 @@ class Cell final {
 protected:
 
 	/**
+	 * isAdjacent(Tile::display, Coord&)
+	 * @brief Checks if a tile type
+	 * @param type	- Tile type to check for
+	 * @param pos	- Target position
+	 * @returns bool
+	 */
+	bool isAdjacent(const Tile::display type, const Coord& pos)
+	{
+		for ( auto y{ pos._y - 1 }; y <= pos._y + 1; ++y )
+			for ( auto x{ pos._x - 1 }; x <= pos._x + 1; ++x )
+				if ( isValidPos(x, y) && get(x, y)._display == type && !(x == pos._x && y == pos._y) )
+					return true;
+		return false;
+	}
+
+	/**
 	 * generate(bool, bool)
 	 * Generates the tile matrix using RNG
 	 *
 	 * @param makeWallsVisible		- When true, wall tiles will always be visible.
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	void generate(bool makeWallsVisible, bool override_known_tiles)
+	void generate(const bool makeWallsVisible, const bool override_known_tiles)
 	{
+		_matrix.reserve(_max._y);
 		if ( _max._y >= 10 && _max._x >= 10 ) {
 			tRand rng;
 			for ( auto y = 0; y < _max._y; y++ ) {
 				std::vector<Tile> _row;
+				_row.reserve(_max._x);
 				for ( auto x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
 					if ( x == 0 || x == _max._x - 1 || (y == 0 || y == _max._y - 1) )
-						_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
+						_row.emplace_back(Tile::display::wall, x, y, (makeWallsVisible ? true : false) || (override_known_tiles ? true : false));
 					else { // not an edge
-						const auto rand = rng.get(100u, 0u);
-						if ( rand < 7 ) // 7:100 chance of a wall tile that isn't on an edge
-							_row.emplace_back(Tile::display::wall, x, y, makeWallsVisible, override_known_tiles);
-						else if ( rand > 7 && rand < 9 )
-							_row.emplace_back(Tile::display::hole, x, y, makeWallsVisible, override_known_tiles);
+						const auto rand{ rng.get(100.0f, 0.0f) };
+						if ( rand < 7.0f ) // 7:100 chance of a wall tile that isn't on an edge
+							_row.emplace_back(Tile::display::wall, x, y, (makeWallsVisible ? true : false) || (override_known_tiles ? true : false));
+						else if ( rand > 7.0f && rand < 9.0f )
+							_row.emplace_back(Tile::display::hole, x, y, (override_known_tiles ? true : false));
 						else
-							_row.emplace_back(Tile::display::empty, x, y, makeWallsVisible, override_known_tiles);
+							_row.emplace_back(Tile::display::empty, x, y, (override_known_tiles ? true : false));
 					}
 				}
 				_matrix.push_back(_row);
@@ -221,10 +201,7 @@ public:
 	 * @param makeWallsVisible		- walls are always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	explicit Cell(const Coord& cellSize, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _max(cellSize._x - 1, cellSize._y - 1), isValidPos(_max)
-	{
-		generate(makeWallsVisible, override_known_tiles);
-	}
+	explicit Cell(const Coord& cellSize, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _max(cellSize._x - 1, cellSize._y - 1), isValidPos(_max) { generate(makeWallsVisible, override_known_tiles); }
 
 	/** CONSTRUCTOR **
 	 * Cell(string, bool)
@@ -234,12 +211,7 @@ public:
 	 * @param makeWallsVisible		- walls always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) :
-		_matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)),
-		_max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)),
-		isValidPos(_max)
-	{
-	}
+	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), _max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)), isValidPos(_max) {}
 
 	  /**
 	   * getDisplayChar(Coord)

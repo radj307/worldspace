@@ -10,34 +10,45 @@
 #include <thread>	// for threads
 
 #include "FrameBuffer.h"
-#include "sys.h"
+#include "termcolor/termcolor.hpp"
 
 namespace game {
-	namespace _internal {
-		constexpr int PLAYER_WIN_CODE{ 1 }; // Player wins when this code is set
-		constexpr int PLAYER_LOSE_CODE{ 0 }; // Player loses when this code is set
-		constexpr int PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set
-		constexpr char __BLANK_KEY{ '\\' }; // Unused key, for preventing input loops
-		constexpr std::chrono::milliseconds __MS_CLOCK_SYNC{ 15 }; // Frametime
-		constexpr std::chrono::milliseconds __NPC_CYCLE_WAIT_MULT{ __MS_CLOCK_SYNC * 13 }; // How long to wait between enemy actions
+	typedef std::chrono::high_resolution_clock CLK;	
+	using namespace std::chrono_literals;			// for s, ms, etc.
 
+	
+	namespace _internal {
+		static const int
+			PLAYER_WIN_CODE{ 1 }, // Player wins when this code is set
+			PLAYER_LOSE_CODE{ 0 }, // Player loses when this code is set
+			PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set
+		
+		static const unsigned int __FPS_TARGET{ 75 }; // target framerate
+		static const auto __FRAMETIME{ 1000ms / __FPS_TARGET }, __NPC_CLOCK{ __FPS_TARGET * 3ms }; // frametime to achieve that framerate
+		
 		// Shared Memory Object
 		struct memory {
 		private:
+			// Default values are set here
+			const bool _DEF_KILL{ false }, _DEF_PAUSE{ false }, _DEF_PAUSE_COMPLETE{ false };
+			const int _DEF_KILL_CODE{ -2 };
 			// This is the message displayed to the screen while the game is paused
 			const std::string pause_msg{ "GAME PAUSED" };
 
+
 		public:
 			std::atomic<bool>
-				kill{ false }, // Used by all threads to determine when to shutdown
-				pause{ false }, // Used by all threads to determine when the game is paused
-				pause_complete{ false },
-				player_exit{ false },
-				player_reinit{ false };
-
-			std::atomic<int> kill_code{ -2 };
-
-			// To be called from the display thread
+				kill{ _DEF_KILL },							// true = kill all threads
+				pause{ _DEF_PAUSE },						// true = pause all threads
+				pause_complete{ _DEF_PAUSE_COMPLETE };		// true = display has been de-initialized
+			std::atomic<int> kill_code{ _DEF_KILL_CODE };	// -2 = not set | see the above PLAYER_CODE vars.
+			
+			/**
+			 * pause_game(Coord)
+			 * @brief Sets the pause flag, clears the screen, and prints the pause message to a given pos.
+			 *
+			 * @param textPos	- Location in the screen buffer to display the pause message
+			 */
 			void pause_game(const Coord textPos = Coord(5, 3))
 			{
 				pause.store(true);
@@ -45,7 +56,11 @@ namespace game {
 				WinAPI::setCursorPos(textPos);
 				std::cout << termcolor::cyan << pause_msg << termcolor::reset;
 			}
-			// To be called from the player input thread
+			
+			/**
+			 * unpause_game()
+			 * @brief Disables the pause flag and clears the screen
+			 */
 			void unpause_game()
 			{
 				WinAPI::cls();
@@ -54,16 +69,16 @@ namespace game {
 
 			/**
 			 * reset_all()
-			 * Resets all variables to their original state
+			 * Resets all variables to their original state.
 			 */
 			void reset_all()
 			{
-				kill.store(false);
-				pause.store(false);
-				kill_code.store(-2);
+				kill.store(_DEF_KILL);
+				pause.store(_DEF_PAUSE);
+				pause_complete.store(_DEF_PAUSE_COMPLETE);
+				kill_code.store(_DEF_KILL_CODE);
 			}
 		};
-
 		/**
 		 * process_game_over(int)
 		 * Prints a game over message to the console with win/lose status.
@@ -90,9 +105,8 @@ namespace game {
 				std::cout << termcolor::red << "The game exited with an undefined error." << termcolor::reset;
 				break;
 			}
-			sys::sleep(500);
+			std::this_thread::sleep_for(500ms);
 		}
-
 		/**
 		 * game_thread_player(Gamespace&, GLOBAL&)
 		 * Processes player input
@@ -114,10 +128,9 @@ namespace game {
 					if ( !mem.pause.load() ) {
 						// switch player keypress
 						switch ( key ) {
-						case __BLANK_KEY:break; // player has not pressed a key since last key was processed
 						case 'q': // player pressed the exit game key
 							mem.kill_code.store(PLAYER_QUIT_CODE);
-							mem.player_exit.store(true); // set the quit flag to prevent restart prompt
+							game._game_state._game_is_over.store(true);
 							mem.kill.store(true);
 							return;
 						case 'p': // player pressed the pause game key
@@ -126,13 +139,12 @@ namespace game {
 						default: // player pressed a different key, process it
 							std::scoped_lock<std::mutex> lock(mutx); // lock the mutex
 							game.actionPlayer(key);
-						//	mem.reset_key();
 							break;
 						}
 					} // else check if player wants to unpause
 					else if ( key == 'p' ) { mem.unpause_game(); }
 				}
-				else std::this_thread::sleep_for(__MS_CLOCK_SYNC);
+				else std::this_thread::sleep_for(__FRAMETIME);
 			}
 		}
 		/**
@@ -148,12 +160,12 @@ namespace game {
 		{
 			// loop until shared memory's kill flag is true
 			while ( !mem.kill.load() ) {
-				std::this_thread::sleep_for(__NPC_CYCLE_WAIT_MULT);
+				std::this_thread::sleep_for(__NPC_CLOCK);
 				if ( !mem.pause.load() ) {
 					std::scoped_lock<std::mutex> lock(mutx);	// lock the mutex
 					game.actionAllNPC();						// perform NPC actions
 				}
-				else std::this_thread::sleep_for(std::chrono::seconds(1));
+				else std::this_thread::sleep_for(1s);
 			}
 		}
 		/**
@@ -168,32 +180,30 @@ namespace game {
 		 */
 		inline void thread_display(std::mutex& mutx, memory& mem, Gamespace& game, GameRules& cfg)
 		{
-			typedef std::chrono::high_resolution_clock T;
-
 			// create a frame buffer with the given gamespace ref
-			FrameBuffer gameBuffer(game, Coord(3, 3), Coord(1920, 5));
+			FrameBuffer gameBuffer(game, Coord(3, 3), Coord(1920 / 3, 1080 / 8));
 
 			// Loop until kill flag is true
-			for ( auto tLastRegenCycle{ T::now() }; !mem.kill.load(); ) {
+			for ( auto tLastRegenCycle{ CLK::now() }; !mem.kill.load(); ) {
 				if ( !mem.pause.load() ) {
 					mem.pause_complete.store(false);
-					std::this_thread::sleep_for(__MS_CLOCK_SYNC);		// sleep this thread for half of a clock cycle
+					std::this_thread::sleep_for(__FRAMETIME);		// sleep this thread for half of a clock cycle
 					std::cout.flush();									// flush the cout buffer
 					std::scoped_lock<std::mutex> lock(mutx);			// lock the mutex
 					game.apply_level_ups();								// Apply level ups
 					gameBuffer.display();								// display the gamespace
-					if ( T::now() - tLastRegenCycle >= cfg._regen_timer ) {
+
+					
+					if ( CLK::now() - tLastRegenCycle >= cfg._regen_timer ) {
 						game.apply_passive();							// Apply passive effects every second
-						tLastRegenCycle = T::now();
+						tLastRegenCycle = CLK::now();
 					}
-					if ( game.playerWon() ) {							// Check if all enemies are dead
-						mem.kill_code.store(PLAYER_WIN_CODE);			// Send win code
+					if ( game._game_state._game_is_over.load() ) {
 						mem.kill.store(true);							// Send kill code
-						break;											// break loop
-					}
-					if ( game.playerLost() ) {							// check if the player died
-						mem.kill_code.store(PLAYER_LOSE_CODE);			// Send lose code
-						mem.kill.store(true);							// Send kill code
+						if ( game._game_state._playerDead.load() )
+							mem.kill_code.store(PLAYER_LOSE_CODE);
+						else if ( game._game_state._allEnemiesDead.load() )
+							mem.kill_code.store(PLAYER_WIN_CODE);
 						break;											// break loop
 					}
 				}
@@ -202,7 +212,7 @@ namespace game {
 					mem.pause_game();
 					mem.pause_complete.store(true);
 				}
-				else std::this_thread::sleep_for(__MS_CLOCK_SYNC);
+				else std::this_thread::sleep_for(__FRAMETIME);
 			}
 			// Once the kill flag is true, show the game over message and return
 			print_game_over(mem.kill_code.load());
@@ -214,7 +224,7 @@ namespace game {
 	 * Starts the game threads and returns once the game is over.
 	 *
 	 * @param settings	- The list of global settings parsed from the commandline
-	 * @returns bool	- ( true = player pressed the quit button ) ( false = game exited normally )
+	 * @returns bool	- ( true = game exited normally ) ( false = player pressed the quit button )
 	 */
 	inline bool start(const GLOBAL& settings)
 	{
@@ -238,7 +248,8 @@ namespace game {
 		} catch ( std::exception & ex ) {
 			msg(sys::error, "\"" + std::string(ex.what()) + "\" was thrown while starting the game threads.", "Press any key to exit....");
 		}
-		// Return true if the player pressed the quit button
-		return mem.player_exit.load();
+		if ( mem.kill_code.load() == _internal::PLAYER_QUIT_CODE )
+			return false;
+		return true;
 	}
 }
