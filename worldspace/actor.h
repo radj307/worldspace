@@ -5,6 +5,7 @@
  * by radj307
  */
 #pragma once
+#include <cassert>
 #include <string>
 #include <utility>
 #include <vector>
@@ -313,12 +314,14 @@ public:
 	 */
 	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0) { initHostilities(); }
 	ActorBase(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorStats(myTemplate._stats), _name(myTemplate._name), _faction(myFaction), _pos(myPos), _char(myTemplate._char), _color(myTemplate._color), _hostileTo(myTemplate._hostile_to), _kill_count(0) { if ( myTemplate._hostile_to.empty() && _hostileTo.empty() ) initHostilities(); }
+#pragma region DEF
 	ActorBase(const ActorBase&) = default;
 	ActorBase(ActorBase&&) = default;
 	virtual ~ActorBase() = default;
 	ActorBase& operator=(const ActorBase&) = default;
 	ActorBase& operator=(ActorBase&&) = default;
-
+#pragma endregion DEF
+#pragma region FUNC
 	// Movement functions, these do not check if a movement was possible, they are simply a wrapper for incrementing/decrementing _pos
 	void moveU() { _pos._y--; } // decrement y by 1
 	void moveD() { _pos._y++; } // increment y by 1
@@ -374,7 +377,16 @@ public:
 				return true;
 		return false;
 	}
-	bool isHostileTo(ActorBase* target)
+	// returns true if any faction in a vector is hostile
+	bool isHostileTo(std::vector<FACTION>& faction_list)
+	{
+		for ( auto hostile : _hostileTo )
+			for ( auto faction : faction_list )
+				if ( hostile == faction )
+					return true;
+		return false;
+	}
+	bool isHostileTo(const std::shared_ptr<ActorBase>& target)
 	{
 		for ( auto it : _hostileTo )
 			if ( it == target->faction() )
@@ -391,6 +403,7 @@ public:
 	[[nodiscard]] auto getChar() const -> char { return _char; }
 	[[nodiscard]] auto getKills() const -> int { return _kill_count; }
 	void addKill(const int count = 1) { _kill_count += count; }
+#pragma endregion FUNC
 
 	// stream insertion operator
 	friend std::ostream& operator<<(std::ostream &os, ActorBase &a)
@@ -405,6 +418,9 @@ public:
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 07);
 		return os;
 	}
+};
+struct Target final : ActorBase {
+	Target(const FACTION myFaction, const Coord& myPos, ActorTemplate myTemplate = ActorTemplate("Target", ActorStats(99, 9999, 0, 0, 0), ' ', WinAPI::color::reset, {FACTION::NONE}, 0, 0.0f)) : ActorBase(myFaction, myPos, myTemplate) {}
 };
 #pragma endregion		  ACTOR_BASE
 // The player
@@ -455,7 +471,7 @@ private:
 		_MAX_AGGRO,		// Maximum aggression value
 		_aggro;			// Current aggression value
 protected:
-	ActorBase* _target; // Current target
+	std::shared_ptr<ActorBase> _target; // Current target
 
 	/**
 	 * isAfraid()
@@ -576,9 +592,9 @@ public:
 	 * @param visMod	- (Default: 0) Modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool	- ( true = NPC's target is within its visibility range ) ( false = NPC cannot see its target )
 	 */
-	[[nodiscard]] bool canSee(ActorBase* target, const int visMod = 0)
+	[[nodiscard]] bool canSee(const std::shared_ptr<ActorBase>& target, const int visMod = 0)
 	{
-		if ( isHostileTo(&*target) && checkDistance::get_circle(target->pos(), _pos, _visRange + visMod) )
+		if ( isHostileTo(target) && checkDistance::get_circle(target->pos(), _pos, _visRange + visMod) )
 			return true;
 		return false;
 	}
@@ -646,10 +662,15 @@ public:
 	 * @brief Check if this NPC's aggression is above 0.
 	 * @returns bool	- ( true = NPC is aggravated ) ( false = NPC is not aggravated )
 	 */
-	[[nodiscard]] bool isAggro() const
+	[[nodiscard]] bool isAggro()
 	{
-		if ( _aggro == 0 )
+		if ( _aggro == 0 ) {
+			if ( _target != nullptr ) {
+				maxAggro();
+				return true;
+			}
 			return false;
+		}
 		return true;
 	}
 	
@@ -676,12 +697,15 @@ public:
 	}
 	
 	/**
-	 * maxAggro()
-	 * @brief Sets this NPC's aggression to maximum.
+	 * maxAggro(ActorBase*)
+	 * @brief Sets this NPC's aggression to maximum, and assigns it a target.
+	 * @param newTarget	- Pointer to an actor to set as target.
 	 */
-	void maxAggro()
+	void maxAggro(const std::shared_ptr<ActorBase>& newTarget = nullptr)
 	{
 		_aggro = _MAX_AGGRO;
+		if ( newTarget != nullptr )
+			setTarget(newTarget);
 	}
 
 	/**
@@ -696,9 +720,7 @@ public:
 	 */
 	void decrementAggro()
 	{
-		if ( _aggro - 1 <= 0 )
-			_aggro = 0;
-		else _aggro--;
+		if ( _aggro > 0 ) --_aggro;
 	}
 #pragma endregion AGGRESSION
 #pragma region TARGET
@@ -723,11 +745,11 @@ public:
 	 * @brief Returns a pointer to this NPC's target.
 	 * @returns ActorBase*	- ( nullptr = NPC does not have a target. )
 	 */
-	[[nodiscard]] ActorBase* getTarget() const { return _target; }
+	[[nodiscard]] std::shared_ptr<ActorBase> getTarget() const { return _target; }
 	// Set this NPC's current target
-	void setTarget(ActorBase* target)
+	void setTarget(const std::shared_ptr<ActorBase>& target)
 	{
-		if ( _target != nullptr ) _target = nullptr;
+		assert(target != nullptr);
 		if ( !isHostileTo(target->faction()) )
 			setRelationship(target->faction(), true);
 		_target = target;

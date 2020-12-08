@@ -105,20 +105,20 @@ protected:
 	Coord _pos;
 
 	/**
-	 * virtual func(ActorBase*)
+	 * virtual func(std::shared_ptr<ActorBase>)
 	 * @brief This item's function. This is overridden in derived classes to provide item with various usages.
 	 *
 	 * @param target	- Pointer to a target actor
 	 */
-	virtual void func(ActorBase* target) {}
+	virtual void func(const std::shared_ptr<ActorBase>& target) {}
 
 	/**
-	 * virtual cond(ActorBase*)
+	 * virtual cond(std::shared_ptr<ActorBase>)
 	 * @brief This item's use condition. This is overridden in derived classes to provide item with use logic.
 	 *
 	 * @param target	- Pointer to a target actor
 	 */
-	virtual bool cond(ActorBase* target) { return true; }
+	virtual bool cond(const std::shared_ptr<ActorBase>& target) { return true; }
 
 public:
 	/**
@@ -165,12 +165,12 @@ public:
 #pragma endregion DEFAULT
 
 	/**
-	 * attempt_use(ActorBase*)
+	 * attempt_use(std::shared_ptr<ActorBase>)
 	 * Given actor pointer will try to use this item, if actor's faction is allowed.
 	 *
 	 * @param actor	- Pointer to a target actor
 	 */
-	void attempt_use(ActorBase* actor)
+	void attempt_use(const std::shared_ptr<ActorBase>& actor)
 	{
 		// If actor is not a nullptr, item has remaining uses, actor can use this item
 		if ( actor != nullptr && canUse(actor->faction()) && _use_count > 0 && cond(actor) ) {
@@ -209,23 +209,23 @@ protected:
 	int _amount;	// Amount of health to regen
 
 	/**
-	 * func(ActorBase*)
+	 * func(std::shared_ptr<ActorBase>)
 	 * Modifies health by _amount
 	 *
 	 * @param target	- Pointer to target actor
 	 */
-	void func(ActorBase* target) override
+	void func(const std::shared_ptr<ActorBase>& target) override
 	{
 		target->modHealth(_amount);
 	}
 
 	/**
-	 * cond(ActorBase*)
+	 * cond(std::shared_ptr<ActorBase>)
 	 * @brief Checks if an actor's health is below max
 	 *
 	 * @param target	- Pointer to target actor
 	 */
-	bool cond(ActorBase* target) override
+	bool cond(const std::shared_ptr<ActorBase>& target) override
 	{
 		if ( target->getHealth() < target->getMaxHealth() )
 			return true;
@@ -268,23 +268,23 @@ protected:
 	int _amount;	// Amount of stamina to regen
 
 	/**
-	 * func(ActorBase*)
+	 * func(std::shared_ptr<ActorBase>)
 	 * Modifies stamina by _amount
 	 *
 	 * @param target	- Pointer to target actor
 	 */
-	void func(ActorBase* target) override
+	void func(const std::shared_ptr<ActorBase>& target) override
 	{
 		target->modStamina(_amount);
 	}
 
 	/**
-	 * cond(ActorBase*)
+	 * cond(std::shared_ptr<ActorBase>)
 	 * @brief Checks if an actor's stamina is below max
 	 *
 	 * @param target	- Pointer to target actor
 	 */
-	bool cond(ActorBase* target) override
+	bool cond(const std::shared_ptr<ActorBase>& target) override
 	{
 		if ( target->getStamina() < target->getMaxStamina() )
 			return true;

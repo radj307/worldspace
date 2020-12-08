@@ -28,23 +28,6 @@ struct Frame {
 	explicit Frame(std::vector<std::vector<char>> frameMatrix, const Coord& frameOrigin = Coord(0, 0)) : _frame(std::move(frameMatrix)), _origin(frameOrigin) {}
 
 	/**
-	 * getSize()
-	 * @brief Returns the size of this frame's character matrix
-	 *
-	 * @returns Coord
-	 */
-	Coord getSize()
-	{
-		auto Y{ 0 }, X{ 0 };
-		for ( auto& y : _frame ) {
-			Y++;
-			for ( auto x = y.begin(); x != y.end(); ++x )
-				X++;
-		}
-		return{ X, Y };
-	}
-
-	/**
 	 * draw()
 	 * @brief Draws this frame to the console at it's origin point.
 	 */
@@ -72,8 +55,10 @@ struct Frame {
 	static Frame buildFromCell(Cell& cell, const Coord& displayOrigin = Coord(0, 0))
 	{
 		std::vector<std::vector<char>> matrix;
+		matrix.reserve(cell._max._y);
 		for ( auto y = 0; y < cell._max._y; y++ ) { // iterate Y-axis
 			std::vector<char> row;
+			row.reserve(cell._max._x);
 			for ( auto x = 0; x < cell._max._x; x++ ) { // iterate X-axis
 				row.push_back(static_cast<char>(cell.get(x, y)._display));
 			}
@@ -206,9 +191,11 @@ class FrameBuffer {
 	 */
 	[[nodiscard]] Frame getFrame(const Coord& origin) const
 	{
-		std::vector<std::vector<char>> buffer; buffer.reserve(_size._y);
+		std::vector<std::vector<char>> buffer;
+		buffer.reserve(_size._y);
 		for ( auto y = 0; y < static_cast<signed>(buffer.capacity()); y++ ) {
-			std::vector<char> row; row.reserve(_size._x);
+			std::vector<char> row;
+			row.reserve(_size._x);
 			for ( auto x = 0; x < static_cast<signed>(row.capacity()); x++ ) {
 				auto pos{ Coord(x, y) };
 				if ( _game.getTile(pos)._isKnown ) {
@@ -282,7 +269,7 @@ class FrameBuffer {
 		printf("]");
 
 		if ( showValues ) {
-		// Set the cursor position to the next line
+			// Set the cursor position to the next line
 			WinAPI::setCursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 2);
 			std::cout << "Health: " << termcolor::red << health << termcolor::reset;
 			if ( health < 10 )	 std::cout << ' ';

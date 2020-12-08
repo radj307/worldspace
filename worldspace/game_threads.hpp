@@ -23,7 +23,7 @@ namespace game {
 			PLAYER_LOSE_CODE{ 0 }, // Player loses when this code is set
 			PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set
 		
-		static const unsigned int __FPS_TARGET{ 75 }; // target framerate
+		static const unsigned __FPS_TARGET{ 75 }; // target framerate
 		static const auto __FRAMETIME{ 1000ms / __FPS_TARGET }, __NPC_CLOCK{ __FPS_TARGET * 3ms }; // frametime to achieve that framerate
 		
 		// Shared Memory Object

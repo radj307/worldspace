@@ -13,7 +13,6 @@
 		Use the get_circle() function to output localized flares rather than full-screen ones.
 
 	bug: When an NPC's target is erased, occasionally the NPC does not remove this target.
-	bug: When a flare is activated while another flare is currently displaying, neither are cleared correctly.
  */
 #include "game_threads.hpp"
 #include "opt.h"
