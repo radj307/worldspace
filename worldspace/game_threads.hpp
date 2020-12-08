@@ -5,11 +5,13 @@
  */
 #pragma once
 #include <atomic>	// for thread-safe variables
+#include <conio.h>
 #include <future>	// for capturing thread return values
 #include <mutex>	// for mutexes & scoped locks
 #include <thread>	// for threads
 
 #include "FrameBuffer.h"
+#include "sys.h"
 #include "termcolor/termcolor.hpp"
 
 namespace game {

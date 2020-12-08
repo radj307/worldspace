@@ -16,8 +16,8 @@ Gamespace::Gamespace(GameRules& ruleset) : _world(!ruleset._world_import_file.em
 	_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them
 
 #ifdef _DEBUG
-	_game_state._final_challenge.store(true);
-	_flare = &_FLARE_DEF_CHALLENGE;
+//	_game_state._final_challenge.store(true);
+//	_flare = &_FLARE_DEF_CHALLENGE;
 #endif
 }
 #pragma endregion		GAME_CONSTRUCTOR

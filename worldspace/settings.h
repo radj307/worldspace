@@ -2,7 +2,6 @@
 #include <chrono>
 #include <string>
 #include "Coord.h"
-#include "INI_Include.h"
 
 static const int NOT_SET = -1; // Unset value used for checking if variables should be used. (Equal to -1)
 
@@ -33,12 +32,6 @@ struct CONTROLS {
 	const char _KEY_UP, _KEY_DOWN, _KEY_LEFT, _KEY_RIGHT, _KEY_PAUSE, _KEY_QUIT;
 
 	/**
-	 * CONTROLS()
-	 * @brief Default constructor that loads key vals from INI
-	 */
-	CONTROLS() : _KEY_UP(static_cast<char>(cfg.iGet("Key_Up"))), _KEY_DOWN(static_cast<char>(cfg.iGet("Key_Down"))), _KEY_LEFT(static_cast<char>(cfg.iGet("Key_Left"))), _KEY_RIGHT(static_cast<char>(cfg.iGet("Key_Right"))), _KEY_PAUSE(static_cast<char>(cfg.iGet("Key_Pause"))), _KEY_QUIT(static_cast<char>(cfg.iGet("Key_Quit"))) {}
-	
-	/**
 	 * CONTROLS(char, char, char, char, char, char)
 	 * @brief Constructor that takes key vals as parameters.
 	 *
@@ -49,7 +42,7 @@ struct CONTROLS {
 	 * @param pause	- Key to pause/unpause
 	 * @param quit	- Key to quit
 	 */
-	explicit CONTROLS(const char up, const char down, const char left, const char right, const char pause, const char quit) : _KEY_UP(up), _KEY_DOWN(down), _KEY_LEFT(left), _KEY_RIGHT(right), _KEY_PAUSE(pause), _KEY_QUIT(quit) {}
+	explicit CONTROLS(const char up = 'w', const char down = 's', const char left = 'a', const char right = 'd', const char pause = 'p', const char quit = 'q') : _KEY_UP(up), _KEY_DOWN(down), _KEY_LEFT(left), _KEY_RIGHT(right), _KEY_PAUSE(pause), _KEY_QUIT(quit) {}
 
 	/**
 	 * intToDir(int)
@@ -87,19 +80,7 @@ struct CONTROLS {
 		return -1;
 	}
 };
-
-/**
- * getControlsFromINI()
- * @brief Construct a CONTROLS instance
- * @returns CONTROLS
- */
-inline CONTROLS getControlsFromINI()
-{
-	// convert to keys first because constructor refuses to accept static casts as param
-	const auto _KEY_UP{ static_cast<char>(cfg.iGet("Key_Up")) }, _KEY_DOWN{ static_cast<char>(cfg.iGet("Key_Down")) }, _KEY_LEFT{ static_cast<char>(cfg.iGet("Key_Left")) }, _KEY_RIGHT{ static_cast<char>(cfg.iGet("Key_Right")) }, _KEY_PAUSE{ static_cast<char>(cfg.iGet("Key_Pause")) }, _KEY_QUIT{ static_cast<char>(cfg.iGet("Key_Quit")) };
-	return CONTROLS(_KEY_UP, _KEY_DOWN, _KEY_LEFT, _KEY_RIGHT, _KEY_PAUSE, _KEY_QUIT);
-}
 // Default controls instance
-inline CONTROLS _CTRL{ getControlsFromINI() };
+inline CONTROLS _CTRL;
 // Pointer to default controls that can be overridden to modify the control set
 inline CONTROLS* __controlset{ &_CTRL };
