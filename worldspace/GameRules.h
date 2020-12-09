@@ -10,7 +10,8 @@ struct GameRules {
 	// CELL / WORLD
 	bool
 		_walls_always_visible{ true },		// When true, wall tiles are always visible to the player.
-		_override_known_tiles{ false };		// When true, the player can always see all tiles.
+		_override_known_tiles{ false },		// When true, the player can always see all tiles. Disables dark mode.
+		_dark_mode{ true };					// When true, the player can only see the area around them.
 	std::string _world_import_file{};		// The game will attempt to load cell from this file. If blank, generates a new cell.
 	Coord _cellSize{ 30, 30 };				// If no filename is set, this is the size of the generated cell
 
@@ -36,7 +37,8 @@ struct GameRules {
 	float
 		_npc_move_chance{ 6 },				// The chance an NPC will move when idle (1 in (this) chance)
 		_npc_move_chance_aggro{ 6 };		// The chance an NPC will move when aggravated ((this) to 1 chance)
-
+	int _npc_vis_mod_aggro{ 1 };			// This value is added to an NPC's sight range when chasing target
+	
 	// ENEMIES
 	int
 		_enemy_count{ 20 },					// how many enemies are present when the game starts

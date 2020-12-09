@@ -12,7 +12,7 @@
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
 		Use the get_circle() function to output localized flares rather than full-screen ones.
 
-	bug: When an NPC's target is erased, occasionally the NPC does not remove this target.
+	bug: (Possibly fixed) When an NPC's target is erased, occasionally the NPC does not remove this target.
 	bug: When a flare is activated while another flare is currently displaying, neither are cleared correctly.
  */
 #include "game_threads.hpp"
@@ -72,6 +72,7 @@ inline bool prompt_restart(const Coord textPos)
 			case 'r': // r was pressed, restart the game
 				return true;
 			case 'q': // q was pressed, quit the game
+				std::cout << std::endl << std::endl << std::endl;
 				return false;
 			default:break;
 			}

@@ -181,14 +181,14 @@ std::vector<ItemStaticBase*> Gamespace::get_all_static_items()
 	return allItems;
 }
 /**
- * getNearbyActor(Coord&, int)
+ * getClosestActor(Coord&, int)
  * @brief Returns a pointer to the closest actor to a given position.
  *
  * @param pos		- Position ref
  * @param visRange	- Range to check in all directions around the position ref
  * @returns ActorBase*
  */
-ActorBase* Gamespace::getNearbyActor(const Coord& pos, const int visRange)
+ActorBase* Gamespace::getClosestActor(const Coord& pos, const int visRange)
 {
 	ActorBase* nearest{ nullptr };
 	auto dist{ -1 };
@@ -450,7 +450,6 @@ bool Gamespace::checkMove(const Coord& pos, const FACTION myFac)
  *
  * @param actor				  - A pointer to the target actor
  * @param dir				  - (w = up / s = down / a = left / d = right) all other characters are ignored.
- * @param allow_friendly_fire - When true, actors can attack other members of their faction
  * @returns bool - ( true = moved successfully ) ( false = did not move )
  */
 bool Gamespace::move(ActorBase* actor, const char dir)
@@ -475,6 +474,8 @@ bool Gamespace::move(ActorBase* actor, const char dir)
 		}
 		// Calculate trap damage if applicable
 		if ( _world.get(actor->pos())._isTrap ) {
+			if ( actor->faction() == FACTION::PLAYER && _ruleset._player_godmode )
+				return did_move;
 			if ( _ruleset._trap_percentage ) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
 			else actor->modHealth(-_ruleset._trap_dmg);
 		}
@@ -551,7 +552,6 @@ bool Gamespace::moveNPC(NPC* npc, const bool noFear)
  *
  * @param attacker		- A pointer to the attacking actor
  * @param target		- A pointer to the actor being attacked
- * @param friendlyFire	- When true, actors can attack other members of their faction.
  * @returns int		- ( -1 = attack failed ) ( 0 = success, target is still alive ) ( 1 = success, target killed )
  */
 int Gamespace::attack(ActorBase* attacker, ActorBase* target)
@@ -628,37 +628,39 @@ bool Gamespace::actionNPC(NPC* npc)
 	auto rc{ false }; // return code
 	// Finale Challenge Event - enemies always attack player, neutrals attack player if ruleset allows it
 	if ( _game_state._final_challenge.load() && (npc->faction() == FACTION::ENEMY || npc->faction() == FACTION::NEUTRAL && _ruleset._challenge_neutral_is_hostile) ) {
-		if ( !npc->isAggro() ) { // during the final challenge event, force all Enemies to be aggravated against the player.
-			npc->maxAggro();
-			npc->setTarget(&_player);
+		if ( !npc->isAggro() || npc->getTarget() != &_player ) { // during the final challenge event, force all Enemies to be aggravated against the player.
+			npc->maxAggroTarget(&_player);
 		}
 		rc = moveNPC(&*npc, true);
 	}
 	else { // Normal turn
+		// if the npc is hostile to player, and can see them, switch targets
+		if ( npc->canSeeHostile(&_player) ) {
+			//npc->setTarget(&_player);
+			if ( npc->maxAggroTarget(&_player) )
+				rc = moveNPC(&*npc);
+		}
 		// npc is aggravated
-		if ( npc->isAggro() && _rng.get(_ruleset._npc_move_chance_aggro, 0.0f) >= 1.0f ) {
+		else if ( npc->isAggro() && _rng.get(_ruleset._npc_move_chance_aggro, 0.0f) >= 1.0f ) {
 			// if the NPC has a target, move to it
 			if ( npc->hasTarget() )
 				rc = moveNPC(&*npc);
+			else npc->removeAggro();
+			
 			// If the NPC can still see their target, set aggression to max and continue following
-			if ( npc->canSeeTarget(2) )
+			if ( npc->canSeeTarget(_ruleset._npc_vis_mod_aggro) )
 				npc->maxAggro();
 			npc->decrementAggro();
 		}
-		// npc can see player and is hostile to player
-		else if ( npc->canSee(&_player) ) {
-			npc->setTarget(&_player);
-			npc->maxAggro();
-			rc = moveNPC(&*npc);
-		}
 		// npc is idle, check nearby
 		else {
-			auto* const nearest{ getNearbyActor(npc->pos(), npc->getVis()) };
+			// get a pointer to the nearest actor
+			auto* const nearest{ getClosestActor(npc->pos(), npc->getVis()) };
 			if ( nearest != nullptr ) {
-				if ( npc->canSee(&*nearest) ) {
-					npc->setTarget(&*nearest);
-					npc->maxAggro();
-					rc = moveNPC(&*npc);
+				if ( npc->canSeeHostile(&*nearest) ) {
+				//	npc->setTarget(&*nearest);
+					if ( npc->maxAggroTarget(&*nearest) )
+						rc = moveNPC(&*npc);
 				}
 				else if ( _rng.get(_ruleset._npc_move_chance, 0.0f) < 1.0f )
 					rc = move(&*npc, getRandomDir());
@@ -698,6 +700,7 @@ void Gamespace::actionPlayer(const char key)
 {
 	// if not dead and move was successful
 	if ( !_player.isDead() && move(&_player, key) ) {
+		if ( _ruleset._dark_mode ) _world.modVis(false);
 		// player specific post-movement functions
 		_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them
 	}

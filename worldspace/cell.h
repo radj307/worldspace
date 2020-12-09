@@ -134,7 +134,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 class Cell final {
 	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
-
+	bool _vis_all, _vis_wall;
 protected:
 
 	/**
@@ -156,11 +156,8 @@ protected:
 	/**
 	 * generate(bool, bool)
 	 * Generates the tile matrix using RNG
-	 *
-	 * @param makeWallsVisible		- When true, wall tiles will always be visible.
-	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	void generate(const bool makeWallsVisible, const bool override_known_tiles)
+	void generate()
 	{
 		_matrix.reserve(_max._y);
 		if ( _max._y >= 10 && _max._x >= 10 ) {
@@ -171,15 +168,15 @@ protected:
 				for ( auto x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
 					if ( x == 0 || x == _max._x - 1 || (y == 0 || y == _max._y - 1) )
-						_row.emplace_back(Tile::display::wall, x, y, (makeWallsVisible ? true : false) || (override_known_tiles ? true : false));
+						_row.emplace_back(Tile::display::wall, x, y, (_vis_wall ? true : false) || (_vis_all ? true : false));
 					else { // not an edge
 						const auto rand{ rng.get(100.0f, 0.0f) };
 						if ( rand < 7.0f ) // 7:100 chance of a wall tile that isn't on an edge
-							_row.emplace_back(Tile::display::wall, x, y, (makeWallsVisible ? true : false) || (override_known_tiles ? true : false));
+							_row.emplace_back(Tile::display::wall, x, y, (_vis_wall ? true : false) || (_vis_all ? true : false));
 						else if ( rand > 7.0f && rand < 9.0f )
-							_row.emplace_back(Tile::display::hole, x, y, (override_known_tiles ? true : false));
+							_row.emplace_back(Tile::display::hole, x, y, (_vis_all ? true : false));
 						else
-							_row.emplace_back(Tile::display::empty, x, y, (override_known_tiles ? true : false));
+							_row.emplace_back(Tile::display::empty, x, y, (_vis_all ? true : false));
 					}
 				}
 				_matrix.push_back(_row);
@@ -201,7 +198,7 @@ public:
 	 * @param makeWallsVisible		- walls are always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	explicit Cell(const Coord& cellSize, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _max(cellSize._x - 1, cellSize._y - 1), isValidPos(_max) { generate(makeWallsVisible, override_known_tiles); }
+	explicit Cell(const Coord& cellSize, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _vis_all(override_known_tiles), _vis_wall(makeWallsVisible), _max(cellSize._x - 1, cellSize._y - 1), isValidPos(_max) { generate(); }
 
 	/** CONSTRUCTOR **
 	 * Cell(string, bool)
@@ -211,7 +208,7 @@ public:
 	 * @param makeWallsVisible		- walls always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
-	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), _max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)), isValidPos(_max) {}
+	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), _vis_all(override_known_tiles), _vis_wall(makeWallsVisible), _max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)), isValidPos(_max) {}
 
 	  /**
 	   * getDisplayChar(Coord)
@@ -235,8 +232,24 @@ public:
 	 */
 	void modVis(const bool to)
 	{
-		for ( auto& y : _matrix )
-			for ( auto& x : y ) x._isKnown = to;
+		if ( !_vis_all || to )
+			for ( auto& y : _matrix )
+				for ( auto& x : y ) {
+					if ( x._display == Tile::display::wall )
+						x._isKnown = to || _vis_wall;
+					else
+						x._isKnown = to;
+				}
+	}
+
+	void modVis(const bool to, const long X, const long Y)
+	{
+		if ( isValidPos(X,Y) ) {
+			if ( _matrix.at(Y).at(X)._display != Tile::display::wall )
+				_matrix.at(Y).at(X)._isKnown = to || _vis_all;
+			else
+				_matrix.at(Y).at(X)._isKnown = to || _vis_wall;
+		}
 	}
 
 	/**
@@ -249,10 +262,10 @@ public:
 	 */
 	void modVis(const bool to, const Coord& pos, const int radius)
 	{
-		for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
-			for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
-				if ( isValidPos(x, y) )
-					_matrix.at(y).at(x)._isKnown = to;
+		if ( !_vis_all || to )
+			for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
+				for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
+					modVis(to, x, y);
 	}
 
 	/**
@@ -265,10 +278,11 @@ public:
 	 */
 	void modVisCircle(const bool to, const Coord& pos, const int radius)
 	{
-		for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
-			for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
-				if ( isValidPos(x, y) && checkDistance::get_circle(x, y, pos, radius) )
-					_matrix.at(y).at(x)._isKnown = to;
+		if ( !_vis_all || to )
+			for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
+				for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
+					if ( checkDistance::get_circle(x, y, pos, radius) )
+						modVis(to, x, y);
 	}
 
 	/**
@@ -281,10 +295,10 @@ public:
 	 */
 	void modVis(const bool to, const Coord& minPos, const Coord& maxPos)
 	{
-		for ( int y = minPos._y; y <= maxPos._y; y++ )
-			for ( int x = minPos._x; x <= maxPos._x; x++ )
-				if ( isValidPos(x, y) )
-					_matrix.at(y).at(x)._isKnown = to;
+		if ( !_vis_all || to )
+			for ( int y = minPos._y; y <= maxPos._y; y++ )
+				for ( int x = minPos._x; x <= maxPos._x; x++ )
+					modVis(to, x, y);
 	}
 
 	/**

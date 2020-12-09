@@ -78,7 +78,7 @@ public:
 	void apply_level_ups();
 	void apply_passive();
 	void cleanupDead();
-	[[nodiscard]] ActorBase* getNearbyActor(const Coord& pos, int visRange);
+	[[nodiscard]] ActorBase* getClosestActor(const Coord& pos, int visRange);
 	[[nodiscard]] ActorBase* getActorAt(const Coord& pos);
 	[[nodiscard]] ActorBase* getActorAt(int posX, int posY);
 	[[nodiscard]] ItemStaticBase* getItemAt(const Coord& pos);

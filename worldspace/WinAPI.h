@@ -28,6 +28,23 @@ namespace WinAPI {
 	};
 
 	/**
+	 * VirtualTerminal(DWORD, HANDLE)
+	 * @brief Wrapper for Windows Virtual Terminal sequences
+	 * @param parameter	- The DWORD parameter to send to the given handle
+	 * @param handle	- The target handle
+	 * @returns bool	- ( true = SetConsoleMode returned success ) ( false = failed )
+	 */
+	inline bool VirtualTerminal(const DWORD parameter, const HANDLE handle)
+	{
+		return SetConsoleMode(handle, parameter);
+	}
+	
+	inline bool enable_virtual_terminal()
+	{
+		return VirtualTerminal(ENABLE_VIRTUAL_TERMINAL_PROCESSING, GetStdHandle(STD_OUTPUT_HANDLE));
+	}
+
+	/**
 	 * setCursorPos(int, int)
 	 * Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
 	 *

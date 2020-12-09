@@ -17,8 +17,6 @@
 namespace game {
 	typedef std::chrono::high_resolution_clock CLK;	
 	using namespace std::chrono_literals;			// for s, ms, etc.
-
-	
 	namespace _internal {
 		static const int
 			PLAYER_WIN_CODE{ 1 }, // Player wins when this code is set
@@ -48,7 +46,6 @@ namespace game {
 			/**
 			 * pause_game(Coord)
 			 * @brief Sets the pause flag, clears the screen, and prints the pause message to a given pos.
-			 *
 			 * @param textPos	- Location in the screen buffer to display the pause message
 			 */
 			void pause_game(const Coord textPos = Coord(5, 3))
@@ -81,6 +78,7 @@ namespace game {
 				kill_code.store(_DEF_KILL_CODE);
 			}
 		};
+		
 		/**
 		 * process_game_over(int)
 		 * Prints a game over message to the console with win/lose status.
@@ -109,6 +107,7 @@ namespace game {
 			}
 			std::this_thread::sleep_for(500ms);
 		}
+		
 		/**
 		 * game_thread_player(Gamespace&, GLOBAL&)
 		 * Processes player input
@@ -123,7 +122,7 @@ namespace game {
 			while ( !mem.kill.load() ) {
 				// getch waits until key press, no need to sleep this thread.
 				if ( _kbhit() ) {
-					const auto key{ static_cast<char>(_getch()) };
+					const auto key{ static_cast<char>(std::tolower(_getch())) };
 					//mem.key.store(static_cast<char>(_getch()));
 
 					// if game is not paused
@@ -149,6 +148,7 @@ namespace game {
 				else std::this_thread::sleep_for(__FRAMETIME);
 			}
 		}
+		
 		/**
 		 * game_thread_npc(Gamespace&)
 		 * Processes non-player turns.
@@ -170,6 +170,7 @@ namespace game {
 				else std::this_thread::sleep_for(1s);
 			}
 		}
+		
 		/**
 		 * game_thread_display(Gamespace&)
 		 * Displays the gamespace to the console every half clock cycle

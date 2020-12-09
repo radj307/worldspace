@@ -46,9 +46,9 @@ protected:
 	ActorMaxStats& operator=(ActorMaxStats&&) = default;
 
 public:
-	[[nodiscard]] int getMaxHealth() const { return _MAX_HEALTH; }
+	[[nodiscard]] int getMaxHealth() const	{ return _MAX_HEALTH; }
 	[[nodiscard]] int getMaxStamina() const { return _MAX_STAMINA; }
-	[[nodiscard]] int getMaxDamage() const { return _MAX_DAMAGE; }
+	[[nodiscard]] int getMaxDamage() const	{ return _MAX_DAMAGE; }
 };
 
 // Simple struct containing all of the current values for each stat defined in ActorMaxStats
@@ -576,7 +576,7 @@ public:
 	 * @param visMod	- (Default: 0) Modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool	- ( true = NPC's target is within its visibility range ) ( false = NPC cannot see its target )
 	 */
-	[[nodiscard]] bool canSee(ActorBase* target, const int visMod = 0)
+	[[nodiscard]] bool canSeeHostile(ActorBase* target, const int visMod = 0)
 	{
 		if ( isHostileTo(&*target) && checkDistance::get_circle(target->pos(), _pos, _visRange + visMod) )
 			return true;
@@ -677,29 +677,40 @@ public:
 	
 	/**
 	 * maxAggro()
-	 * @brief Sets this NPC's aggression to maximum.
+	 * @brief Sets this NPC's aggression to maximum, does not check for targets.
 	 */
 	void maxAggro()
 	{
 		_aggro = _MAX_AGGRO;
+	}
+	
+	/**
+	 * maxAggro()
+	 * @brief Sets a target for this NPC, and raises their aggression to max.
+	 * @param target	- Actor to set as new target
+	 * @returns bool	- ( true = Aggression & Target set successfully ) ( false = failed to set target )
+	 */
+	bool maxAggroTarget(ActorBase* target)
+	{
+		// If target was set successfully, set aggression to max & return true
+		if ( setTarget(target) ) {
+			_aggro = _MAX_AGGRO;
+			return true;
+		}
+		return false;
 	}
 
 	/**
 	 * removeAggro()
 	 * @brief Sets this NPC's aggression to 0, and sets target to nullptr.
 	 */
-	void removeAggro() { _aggro = 0; if ( _target != nullptr ) removeTarget(); }
+	void removeAggro() { _aggro = 0; removeTarget(); }
 	
 	/**
 	 * decrementAggro()
 	 * @brief Decreases this NPC's aggression by 1.
 	 */
-	void decrementAggro()
-	{
-		if ( _aggro - 1 <= 0 )
-			_aggro = 0;
-		else _aggro--;
-	}
+	void decrementAggro() { if ( _aggro > 0 ) --_aggro; }
 #pragma endregion AGGRESSION
 #pragma region TARGET
 	/**
@@ -724,14 +735,28 @@ public:
 	 * @returns ActorBase*	- ( nullptr = NPC does not have a target. )
 	 */
 	[[nodiscard]] ActorBase* getTarget() const { return _target; }
-	// Set this NPC's current target
-	void setTarget(ActorBase* target)
+
+	/**
+	 * setTarget(ActorBase*)
+	 * @brief Sets a target for this NPC, this function should be called from maxAggroTarget() instead.
+	 * @param target	- A pointer to the target
+	 * @returns bool	- ( true = Set target successfully ) ( false = failed, target is same faction, or nullptr )
+	 */
+	[[nodiscard]] bool setTarget(ActorBase* target)
 	{
+		// don't set target if the given target is from the same faction
+		if ( target->faction() == _faction )
+			return false;
+		// if there is already a target set, remove it first
 		if ( _target != nullptr ) _target = nullptr;
+		// if NPC is not hostile to the target's faction, make them hostile to it
 		if ( !isHostileTo(target->faction()) )
 			setRelationship(target->faction(), true);
+		// set the target
 		_target = target;
+		return true;
 	}
+	
 	/**
 	 * removeTarget()
 	 * @brief Sets this NPC's target to nullptr.
@@ -743,7 +768,7 @@ public:
 struct Enemy final : NPC {
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, WinAPI::color, int, int, int, int, int)
-	 * Constructs a basic enemy with the given parameters.
+	 * @brief Constructs an enemy with the given parameters.
 	 *
 	 * @param myName	 - My reporting name.
 	 * @param myPos		 - My current position as a matrix coordinate
@@ -757,9 +782,10 @@ struct Enemy final : NPC {
 	 * @param MAX_AGGRO  - My maximum aggression
 	 */
 	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
+	
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, WinAPI::color, ActorStats&)
-	 * Constructs a basic enemy with the given parameters.
+	 * @brief Constructs an enemy from an ActorStats instance.
 	 *
 	 * @param myName	- My reporting name.
 	 * @param myPos		- My current position as a matrix coordinate
@@ -770,15 +796,23 @@ struct Enemy final : NPC {
 	 */
 	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
 		&
-		myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO)
-	{
-	}
+		myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
+
+	/** CONSTRUCTOR **
+	 * Enemy(Coord&, ActorTemplate&)
+	 * @brief Construct an enemy from an ActorTemplate instance.
+	 * 
+	 * @param myPos			- My current position as a matrix coordinate
+	 * @param myTemplate	- My templated stats
+	 */
 	Enemy(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::ENEMY, myPos, myTemplate) {}
 };
 // neutral actor
 struct Neutral final : NPC {
-	/**
+	/** CONSTRUCTOR **
 	 * Neutral(string, Coord, char, WinAPI::color, int, int, int, int, int)
+	 * @brief Constructs a neutral NPC with the given stats.
+	 * 
 	 * @param myName	 - My reporting name.
 	 * @param myPos		 - My current position as a matrix coordinate
 	 * @param myChar	 - My display character when inserted into a stream
@@ -791,10 +825,28 @@ struct Neutral final : NPC {
 	 * @param MAX_AGGRO	 - My maximum possible aggression
 	 */
 	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
+
+	/** CONSTRUCTOR **
+	 * Neutral(string&, Coord&, char, WinAPI::color, ActorStats&, int)
+	 * @brief Constructs a neutral NPC from an ActorStats instance.
+	 *
+	 * @param myName	 - My reporting name.
+	 * @param myPos		 - My current position as a matrix coordinate
+	 * @param myChar	 - My display character when inserted into a stream
+	 * @param myColor	 - My character's color when inserted into a stream
+	 * @param myStats	 - My stat instance
+	 * @param MAX_AGGRO	 - My maximum possible aggression
+	 */
 	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const WinAPI::color myColor, const ActorStats
-		& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO)
-	{
-	}
+		& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
+
+	/** CONSTRUCTOR **
+	 * Neutral(Coord&, ActorTemplate&)
+	 * @brief Constructs a neutral NPC from an ActorTemplate instance.
+	 *
+	 * @param myPos			- My current position as a matrix coordinate
+	 * @param myTemplate	- My templated stats
+	 */
 	Neutral(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::NEUTRAL, myPos, myTemplate) {}
 };
 #pragma endregion		  ACTOR_NPC
