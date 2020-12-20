@@ -2,7 +2,7 @@
 #include <utility>
 
 #include "Gamespace.h"
-#include "termcolor/termcolor.hpp"
+#include "sysapi.h"
 
 /**
  * struct Frame
@@ -12,36 +12,48 @@
 struct Frame {
 	// This frame's buffer
 	std::vector<std::vector<char>> _frame;
-	bool _space_columns{ true };
 	Coord _origin;
+	bool _space_columns;
 
 	/** CONSTRUCTOR
 	 * Frame()
 	 * @brief Instantiate a blank frame.
 	 */
-	Frame() : _origin({ 0,0 }) {}
+	Frame() : _origin({ 0,0 }), _space_columns(false) {}
 
 	/** CONSTRUCTOR
 	 * Frame(vector<vector<char>>)
 	 * @brief Instantiate a pre-made frame
 	 */
-	explicit Frame(std::vector<std::vector<char>> frameMatrix, const Coord& frameOrigin = Coord(0, 0)) : _frame(std::move(frameMatrix)), _origin(frameOrigin) {}
+	explicit Frame(std::vector<std::vector<char>> frameMatrix, const Coord& frameOrigin = Coord(0, 0), const bool formatWithSpaces = true) : _frame(std::move(frameMatrix)), _origin(frameOrigin), _space_columns(formatWithSpaces) {}
 
 	/**
-	 * getSize()
-	 * @brief Returns the size of this frame's character matrix
-	 *
+	 * isValidSize()
+	 * @brief Check if all rows in this frame are the same size.
+	 * @returns bool	- ( true = frame is valid ) ( false = frame is invalid, row size is variable. )
+	 */
+	bool isValidSize()
+	{
+		if ( !_frame.empty() ) {
+			const auto expected_row_length{ _frame.at(0).size() };
+			for ( auto& it : _frame )
+				if ( it.size() != expected_row_length )
+					return false;
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * size()
+	 * @brief Returns the size of the frame if it is valid.
 	 * @returns Coord
 	 */
-	Coord getSize()
+	Coord size()
 	{
-		auto Y{ 0 }, X{ 0 };
-		for ( auto& y : _frame ) {
-			Y++;
-			for ( auto x = y.begin(); x != y.end(); ++x )
-				X++;
-		}
-		return{ X, Y };
+		if ( !_frame.empty() && isValidSize() )
+			return{ static_cast<long>(_frame.at(0).size()), static_cast<long>(_frame.size()) };
+		return{ 0,0 };
 	}
 
 	/**
@@ -53,17 +65,17 @@ struct Frame {
 		// use dual-iterators to iterate both the frame, and console position from the origin offset
 		for ( int consoleY{ _origin._y }, frameY{ 0 }; consoleY < _origin._y + static_cast<int>(_frame.size()); consoleY++, frameY++ ) {
 			for ( int consoleX = _origin._x, frameX{ 0 }; consoleX < _origin._x + static_cast<int>(_frame.at(frameY).size()); consoleX++, frameX++ ) {
-				WinAPI::setCursorPos(consoleX * 2, consoleY);		// set the cursor position
-				std::cout << _frame.at(frameY).at(frameX);
+				sys::cursorPos(consoleX * 2, consoleY);		// set the cursor position
+				printf("%c", _frame.at(frameY).at(frameX));
 				if ( _space_columns )
-					std::cout << ' ';	// draw the frame pos to screen
+					printf(" ");
 			}
 		}
 	}
 
 	/** STATIC **
 	 * buildFromCell(Cell&, Coord)
-	 * @brief Static function that builds a frame from a given cell. Similar to Gamespace::getFrame(), but does not have knowledge of actors.
+	 * @brief Static function that builds a frame from a given cell. Similar to Gamespace::buildNextFrame(), but does not have knowledge of actors.
 	 *
 	 * @param cell			- A cell reference to build from
 	 * @param displayOrigin	- A point in the console window, measured in characters, that will act as the frame's top left corner.
@@ -157,30 +169,33 @@ class FrameBuffer {
 
 	/**
 	 * initConsole()
-	 * Changes the size & position of the console window, and hides the cursor.
+	 * @brief Changes the size & position of the console window, and hides the cursor.
+	 * @returns bool	- ( true = success ) ( false = Failed to retrieve information about the console window. )
 	 */
-	void initConsole() const
+	[[nodiscard]] bool initConsole() const
 	{
 		// Get size of each character
 		TEXTMETRIC tx{};
-		GetTextMetrics(GetDC(GetConsoleWindow()), &tx);
-		const int ch_width{ tx.tmMaxCharWidth + 5 }, ch_height{ tx.tmHeight + 5 };
+		if ( GetTextMetrics(GetDC(GetConsoleWindow()), &tx) ) {
+			const int ch_width{ tx.tmMaxCharWidth + 5 }, ch_height{ tx.tmHeight + 5 };
 
-		// Get size of the cell
-		const auto cellSize{ _game.getCellSize() };
+			// Get size of the cell
+			const auto cellSize{ _game.getCellSize() };
 
-		// move the window, and change its size
-		MoveWindow(GetConsoleWindow(), _window_origin._x, _window_origin._y, (cellSize._x + cellSize._x / 4) * ch_width, (cellSize._y + cellSize._y / 4) * ch_height, TRUE);
+			// move the window, and change its size
+			MoveWindow(GetConsoleWindow(), _window_origin._x, _window_origin._y, (cellSize._x + cellSize._x / 4) * ch_width, (cellSize._y + cellSize._y / 4) * ch_height, TRUE);
 
-		// hide the cursor
-		WinAPI::visibleCursor(false);
+			// hide the cursor
+			sys::cursorVisible(false);
+
+			return true;
+		}
+		return false;
 	}
 
 	/**
 	 * initFrame(bool)
-	 * Initializes the frame display.
-	 * Throws std::exception if cell size is empty.
-	 *
+	 * @brief Initializes the frame display. Throws std::exception if cell size is empty.
 	 * @param doCLS	 - (Default: true) When true, the screen buffer is overwritten with blank spaces before initializing the frame.
 	 */
 	void initFrame(const bool doCLS = true)
@@ -188,8 +203,8 @@ class FrameBuffer {
 		if ( !_initialized ) {
 			if ( _game.getCellSize()._x > 0 && _game.getCellSize()._y > 0 ) {
 				if ( doCLS )
-					WinAPI::cls();			// Clear the screen before initializing
-				_last = getFrame(_origin);	// set the last frame
+					sys::cls();			// Clear the screen before initializing
+				_last = buildNextFrame(_origin);	// set the last frame
 				_last.draw();		// draw frame
 				_initialized = true;	// set init frame boolean
 			}
@@ -198,13 +213,12 @@ class FrameBuffer {
 	}
 
 	/**
-	 * getFrame(Coord)
-	 * Returns a new frame of the entire cell
-	 *
+	 * buildNextFrame(Coord)
+	 * @brief Returns a new frame of the entire cell
 	 * @param origin	- The top-left corner of the frame, as shown in the console screen buffer
 	 * @returns Frame
 	 */
-	[[nodiscard]] Frame getFrame(const Coord& origin) const
+	[[nodiscard]] Frame buildNextFrame(const Coord& origin) const
 	{
 		std::vector<std::vector<char>> buffer; buffer.reserve(_size._y);
 		for ( auto y = 0; y < static_cast<signed>(buffer.capacity()); y++ ) {
@@ -227,11 +241,12 @@ class FrameBuffer {
 
 	/**
 	 * playerStatDisplay()
-	 * The player statistics bar
+	 * @brief Displays the player statistics bar.
+	 * @param showValues	- (Default: false) When true, the health/stamina values are displayed below their respective bar.
 	 */
 	void playerStatDisplay(const bool showValues = false) const
 	{
-		setConsoleColor(WinAPI::color::reset);
+		sys::colorReset();
 
 		// Get a pointer to the player
 		auto* player{ &_game.getPlayer() };
@@ -249,15 +264,15 @@ class FrameBuffer {
 		// { (((each box length) + (4 for bar edges & padding)) * (number of stat bars)) }
 		const auto lineLength = 28;// (10 + 4) * 2;
 
-		WinAPI::setCursorPos(lineLength / 2 - static_cast<signed>(HEADER.size()) / 2 + static_cast<int>(_playerStatOrigin._x), static_cast<int>(_playerStatOrigin._y));
+		sys::cursorPos(lineLength / 2 - static_cast<signed>(HEADER.size()) / 2 + static_cast<int>(_playerStatOrigin._x), static_cast<int>(_playerStatOrigin._y));
 		printf("%s", HEADER.c_str());
 
 		// next line
-		WinAPI::setCursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 1);
+		sys::cursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 1);
 
 		// Print the health bar
 		printf("[");
-		setConsoleColor(WinAPI::color::red);
+		sys::colorSet(Color::f_red);
 		for ( auto i = 1; i <= 10; ++i ) {
 			if ( health >= i * healthSegment )
 				printf("@");
@@ -266,9 +281,9 @@ class FrameBuffer {
 		}
 		
 		// Print health/stamina bar buffer
-		setConsoleColor(WinAPI::color::reset);
+		sys::colorReset();
 		printf("]  [");
-		setConsoleColor(WinAPI::color::green);
+		sys::colorSet(Color::f_green);
 		
 		// Print the stamina bar
 		for ( auto i = 1; i <= 10; ++i ) {
@@ -278,53 +293,57 @@ class FrameBuffer {
 				printf(" ");
 		}
 		// Print stamina bar end buffer
-		setConsoleColor(WinAPI::color::reset);
+		sys::colorReset();
 		printf("]");
 
 		if ( showValues ) {
-		// Set the cursor position to the next line
-			WinAPI::setCursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 2);
-			std::cout << "Health: " << termcolor::red << health << termcolor::reset;
-			if ( health < 10 )	 std::cout << ' ';
-			if ( health < 100 )	 std::cout << ' ';
+			sys::cursorPos(_playerStatOrigin._x + 1, _playerStatOrigin._y + 2);
+			printf("Health: ");
+			sys::colorSet(Color::f_red);
+			printf("%d", health);
+			sys::colorReset();
+			if ( health < 10 )	 printf(" ");
+			if ( health < 100 )	 printf(" ");
+			
 			// Print stamina values
-			std::cout << "\tStamina: " << termcolor::green << stamina << termcolor::reset;
-			if ( stamina < 10 )	 std::cout << ' ';
-			if ( stamina < 100 ) std::cout << ' ';
+			printf("Stamina: ");
+			sys::colorSet(Color::f_green);
+			printf("%d", stamina);
+			sys::colorReset();
+			if ( stamina < 10 )	 printf(" ");
+			if ( stamina < 100 ) printf(" ");
 			// Set the cursor position to the next line
-			WinAPI::setCursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 3);
+			sys::cursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 3);
 		}
-		else WinAPI::setCursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 2);
-		std::cout << "Kills: " << termcolor::red << player->getKills() << termcolor::reset;
+		else sys::cursorPos(_playerStatOrigin._x + 28 / 2 - 5, _playerStatOrigin._y + 2);
 
-		std::cout.flush();
+		printf("Kills: ");
+		sys::colorSet(Color::f_red);
+		printf("%d", player->getKills());
+		sys::colorReset();
 	}
 
 public:
 
 	/** CONSTRUCTOR **
-	 * FrameBuffer_Gamespace(Cell&, Coord, vector<ActorBase*>)
-	 *
+	 * FrameBuffer(Cell&, Coord&, Coord&)
+	 * @brief Instantiate a FrameBuffer display. Throws std::exception if console window did not initialize correctly.
 	 * @param gamespace		- Reference to the attached Gamespace instance
 	 * @param origin		- Display origin point, measured in chars. This is the top-left corner.
-	 * @param windowOrigin	- Position of the window on the monitor
+	 * @param windowOrigin	- (Default: (1,1)) Position of the window on the monitor
 	 */
 	FrameBuffer(Gamespace& gamespace, const Coord& origin, const Coord& windowOrigin = Coord(1, 1)) : _game(gamespace), _window_origin(windowOrigin), _origin(origin), _size(gamespace.getCellSize()), _playerStatOrigin((_origin._x + _size._x) * 2 / 4, _origin._y + _size._y + _size._y / 10)
 	{
-		initConsole();
+		if ( !initConsole() ) throw std::exception("The console window failed to initialize.");
 	}
 
 	/**
 	 * display()
-	 * Update the currently drawn frame, will automatically initialize the frame if necessary.
-	 * This function will also perform the cleanupDead() function each time it is called.
-	 *
-	 * The console size must be changed before calling this function for the display to work correctly!
-	 * ( initConsole() will do this automatically )
+	 * @brief Update the currently drawn frame, will automatically initialize the frame if necessary. This function will also perform the cleanupDead() function each time it is called.
 	 */
 	void display()
 	{
-		std::cout.flush();
+		fflush(stdout);
 		// Remove dead actors
 		_game.cleanupDead();
 		// get a pointer to the game flare
@@ -332,14 +351,13 @@ public:
 		// Check if the frame is already initialized
 		if ( _initialized ) {
 			// flush the output buffer to prevent garbage characters from being displayed.
-			std::cout.flush();
 			// Get the new frame
-			auto next = getFrame(_origin);
+			auto next = buildNextFrame(_origin);
 			// iterate vertical axis
 			for ( long frameY{ 0 }, consoleY{ _origin._y }; frameY < static_cast<long>(next._frame.size()); frameY++, consoleY++ ) {
 				// iterate horizontal axis for each vertical index
 				for ( long frameX{ 0 }, consoleX{ _origin._x }; frameX < static_cast<long>(next._frame.at(frameY).size()); frameX++, consoleX++ ) {
-					setConsoleColor(WinAPI::color::reset);
+					sys::colorReset();
 					// check if the tile at this pos is known to the player
 					if ( _game.getTile(frameX, frameY)._isKnown ) {
 						auto* const actor = _game.getActorAt(frameX, frameY);
@@ -347,39 +365,39 @@ public:
 						// Check if an actor is located here
 						if ( actor != nullptr ) {
 							// set the cursor position to target
-							WinAPI::setCursorPos(consoleX * 2, consoleY);
-							// output actor with their color
-							std::cout << *actor;
+							sys::cursorPos(consoleX * 2, consoleY);
+							// print the actor
+							actor->print();
 						}
 						else if ( item != nullptr ) {
 							// set the cursor position to target
-							WinAPI::setCursorPos(consoleX * 2, consoleY);
-							// output item with their color
-							std::cout << *item;
+							sys::cursorPos(consoleX * 2, consoleY);
+							// print the item
+							item->print();
 						}
 						// Check if the game wants a screen color flare
 						else if ( flare != nullptr && flare->pattern(frameX, frameY) ) {
 							// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
-							WinAPI::setCursorPos(consoleX * 2, consoleY);
+							sys::cursorPos(consoleX * 2, consoleY);
 							if ( flare->time() % 2 == 0 && flare->time() != 1 ) {
-								WinAPI::setConsoleColor(flare->color());
+								sys::colorSet(flare->color());
 								printf("%c", next._frame.at(frameY).at(frameX));
-								setConsoleColor(WinAPI::color::reset);
+								sys::colorReset();
 							}
 							else
-								std::cout << next._frame.at(frameY).at(frameX);
+								printf("%c", next._frame.at(frameY).at(frameX));
 						}
 						// Actor is not located here, show the tile char.
 						else if ( next._frame.at(frameY).at(frameX) != _last._frame.at(frameY).at(frameX) ) {
 							// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
-							WinAPI::setCursorPos(consoleX * 2, consoleY);
+							sys::cursorPos(consoleX * 2, consoleY);
 							printf("%c", next._frame.at(frameY).at(frameX));
 						} // else tile has not changed, do nothing
 					}
 					// if the tile is not known, show a blank space instead.
 					else {
 						// set the cursor position to target
-						WinAPI::setCursorPos(consoleX * 2, consoleY);
+						sys::cursorPos(consoleX * 2, consoleY);
 						// output blank
 						printf(" ");
 					}
@@ -402,7 +420,7 @@ public:
 
 	/**
 	 * deinitialize()
-	 * De-Initialize this framebuffer. Next time display() is called, it will reinitialize the frame first.
+	 * @brief Set the initialized flag to false, causing the display to be re-initialized next time display() is called.
 	 */
 	void deinitialize()
 	{

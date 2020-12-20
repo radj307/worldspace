@@ -1,6 +1,5 @@
 #pragma once
 #include "Coord.h"
-#include "WinAPI.h"
 
 // Base flare class
 struct Flare {
@@ -16,8 +15,7 @@ protected:
 	 * @param flareTime	 - How many frames total to flare the display. Should be a multiple of 2.
 	 * @param flareColor - Which color to use, this should be a windows API color.
 	 */
-	Flare(const unsigned short flareTime, WinAPI::color flareColor) : _time(flareTime), _color(static_cast<unsigned short>(flareColor)), _max_time(_time) {}
-	Flare(const unsigned short flareTime, const unsigned short flareColor) : _time(flareTime), _color(flareColor), _max_time(_time) {}
+	Flare(const unsigned short flareTime, const unsigned short flareColor) : _time(flareTime), _color(static_cast<unsigned short>(flareColor)), _max_time(_time) {}
 
 private:
 	// This variable is a copy of the unmodified time value, do not change this.
@@ -69,7 +67,7 @@ struct FlareClear final : Flare {
 		return true;
 	}
 
-	FlareClear() : Flare(1, WinAPI::color::reset) {}
+	FlareClear() : Flare(1, Color::reset) {}
 };
 
 // Level-up flare
@@ -94,16 +92,7 @@ struct FlareLevel final : Flare {
 	FlareLevel() : Flare(6, BACKGROUND_GREEN) {}
 
 	/**
-	 * FlareLevel(unsigned short, WinAPI::color)
-	 * @brief Constructor with defined time & color values.
-	 *
-	 * @param flareTime  - The amount of frames to show a flare.
-	 * @param flareColor - The color to flare.
-	 */
-	FlareLevel(const unsigned short flareTime, const WinAPI::color flareColor) : Flare(flareTime, flareColor) {}
-
-	/**
-	 * FlareLevel(unsigned short, WinAPI::color)
+	 * FlareLevel(unsigned short, Color)
 	 * @brief Constructor with defined time & color values.
 	 *
 	 * @param flareTime  - The amount of frames to show a flare.
@@ -132,18 +121,8 @@ public:
 	}
 
 	/**
-	 * FlareChallenge(Coord&, unsigned short, WinAPI::color)
+	 * FlareChallenge(Coord&, unsigned short, Color)
 	 * @brief Constructor with defined time & color values.
-	 *
-	 * @param cellSize	 - A ref to the cell's _max member, representing the size of the tile matrix.
-	 * @param flareTime  - The amount of frames to show a flare.
-	 * @param flareColor - The color to flare.
-	 */
-	FlareChallenge(const Coord& cellSize, const unsigned short flareTime, const WinAPI::color flareColor) : Flare(flareTime, flareColor), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
-
-	/**
-	 * FlareChallenge(Coord&, unsigned short, unsigned short)
-	 * @brief Constructor with defined time & color values. This constructor takes a direct unsigned short.
 	 *
 	 * @param cellSize	 - A ref to the cell's _max member, representing the size of the tile matrix.
 	 * @param flareTime  - The amount of frames to show a flare.

@@ -21,7 +21,8 @@ namespace game {
 		static const int
 			PLAYER_WIN_CODE{ 1 }, // Player wins when this code is set
 			PLAYER_LOSE_CODE{ 0 }, // Player loses when this code is set
-			PLAYER_QUIT_CODE{ -1 }; // Player quit when this code is set
+			PLAYER_QUIT_CODE{ -1 }, // Player quit when this code is set
+			GAME_EXCEPTION_CODE{ 2 }; // An exception was thrown
 		
 		static const unsigned int __FPS_TARGET{ 75 }; // target framerate
 		static const auto __FRAMETIME{ 1000ms / __FPS_TARGET }, __NPC_CLOCK{ __FPS_TARGET * 3ms }; // frametime to achieve that framerate
@@ -51,8 +52,8 @@ namespace game {
 			void pause_game(const Coord textPos = Coord(5, 3))
 			{
 				pause.store(true);
-				WinAPI::cls();
-				WinAPI::setCursorPos(textPos);
+				sys::cls();
+				sys::cursorPos(textPos);
 				std::cout << termcolor::cyan << pause_msg << termcolor::reset;
 			}
 			
@@ -62,7 +63,7 @@ namespace game {
 			 */
 			void unpause_game()
 			{
-				WinAPI::cls();
+				sys::cls();
 				pause.store(false);
 			}
 
@@ -81,16 +82,14 @@ namespace game {
 		
 		/**
 		 * process_game_over(int)
-		 * Prints a game over message to the console with win/lose status.
-		 * Called from display thread.
-		 *
+		 * @brief Clears the screen & prints an informational game over message to the terminal.
 		 * @param winStateCode	- ( -1 = Player Loses ) ( 0 = Player Wins ) ( 1 = Player exited ) ( Other = Undefined )
 		 * @param textPos		- Position in the screen buffer to print message.
 		 */
 		inline void print_game_over(const int winStateCode, const Coord textPos = Coord(9, 3))
 		{
-			WinAPI::cls();
-			WinAPI::setCursorPos(textPos);
+			sys::cls(true);
+			sys::cursorPos(textPos);
 			switch ( winStateCode ) {
 			case PLAYER_LOSE_CODE: // player lost the game
 				std::cout << termcolor::red << "You lost!" << termcolor::reset;
@@ -101,6 +100,7 @@ namespace game {
 			case PLAYER_QUIT_CODE: // player exited the game
 				std::cout << termcolor::cyan << "Game Over." << termcolor::reset;
 				break;
+			case GAME_EXCEPTION_CODE:
 			default: // undefined
 				std::cout << termcolor::red << "The game exited with an undefined error." << termcolor::reset;
 				break;
@@ -110,9 +110,7 @@ namespace game {
 		
 		/**
 		 * game_thread_player(Gamespace&, GLOBAL&)
-		 * Processes player input
-		 * Loops until the shared memory's kill flag is true
-		 *
+		 * @brief Thread function that receives & processes player key presses.
 		 * @param mutx	- Shared Mutex
 		 * @param mem	- Shared Memory
 		 * @param game	- Reference to the associated gamespace, passed with std::ref()
@@ -151,9 +149,7 @@ namespace game {
 		
 		/**
 		 * game_thread_npc(Gamespace&)
-		 * Processes non-player turns.
-		 * Loops until the shared memory's kill flag is true
-		 *
+		 * @brief Thread function that controls the NPC actors.
 		 * @param mutx	- Shared Mutex
 		 * @param mem	- Shared Memory
 		 * @param game	- Reference to the associated gamespace, passed with std::ref()
@@ -173,9 +169,7 @@ namespace game {
 		
 		/**
 		 * game_thread_display(Gamespace&)
-		 * Displays the gamespace to the console every half clock cycle
-		 * Loops until the shared memory's kill flag is true
-		 *
+		 * @brief Thread function that controls the display.
 		 * @param mutx	- Shared Mutex
 		 * @param mem	- Shared Memory
 		 * @param game	- Reference to the associated gamespace, passed with std::ref()
@@ -183,48 +177,53 @@ namespace game {
 		 */
 		inline void thread_display(std::mutex& mutx, memory& mem, Gamespace& game, GameRules& cfg)
 		{
-			// create a frame buffer with the given gamespace ref
-			FrameBuffer gameBuffer(game, Coord(3, 3), Coord(1920 / 3, 1080 / 8));
+			// Catch possible exceptions from frame buffer constructor
+			try {
+				// create a frame buffer with the given gamespace ref
+				FrameBuffer gameBuffer(game, Coord(3, 3), Coord(1920 / 3, 1080 / 8));
+				// Loop until kill flag is true
+				for ( auto tLastRegenCycle{ CLK::now() }; !mem.kill.load(); ) {
+					if ( !mem.pause.load() ) {
+						mem.pause_complete.store(false);
+						std::this_thread::sleep_for(__FRAMETIME);		// sleep this thread for half of a clock cycle
+						std::cout.flush();									// flush the cout buffer
+						std::scoped_lock<std::mutex> lock(mutx);			// lock the mutex
+						game.apply_level_ups();								// Apply level ups
+						gameBuffer.display();								// display the gamespace
 
-			// Loop until kill flag is true
-			for ( auto tLastRegenCycle{ CLK::now() }; !mem.kill.load(); ) {
-				if ( !mem.pause.load() ) {
-					mem.pause_complete.store(false);
-					std::this_thread::sleep_for(__FRAMETIME);		// sleep this thread for half of a clock cycle
-					std::cout.flush();									// flush the cout buffer
-					std::scoped_lock<std::mutex> lock(mutx);			// lock the mutex
-					game.apply_level_ups();								// Apply level ups
-					gameBuffer.display();								// display the gamespace
 
-					
-					if ( CLK::now() - tLastRegenCycle >= cfg._regen_timer ) {
-						game.apply_passive();							// Apply passive effects every second
-						tLastRegenCycle = CLK::now();
+						if ( CLK::now() - tLastRegenCycle >= cfg._regen_timer ) {
+							game.apply_passive();							// Apply passive effects every second
+							tLastRegenCycle = CLK::now();
+						}
+						if ( game._game_state._game_is_over.load() ) {
+							mem.kill.store(true);							// Send kill code
+							if ( game._game_state._playerDead.load() )
+								mem.kill_code.store(PLAYER_LOSE_CODE);
+							else if ( game._game_state._allEnemiesDead.load() )
+								mem.kill_code.store(PLAYER_WIN_CODE);
+							break;											// break loop
+						}
 					}
-					if ( game._game_state._game_is_over.load() ) {
-						mem.kill.store(true);							// Send kill code
-						if ( game._game_state._playerDead.load() )
-							mem.kill_code.store(PLAYER_LOSE_CODE);
-						else if ( game._game_state._allEnemiesDead.load() )
-							mem.kill_code.store(PLAYER_WIN_CODE);
-						break;											// break loop
+					else if ( !mem.pause_complete.load() ) {
+						gameBuffer.deinitialize();
+						mem.pause_game();
+						mem.pause_complete.store(true);
 					}
+					else std::this_thread::sleep_for(__FRAMETIME);
 				}
-				else if ( !mem.pause_complete.load() ) {
-					gameBuffer.deinitialize();
-					mem.pause_game();
-					mem.pause_complete.store(true);
-				}
-				else std::this_thread::sleep_for(__FRAMETIME);
+				// Once the kill flag is true, show the game over message and return
+				print_game_over(mem.kill_code.load());
+			} catch ( std::exception & ex ) {
+				sys::msg(sys::error, "Exception thrown in thread_display(): \"" + std::string(ex.what()) + "\"");
+				mem.kill.store(true);
 			}
-			// Once the kill flag is true, show the game over message and return
-			print_game_over(mem.kill_code.load());
 		}
 	}
 
 	/**
 	 * game_start(GLOBAL&)
-	 * Starts the game threads and returns once the game is over.
+	 * @brief Starts the game threads and returns once the game is over.
 	 *
 	 * @param settings	- The list of global settings parsed from the commandline
 	 * @returns bool	- ( true = game exited normally ) ( false = player pressed the quit button )
@@ -240,7 +239,7 @@ namespace game {
 		// Create ruleset
 		GameRules rules(settings);
 
-		// Create gamespace
+		// Create gamespace with ruleset
 		Gamespace thisGame(rules);
 
 		try {

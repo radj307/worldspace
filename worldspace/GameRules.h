@@ -6,7 +6,19 @@
  * struct GameRules
  * Gamespace requires an instance of GameRules to construct, these are generic settings that may be used by a game to allow user-customization.
  */
-struct GameRules {
+struct GameRules final {
+private:
+	/**
+	 * CAN_LEVEL_UP(int, int)
+	 * @brief Checks if an actor can level up or not depending on their current stats.
+	 * @param level	 - Actor's current level
+	 * @param kills	 - Actor's current kill count
+	 * @returns bool - ( true = Actor can level up ) ( false = Actor can't level up yet )
+	 */
+	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
+	
+public:
+#pragma region WORLDSPACE
 	// CELL / WORLD
 	bool
 		_walls_always_visible{ true },		// When true, wall tiles are always visible to the player.
@@ -18,17 +30,19 @@ struct GameRules {
 	// TRAPS
 	int _trap_dmg{ 20 };					// the amount of health an actor loses when they step on a trap
 	const bool _trap_percentage{ true };	// whether the _trap_dmg amount is static, or a percentage of max health
-
+#pragma endregion WORLDSPACE
+#pragma region ATTACKS
 	// ATTACKS
 	int	_attack_cost_stamina{ 15 };	// The amount of stamina used when attacking. This is a static value.
 	float
 		_attack_block_chance{ 35.0f }, // 1 in (this) chance of an actor blocking a full-attack.
 		_attack_miss_chance_full{ 11.0f }, // chance of an actor missing when their stamina is high enough
 		_attack_miss_chance_drained{ 35.0f }; // chance of an actor missing with low stamina
-
+#pragma endregion ATTACKS
+#pragma region ACTORS
 	// PLAYER
 	bool _player_godmode{ false };			// When true, Player cannot be attacked
-	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', WinAPI::color::green }; // Player template
+	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', Color::f_green }; // Player template
 
 	// GENERIC NPC
 	std::vector<FACTION>
@@ -46,20 +60,21 @@ struct GameRules {
 	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Max aggression val in move cycles), (Chance to spawn))
 	// Chance to spawn is calculated starting at the end of the list, so the first template should have a chance of 100
 	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types.
-		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1), 'Y', WinAPI::color::yellow, _enemy_hostile_to, 30, 100.0f },	// Level 1 enemy
-		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1), 'T', WinAPI::color::red, _enemy_hostile_to, 20, 45.0f },	// Level 2 enemy
-		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', WinAPI::color::magenta, _enemy_hostile_to, 20, 20.0f },// Level 3 enemy
-		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', WinAPI::color::magenta, _enemy_hostile_to, 30, 2.0f },// Level 4 enemy
+		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1), 'Y', Color::f_yellow, _enemy_hostile_to, 30, 100.0f },	// Level 1 enemy
+		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1), 'T', Color::f_red, _enemy_hostile_to, 20, 45.0f },	// Level 2 enemy
+		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', Color::f_magenta, _enemy_hostile_to, 20, 20.0f },// Level 3 enemy
+		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', Color::f_magenta, _enemy_hostile_to, 30, 2.0f },// Level 4 enemy
 	};
 
 	// NEUTRALS
 	int	_neutral_count{ 12 };				// how many neutrals are present when the game starts
 	std::vector<ActorTemplate> _neutral_template{	// Neutral templates, aka default values for neutral types
-		{ "Chicken",ActorStats(1, 30, 30, 5, 5), '`', WinAPI::color::cyan, _neutral_hostile_to, 100, 100.0f },
-		{ "Sheep",	ActorStats(2, 30, 30, 5, 4), '@', WinAPI::color::cyan, _neutral_hostile_to, 50, 45.0f },
-		{ "Cow",	ActorStats(3, 30, 30, 5, 4), '%', WinAPI::color::blue, _neutral_hostile_to, 35, 20.0f },
+		{ "Chicken",ActorStats(1, 30, 30, 5, 5), '`', Color::f_cyan, _neutral_hostile_to, 100, 100.0f },
+		{ "Sheep",	ActorStats(2, 30, 30, 5, 4), '@', Color::f_cyan, _neutral_hostile_to, 50, 45.0f },
+		{ "Cow",	ActorStats(3, 30, 30, 5, 4), '%', Color::f_blue, _neutral_hostile_to, 35, 20.0f },
 	};
-
+#pragma endregion ACTORS
+#pragma region ACTOR_EFFECTS
 	// PASSIVE EFFECTS
 	std::chrono::seconds _regen_timer{ 2 };
 	int
@@ -71,22 +86,10 @@ struct GameRules {
 		_level_up_kills{ 2 },				// Kills required for an actor to level up. This value is arbitrary.
 		_level_up_mult{ 2 },				// Multiplies the level_up_kills threshold for every level
 		_level_up_restore_percent{ 50 };	// How much health/stamina is regenerated when the player levels up ( 0 - 100 )
-	unsigned short
-		_level_up_flare_time{ 6 };			// How many frames to flare when the player levels up. Must be a multiple of 2
-
-	// The level up algorithm
-	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
-
-	// CHALLENGES
-	unsigned int // Percentage of remaining enemies to trigger finale. (0 to disable.)
-		_challenge_final_trigger_percent{ 25 };
-	bool		 // if true, neutral NPCs will also attack the player during the finale
-		_challenge_neutral_is_hostile{ false };
 
 	/**
 	 * canLevelUp(ActorBase*)
-	 * Returns true if a given actor can level up.
-	 *
+	 * @brief Checks if a given actor can level up, based on their current stats.
 	 * @param actor	 - Pointer to an actor
 	 * @returns bool - ( true = can level up ) ( false = cannot level up )
 	 */
@@ -96,11 +99,19 @@ struct GameRules {
 			return true;
 		return false;
 	}
+#pragma endregion ACTOR_EFFECTS
+#pragma region FLARE
+	unsigned short
+		_level_up_flare_time{ 6 };			// How many frames to flare when the player levels up. Must be a multiple of 2
+	unsigned int // Percentage of remaining enemies to trigger finale. (0 to disable.)
+		_challenge_final_trigger_percent{ 25 };
+	bool		 // if true, neutral NPCs will also attack the player during the finale
+		_challenge_neutral_is_hostile{ false };
+#pragma endregion FLARE
 
 	/**
 	 * GameRules(GLOBAL&)
-	 * Construct a GameRules instance from a GLOBAL settings instance.
-	 *
+	 * @brief Construct a GameRules instance from a GLOBAL settings instance.
 	 * @param settings	- Ref to a GLOBAL instance containing parsed commandline settings
 	 */
 	explicit GameRules(const GLOBAL& settings) : _override_known_tiles(settings._override_known_tiles), _world_import_file(settings._import_filename), _cellSize(settings._cellSize), _player_godmode(settings._player_godmode), _regen_timer(settings._regen_timer)

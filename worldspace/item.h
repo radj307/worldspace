@@ -8,14 +8,13 @@
 #include <utility>
 
 #include "actor.h"
-#include "WinAPI.h"
 
 // Base item statistics
 struct ItemStats {
 protected:
 	// Display stats
-	char _display;						// A char to represent this item on the display
-	WinAPI::color _display_color;		// A windows API color to display this item's character with
+	char _char;						// A char to represent this item on the display
+	unsigned short _color;		// A windows API color to display this item's character with
 	// General stats
 	std::string _name;					// The name of this item
 	int _use_count;						// When this value reaches 0, the item should be deleted.
@@ -50,13 +49,13 @@ public:
 	 * @param name			- This item's name
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 */
-	ItemStats(std::string name, const int maxUses) : _display('&'), _display_color(WinAPI::color::reset), _name(std::move(name)), _use_count(maxUses)
+	ItemStats(std::string name, const int maxUses) : _char('&'), _color(Color::reset), _name(std::move(name)), _use_count(maxUses)
 	{
 		// Allow any faction to use
 		initFactionLock();
 	}
 	/**
-	 * ItemStats(char, WinAPI::color, string, int)
+	 * ItemStats(char, Color, string, int)
 	 * @brief Constructor that allows all factions to use this item.
 	 *
 	 * @param display		- This item's display character
@@ -64,12 +63,12 @@ public:
 	 * @param name			- This item's name
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 */
-	ItemStats(const char display, const WinAPI::color displayColor, std::string name, const int maxUses) : _display(display), _display_color(displayColor), _name(std::move(name)), _use_count(maxUses)
+	ItemStats(const char display, const unsigned short displayColor, std::string name, const int maxUses) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses)
 	{
 		initFactionLock();
 	}
 	/**
-	 * ItemStats(char, WinAPI::color, string, int, vector<FACTION>)
+	 * ItemStats(char, Color, string, int, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions.
 	 *
 	 * @param display		- This item's display character
@@ -78,7 +77,7 @@ public:
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 * @param canBeUsedBy	- Vector of factions allowed to use this item.
 	 */
-	ItemStats(const char display, const WinAPI::color displayColor, std::string name, const int maxUses, std::vector<FACTION> canBeUsedBy) : _display(display), _display_color(displayColor), _name(std::move(name)), _use_count(maxUses), _faction_lock(std::move(canBeUsedBy)) {}
+	ItemStats(const char display, const unsigned short displayColor, std::string name, const int maxUses, std::vector<FACTION> canBeUsedBy) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses), _faction_lock(std::move(canBeUsedBy)) {}
 
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
@@ -122,7 +121,7 @@ protected:
 
 public:
 	/**
-	 * ItemStaticBase(char, WinAPI::color, string, int, Coord&)
+	 * ItemStaticBase(char, Color, string, int, Coord&)
 	 * @brief Default constructor that allows all factions to use this item.
 	 *
 	 * @param display		- This item's display character
@@ -131,10 +130,10 @@ public:
 	 * @param myUses		- The number of times this item can be used before being removed.
 	 * @param myPos			- Ref to a coord position
 	 */
-	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
+	ItemStaticBase(const char display, const unsigned short displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
 
 	/**
-	 * ItemStaticBase(char, WinAPI::color, string, int, Coord&, vector<FACTION>)
+	 * ItemStaticBase(char, Color, string, int, Coord&, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions.
 	 *
 	 * @param display		- This item's display character
@@ -144,7 +143,7 @@ public:
 	 * @param myPos			- Ref to a coord position
 	 * @param lockToFaction	- Vector of factions allowed to use this item
 	 */
-	ItemStaticBase(const char display, const WinAPI::color displayColor, std::string myName, const int myUses, const Coord& myPos, std::vector<FACTION> lockToFaction) : ItemStats(display, displayColor, std::move(myName), myUses, std::move(lockToFaction)), _pos(myPos) {}
+	ItemStaticBase(const char display, const unsigned short displayColor, std::string myName, const int myUses, const Coord& myPos, std::vector<FACTION> lockToFaction) : ItemStats(display, displayColor, std::move(myName), myUses, std::move(lockToFaction)), _pos(myPos) {}
 
 	/**
 	 * ItemStaticBase(ItemStats&, Coord&)
@@ -187,19 +186,15 @@ public:
 	 */
 	[[nodiscard]] Coord pos() const { return _pos; }
 
-	// Stream insertion operator
-	friend std::ostream& operator<<(std::ostream& os, ItemStaticBase& i)
+	/**
+	 * print()
+	 * @brief Prints this item's colorized display character at the current cursor position.
+	 */
+	void print() const
 	{
-		auto* const hwnd{ GetStdHandle(STD_OUTPUT_HANDLE) };
-		// set text color to actor's color
-		SetConsoleTextAttribute(hwnd, static_cast<unsigned short>(i._display_color));
-
-		// insert actor's character
-		os << i._display;
-
-		// reset text color
-		SetConsoleTextAttribute(hwnd, 07);
-		return os;
+		sys::colorSet(_color);
+		printf("%c", _char);
+		sys::colorReset();
 	}
 };
 
@@ -241,7 +236,7 @@ public:
 	 * @param myPos				- This item's position in the cell
 	 * @param amountRestored	- The amount of health this item restores
 	 */
-	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', WinAPI::color::red, "Restore Health", 1, myPos), _amount(amountRestored) {}
+	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', Color::f_red, "Restore Health", 1, myPos), _amount(amountRestored) {}
 
 	/**
 	 * ItemStaticHealth(Coord&, int, vector<FACTION>)
@@ -251,7 +246,7 @@ public:
 	 * @param amountRestored	- The amount of health this item restores
 	 * @param lockToFaction		- Vector of factions allowed to use this item
 	 */
-	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', WinAPI::color::b_red, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::b_red, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
 	ItemStaticHealth(const ItemStaticHealth&) = default;
@@ -300,7 +295,7 @@ public:
 	 * @param myPos				- This item's position in the cell
 	 * @param amountRestored	- The amount of stamina this item restores
 	 */
-	ItemStaticStamina(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', static_cast<WinAPI::color>(BACKGROUND_GREEN), "Restore Health", 1, myPos), _amount(amountRestored) {}
+	ItemStaticStamina(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', BACKGROUND_GREEN, "Restore Health", 1, myPos), _amount(amountRestored) {}
 
 	/**
 	 * ItemStaticStamina(Coord&, int, vector<FACTION>)
@@ -310,7 +305,7 @@ public:
 	 * @param amountRestored	- The amount of stamina this item restores
 	 * @param lockToFaction		- Vector of factions allowed to use this item
 	 */
-	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', WinAPI::color::b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 
 #pragma region DEFAULT
 	// Default constructors/destructor/operators

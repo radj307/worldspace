@@ -7,19 +7,25 @@
 #include <cmath>
 #include <exception>
 
+#include "sysapi.h"
+
+/**
+ * struct Coord
+ * @brief Wrapper for a location in a matrix, with an X & Y index.
+ */
 struct Coord {
 	long _y{};	// VERTICAL
 	long _x{};	// HORIZONTAL
+	
 	/** CONSTRUCTOR **
 	 * Coord(long, long)
-	 *
-	 * @param x	- X-axis index.
-	 * @param y	- Y-axis index.
+	 * @param x	- X-axis (horizontal) index.
+	 * @param y	- Y-axis (vertical) index.
 	 */
 	Coord(const long x, const long y) : _y(y), _x(x) {}
 	/**
 	 * Coord()
-	 * @brief Default constructor with uninitialized values.
+	 * @brief Default constructor.
 	 */
 	Coord() = default;
 
@@ -39,42 +45,53 @@ struct Coord {
 	}
 };
 
+// Add an overload to the cursorPos function so Coord can be passed as parameter:
+namespace sys {
+	/**
+	 * cursorPos(COORD)
+	 * @brief Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
+	 * @param pos		- Target position, measured in characters of the screen buffer
+	 * @returns bool	- ( true = success ) ( false = failed )
+	 */
+	inline bool cursorPos(const Coord pos)
+	{
+		return cursorPos(pos._x, pos._y);
+	}
+}
+
 /** FUNCTOR **
  * struct checkDistance
  * @brief Returns the distance between 2 given points. This functor does not have a constructor.
  */
-struct checkDistance {
+struct checkDistance final {
 	/**
-	 * get_circle(Coord&, Coord&, int)
+	 * get(Coord&, Coord&, int)
 	 * @brief Returns true if a given coordinate is within a circular radius of a given point
-	 *
 	 * @param pos		- The point to check
 	 * @param center	- The centerpoint of the circle
 	 * @param radius	- The radius of the circle
 	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
 	 */
-	static bool get_circle(const Coord& pos, const Coord& center, const int radius)
+	static bool get(const Coord& pos, const Coord& center, const int radius)
 	{
 		return (pos._x - center._x) * (pos._x - center._x) + (pos._y - center._y) * (pos._y - center._y) <= radius * radius;
 	}
 	/**
-	 * get_circle(Coord&, Coord&, int)
+	 * get(Coord&, Coord&, int)
 	 * @brief Returns true if a given coordinate is within a circular radius of a given point
-	 *
 	 * @param posX		- The X-axis index of the point to check
 	 * @param posY		- The Y-axis index of the point to check
 	 * @param center	- The centerpoint of the circle
 	 * @param radius	- The radius of the circle
 	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
 	 */
-	static bool get_circle(const int posX, const int posY, const Coord& center, const int radius)
+	static bool get(const int posX, const int posY, const Coord& center, const int radius)
 	{
 		return (posX - center._x) * (posX - center._x) + (posY - center._y) * (posY - center._y) <= radius * radius;
 	}
 	/**
 	 * get(Coord&, Coord&)
 	 * @brief Get the distance between 2 points. Always returns a positive value.
-	 *
 	 * @param pos1	- First position
 	 * @param pos2	- Second position
 	 * @returns long
@@ -86,7 +103,6 @@ struct checkDistance {
 	/**
 	 * get(long, long, long, long)
 	 * @brief Get the distance between 2 points. Always returns a positive value.
-	 *
 	 * @param pos1X - First position's X-axis
 	 * @param pos1Y	- First position's Y-axis
 	 * @param pos2X	- Second position's X-axis
@@ -100,7 +116,6 @@ struct checkDistance {
 	/**
 	 * operator()
 	 * @brief Returns the distance between 2 given points.
-	 *
 	 * @param pos1	- First point
 	 * @param pos2	- Second point
 	 * @returns long
@@ -112,7 +127,6 @@ struct checkDistance {
 	/**
 	 * operator()
 	 * @brief Returns the distance between 2 given points.
-	 *
 	 * @param pos1X	- First point's X (horizontal) index.
 	 * @param pos1Y	- First point's Y (vertical) index.
 	 * @param pos2X	- Second point's X (horizontal) index.
@@ -129,7 +143,7 @@ struct checkDistance {
  * struct checkDistanceFrom
  * @brief Specialized variant of checkDistance that maintains a pointer to a single Coord instance, and checks the distance between it and a given point.
  */
-struct checkDistanceFrom {
+struct checkDistanceFrom final {
 	// member coord pointer to follow, such as the player
 	Coord* _follow{ nullptr };
 

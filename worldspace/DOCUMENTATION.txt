@@ -50,14 +50,8 @@ Worldspace Project
 				->  <checkDistance>			// Functor to find the distance between 2 Coord points
 				->	<checkDistanceFrom>		// Same as above, but contains a pointer to a Coord instance. 
 				->  <checkBounds>			// Functor to check if a given Coord is within a square boundary.
-				
-		"WinAPI.h"
-			->  [WinAPI]					// Namespace containing various windows-specific API functions.
-				->  enum color				// A list of all valid Windows console API colors, for both background & foreground.
-				->  setCursorPos()			// Sets the cursor position in the screen buffer, this is used by the frame buffer.
-				->  visibleCursor()			// Toggles the console cursor's visibility.
-				->  setConsoleColor()		// Sets the color of printed characters in the console.
-				->  cls()					// Replaces the entire screen buffer with space characters.
+			->  [sys]
+				->  <cursorPos>				// Overload sys::cursorPos() to allow Coord as a parameter.
 	}
 	/*| GAME ELEMENTS |*/
 	{

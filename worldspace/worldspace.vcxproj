@@ -168,12 +168,10 @@
     <ClInclude Include="Gamespace.h" />
     <ClInclude Include="cell.h" />
     <ClInclude Include="GameState.h" />
-    <ClInclude Include="INI_Include.h" />
     <ClInclude Include="item.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="settings.h" />
     <ClInclude Include="game_threads.hpp" />
-    <ClInclude Include="WinAPI.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt" />

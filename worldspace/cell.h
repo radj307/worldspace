@@ -5,7 +5,6 @@
  * by radj307
  */
 #pragma once
-//#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -135,14 +134,13 @@ class Cell final {
 	// a matrix of tiles
 	std::vector<std::vector<Tile>> _matrix;
 	bool _vis_all, _vis_wall;
-protected:
 
 	/**
 	 * isAdjacent(Tile::display, Coord&)
-	 * @brief Checks if a tile type
-	 * @param type	- Tile type to check for
-	 * @param pos	- Target position
-	 * @returns bool
+	 * @brief Checks the tiles surrounding a given position for a target type. 
+	 * @param type	 - Tile type to check for
+	 * @param pos	 - Target position
+	 * @returns bool - ( true = At least one of the surrounding tiles are of the target type. ) ( false = No surrounding tiles are of the target type. )
 	 */
 	bool isAdjacent(const Tile::display type, const Coord& pos)
 	{
@@ -154,8 +152,8 @@ protected:
 	}
 
 	/**
-	 * generate(bool, bool)
-	 * Generates the tile matrix using RNG
+	 * generate()
+	 * @brief Generates the tile matrix using RNG
 	 */
 	void generate()
 	{
@@ -188,12 +186,11 @@ public:
 	// The Cell's Vertical & Horizontal size as a Coord
 	const Coord _max;
 	// Functor that checks if a given tile is within the cell boundaries
-	checkBounds isValidPos; // function syntax is used to emulate a member function
+	const checkBounds isValidPos; // function syntax is used to emulate a member function
 
 	/** CONSTRUCTOR **
 	 * Cell(Coord, bool)
-	 * Generate a new cell with the given size parameters. Minimum size is 10x10
-	 *
+	 * @brief Generate a new cell with the given size parameters. Minimum size is 10x10
 	 * @param cellSize				- The size of the cell
 	 * @param makeWallsVisible		- walls are always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
@@ -202,22 +199,20 @@ public:
 
 	/** CONSTRUCTOR **
 	 * Cell(string, bool)
-	 * Load a cell from a specified file
-	 *
+	 * @brief Load a cell from a specified file
 	 * @param filename				- Target file to load, must be formatted correctly or '?' tiles will appear.
 	 * @param makeWallsVisible		- walls always visible
 	 * @param override_known_tiles	- When true, all tiles will be visible to the player from the start.
 	 */
 	explicit Cell(const std::string& filename, const bool makeWallsVisible = true, const bool override_known_tiles = false) : _matrix(importMatrix(filename, makeWallsVisible, override_known_tiles)), _vis_all(override_known_tiles), _vis_wall(makeWallsVisible), _max(static_cast<long>(_matrix.at(0).size() - 1), static_cast<long>(_matrix.size() - 1)), isValidPos(_max) {}
 
-	  /**
-	   * getDisplayChar(Coord)
-	   * Returns the display character of a given tile
-	   *
-	   * @param pos	 - Target position
-	   * @returns char - ( ' ' for invalid position )
-	   */
-	char getDisplayChar(const Coord& pos)
+	/**
+	 * getChar(Coord&)
+	 * @brief Returns the display character of a given tile
+	 * @param pos	 - Target position
+	 * @returns char - ( ' ' for invalid position )
+	 */
+	char getChar(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
 			return static_cast<char>(get(pos)._display);
@@ -226,8 +221,7 @@ public:
 
 	/**
 	 * modVis(bool)
-	 * Modifies the visibility of all tiles in the cell.
-	 *
+	 * @brief Modifies the visibility of all tiles in the cell.
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 */
 	void modVis(const bool to)
@@ -242,6 +236,13 @@ public:
 				}
 	}
 
+	/**
+	 * modVis(bool, long, long)
+	 * @brief Modifies the visibility of a given tile
+	 * @param to		- ( true = visible ) ( false = invisible )
+	 * @param X			- X-axis (horizontal) index.
+	 * @param Y			- Y-axis (vertical) index.
+	 */
 	void modVis(const bool to, const long X, const long Y)
 	{
 		if ( isValidPos(X,Y) ) {
@@ -253,9 +254,8 @@ public:
 	}
 
 	/**
-	 * modVis(bool, Coord, const int)
+	 * modVis(bool, Coord, int)
 	 * @brief Modifies the visibility of a square area around a given center-point in the cell.
-	 *
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
 	 * @param radius	- The distance away from the center-point that will also be discovered.
@@ -271,7 +271,6 @@ public:
 	/**
 	 * modVis(bool, Coord, const int)
 	 * @brief Modifies the visibility of a circular area around a given center-point in the cell.
-	 *
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param pos		- The center-point
 	 * @param radius	- The distance away from the center-point that will also be discovered.
@@ -281,14 +280,13 @@ public:
 		if ( !_vis_all || to )
 			for ( int y = pos._y - radius; y <= pos._y + radius; y++ )
 				for ( int x = pos._x - radius; x <= pos._x + radius; x++ )
-					if ( checkDistance::get_circle(x, y, pos, radius) )
+					if ( checkDistance::get(x, y, pos, radius) )
 						modVis(to, x, y);
 	}
 
 	/**
 	 * modVis(bool, Coord, Coord)
-	 * Modifies the visibility of a specified area in the cell.
-	 *
+	 * @brief Modifies the visibility of a specified area in the cell.
 	 * @param to		- ( true = visible ) ( false = invisible )
 	 * @param minPos	- The top-left corner of the target area
 	 * @param maxPos	- The bottom-right corner of the target area
@@ -303,8 +301,7 @@ public:
 
 	/**
 	 * sstream()
-	 * Returns the entire matrix as a stringstream for file export/import
-	 *
+	 * @brief Returns the entire matrix as a stringstream for file export/import
 	 * @returns stringstream
 	 */
 	std::stringstream sstream()
@@ -319,8 +316,7 @@ public:
 
 	/**
 	 * get(Coord, const bool)
-	 * Returns a reference to the target tile.
-	 *
+	 * @brief Returns a reference to the target tile.
 	 * @param pos			- The target tile
 	 */
 	Tile &get(const Coord& pos)
@@ -332,8 +328,7 @@ public:
 
 	/**
 	 * get(Coord, const bool)
-	 * Returns a reference to the target tile.
-	 *
+	 * @brief Returns a reference to the target tile.
 	 * @param x				- The target tile's x index
 	 * @param y				- The target tile's y index
 	 */
@@ -345,12 +340,11 @@ public:
 	}
 
 	/**
-	 * exportCell(string)
-	 * Exports this cell to a file.
-	 *
+	 * exportToFile(string)
+	 * @brief Exports this cell to a file.
 	 * @param filename	- The name of the output file
 	 * @param saveAs	- Whether to overwrite or append to file if it already exists.
-	 * @returns bool	- true when successful, false when failed.
+	 * @returns bool	- ( true = success ) ( false = failed )
 	 */
 	bool exportToFile(const std::string& filename, file::save_type saveAs = file::save_type::overwrite)
 	{
