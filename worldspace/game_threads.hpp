@@ -15,7 +15,7 @@
 #include "termcolor/termcolor.hpp"
 
 namespace game {
-	typedef std::chrono::high_resolution_clock CLK;	
+	typedef std::chrono::high_resolution_clock CLK;
 	using namespace std::chrono_literals;			// for s, ms, etc.
 	namespace _internal {
 		static const int
