@@ -11,6 +11,7 @@
 #include <thread>	// for threads
 
 #include "FrameBuffer.h"
+#include "INI.hpp"
 #include "sys.h"
 #include "termcolor/termcolor.hpp"
 
@@ -23,9 +24,19 @@ namespace game {
 			PLAYER_LOSE_CODE{ 0 }, // Player loses when this code is set
 			PLAYER_QUIT_CODE{ -1 }, // Player quit when this code is set
 			GAME_EXCEPTION_CODE{ 2 }; // An exception was thrown
+
+		constexpr auto getFrametime(const unsigned int fps) { return std::chrono::milliseconds(1000) / fps; }
+		constexpr auto getNPCClock(const unsigned int fps) { return fps * std::chrono::milliseconds(3); }
 		
-		static const unsigned int __FPS_TARGET{ 75 }; // target framerate
-		static const auto __FRAMETIME{ 1000ms / __FPS_TARGET }, __NPC_CLOCK{ __FPS_TARGET * 3ms }; // frametime to achieve that framerate
+		static unsigned int __FPS_TARGET; // target framerate
+		static std::chrono::duration<float> __FRAMETIME, __NPC_CLOCK; 
+
+		inline void setFramerate(const unsigned int newFramerate)
+		{
+			__FPS_TARGET = newFramerate;
+			__FRAMETIME = getFrametime(__FPS_TARGET);
+			__NPC_CLOCK = getNPCClock(__FPS_TARGET);
+		}
 		
 		// Shared Memory Object
 		struct memory {
@@ -225,19 +236,35 @@ namespace game {
 	 * game_start(GLOBAL&)
 	 * @brief Starts the game threads and returns once the game is over.
 	 *
-	 * @param settings	- The list of global settings parsed from the commandline
 	 * @returns bool	- ( true = game exited normally ) ( false = player pressed the quit button )
 	 */
-	inline bool start(const GLOBAL& settings)
+	inline bool start()
 	{
+		// read from INI file
+		INI cfg("config.ini");
+
+		// Set the framerate
+		_internal::setFramerate(static_cast<unsigned>(cfg.get<int>("display", "framerate", INI::stoi)));
+
+		// init controlset
+		CONTROLS controlSet(
+			cfg.get("controls", "key_up").at(0), 
+			cfg.get("controls", "key_down").at(0), 
+			cfg.get("controls", "key_left").at(0), 
+			cfg.get("controls", "key_right").at(0), 
+			cfg.get("controls", "key_pause").at(0), 
+			cfg.get("controls", "key_quit").at(0)
+		);
+		__controlset = &controlSet;
+		
+		// Create ruleset
+		GameRules rules(cfg);
+		
 		// instantiate shared memory
 		_internal::memory mem;
 
 		// create a mutex to prevent critical section overlap
 		std::mutex mutx;
-
-		// Create ruleset
-		GameRules rules(settings);
 
 		// Create gamespace with ruleset
 		Gamespace thisGame(rules);

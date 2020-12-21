@@ -1,6 +1,7 @@
 #pragma once
+#include <chrono>
 #include "actor.h"
-#include "settings.h"
+#include "INI.hpp"
 
 /**
  * struct GameRules
@@ -111,20 +112,44 @@ public:
 
 	/**
 	 * GameRules(GLOBAL&)
-	 * @brief Construct a GameRules instance from a GLOBAL settings instance.
-	 * @param settings	- Ref to a GLOBAL instance containing parsed commandline settings
+	 * @brief Construct a GameRules instance from an INI file.
+	 * @param cfg	- Ref to an INI instance.
 	 */
-	explicit GameRules(const GLOBAL& settings) : _override_known_tiles(settings._override_known_tiles), _world_import_file(settings._import_filename), _cellSize(settings._cellSize), _player_godmode(settings._player_godmode), _regen_timer(settings._regen_timer)
+	explicit GameRules(INI& cfg) :
+		_walls_always_visible(cfg.get<bool>("world", "showAllWalls", INI::stoi)),
+		_override_known_tiles(cfg.get<bool>("world", "showAllTiles", INI::stoi)),
+		_dark_mode(cfg.get<bool>("world", "fogOfWar", INI::stoi)),
+		_world_import_file(cfg.get("world", "importFromFile")),
+		_cellSize({cfg.get<long>("world", "sizeH", INI::stol), cfg.get<long>("world", "sizeV", INI::stol) }),
+		_trap_dmg(cfg.get<int>("world", "trapDamage", INI::stoi)),
+		_trap_percentage(cfg.get<bool>("world", "trapDamageIsPercentage", INI::stoi)),
+		_attack_cost_stamina(cfg.get<int>("actors", "attackCostStamina", INI::stoi)),
+		_attack_block_chance(cfg.get<float>("actors", "attackBlockChance", INI::stof)),
+		_attack_miss_chance_full(cfg.get<float>("actors", "attackMissChanceFull", INI::stof)),
+		_attack_miss_chance_drained(cfg.get<float>("actors", "attackMissChanceDrained", INI::stof)),
+		_player_godmode(cfg.get<bool>("player", "godmode", INI::stoi)),
+		_npc_move_chance(cfg.get<float>("actors", "npcMoveChance", INI::stof)),
+		_npc_move_chance_aggro(cfg.get<float>("actors", "npcMoveChanceAggro", INI::stof)),
+		_npc_vis_mod_aggro(cfg.get<int>("actors", "npcVisModAggro", INI::stoi)),
+		_enemy_count(cfg.get<int>("enemy", "count", INI::stoi)),
+		_enemy_aggro_distance(cfg.get<int>("enemy", "aggroDistance", INI::stoi)),
+		_neutral_count(cfg.get<int>("neutral", "count", INI::stoi)),
+		_regen_timer(cfg.get<int>("actors", "regen_time", INI::stoi)),
+		_regen_health(cfg.get<int>("actors", "regen_health", INI::stoi)),
+		_regen_stamina(cfg.get<int>("actors", "regen_stamina", INI::stoi)),
+		_level_up_kills(cfg.get<int>("player", "levelKillThreshold", INI::stoi)),
+		_level_up_mult(cfg.get<int>("player", "levelKillMult", INI::stoi)),
+		_level_up_restore_percent(cfg.get<int>("player", "levelRestorePercent", INI::stoi))
 	{
 		// Set player stats
-		if ( !settings._player_name.empty() )		// Check name
-			_player_template._name = settings._player_name;
-		if ( settings._player_health != NOT_SET )	// Check health
-			_player_template._stats.setMaxHealth(settings._player_health);
-		if ( settings._player_stamina != NOT_SET )	// Check stamina
-			_player_template._stats.setMaxStamina(settings._player_stamina);
-		if ( settings._player_damage != NOT_SET )	// Check damage
-			_player_template._stats.setMaxDamage(settings._player_damage);
+		if ( !cfg.get("player", "name").empty() )		// Check name
+			_player_template._name = cfg.get("player", "name");
+		if ( !cfg.get("player", "health").empty() )	// Check health
+			_player_template._stats.setMaxHealth(cfg.get<int>("player", "health", INI::stoi));
+		if ( !cfg.get("player", "stamina").empty() )	// Check stamina
+			_player_template._stats.setMaxStamina(cfg.get<int>("player", "stamina", INI::stoi));
+		if ( !cfg.get("player", "damage").empty() )	// Check damage
+			_player_template._stats.setMaxDamage(cfg.get<int>("player", "damage", INI::stoi));
 	}
 
 	// Default constructor

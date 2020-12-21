@@ -1,35 +1,10 @@
 #pragma once
-#include <chrono>
-#include <string>
-#include "Coord.h"
-
-static const int NOT_SET = -1; // Unset value used for checking if variables should be used. (Equal to -1)
-
-/**
- * struct GLOBAL
- * Contains all global settings, and derived world attribute settings.
- */
-struct GLOBAL {
-	// WORLD ATTRIBUTES & PARAMETERS
-	Coord _cellSize{ 30, 30 };				// Defines the size of a cell
-	bool _override_known_tiles{ false };	// When true, the player can always see all tiles.
-	std::string _import_filename{};		// When not blank, the cell will be loaded from the filename defined here.
-
-	// GAME PARAMETERS
-	std::chrono::seconds _regen_timer{ 2 };
-	
-	// PLAYER ATTRIBUTES
-	std::string _player_name{};
-	int _player_health{ NOT_SET }, _player_stamina{ NOT_SET }, _player_damage{ NOT_SET };
-	bool _player_godmode{ false };
-};
-
 /**
  * struct CONTROLS
  */
 struct CONTROLS {
 	// PLAYER CONTROLS
-	const char _KEY_UP, _KEY_DOWN, _KEY_LEFT, _KEY_RIGHT, _KEY_PAUSE, _KEY_QUIT;
+	char _KEY_UP, _KEY_DOWN, _KEY_LEFT, _KEY_RIGHT, _KEY_PAUSE, _KEY_QUIT;
 
 	/**
 	 * CONTROLS(char, char, char, char, char, char)

@@ -16,7 +16,6 @@
 #include "opt.h"
 
 inline bool prompt_restart(Coord textPos = Coord(5, 6));
-inline GLOBAL interpret(int argc, char* argv[]);
 
 /**
  * main(const int, char*[])
@@ -27,10 +26,8 @@ inline GLOBAL interpret(int argc, char* argv[]);
 int main(const int argc, char* argv[])
 {
 	try {
-		// Interpret commandline arguments as a GLOBAL settings instance
-		const auto settings{ interpret(argc, argv) };
 		// Keep starting the game until the player doesn't press restart
-		do if ( !game::start(settings) ) break; while ( prompt_restart() );
+		do if ( !game::start() ) break; while ( prompt_restart() );
 		// Return a success code
 		return 0;
 	} catch ( std::exception& ex ) {
@@ -81,70 +78,4 @@ inline bool prompt_restart(const Coord textPos)
 	sys::cursorPos(textPos); // clear text
 	std::cout << "                            " << std::endl << "                                 " << std::endl << "                             " << std::endl << "                              " << std::endl;
 	return false;
-}
-
-/**
- * GLOBAL interpret(int, const char*[])
- * Returns a GLOBALS instance with parsed command line arguments
- *
- * @param argc	- From main()
- * @param argv	- From main()
- * @returns GLOBAL
- */
-inline GLOBAL interpret(const int argc, char* argv[])
-{
-	GLOBAL glob;
-	opt::list args(argc, argv, "world:,file:,player:");
-	for ( auto& _command : args._commands ) {
-		// "-world <arg>"
-		if ( _command.checkName("world") && _command._hasArg ) {
-			// "-world showalltiles"
-			if ( _command.checkArg("showalltiles") ) {
-				glob._override_known_tiles = true;
-			}
-			// "-world size=XX:XX"
-			else if ( _command._arg.size() >= 8 && _command._arg.substr(0, _command._arg.find('=')) == "size" ) {
-				if ( _command._arg.find(':') != std::string::npos ) {
-					auto str{ (_command._arg.substr(_command._arg.find('=') + 1, _command._arg.size())) };
-					try {
-						const auto index_of_colon{ str.find(':') };
-						glob._cellSize = Coord(std::stoi(str.substr(0, index_of_colon)), std::stoi(str.substr(index_of_colon + 1)));
-					} catch ( std::exception &ex ) {
-						msg(sys::warning, "Argument for world size threw exception: " + std::string(ex.what()));
-					}
-				}
-			}
-		}
-		// "-file <arg>"
-		else if ( _command.checkName("file") && _command._hasArg )
-			glob._import_filename = _command._arg;
-		// "-player <arg>"
-		else if ( _command.checkName("player") && _command._hasArg ) {
-			// Check complex arguments
-			const auto index{ _command._arg.find('=') };
-			if ( index != std::string::npos ) {
-				auto arg{ _command._arg.substr(0, index) };
-				try {
-					if ( arg == "health" )
-						glob._player_health = std::stoi(_command._arg.substr(index + 1));
-					else if ( arg == "stamina" )
-						glob._player_stamina = std::stoi(_command._arg.substr(index + 1));
-					else if ( arg == "damage" )
-						glob._player_damage = std::stoi(_command._arg.substr(index + 1));
-					else if ( arg == "name" )
-						glob._player_name = _command._arg.substr(index + 1);
-				} catch ( std::exception & ex ) {
-					sys::msg(sys::warning, "Argument for player statistic \"" + arg + "\" threw exception: \"" + std::string(ex.what()) + "\"");
-				}
-			}
-			// Check simple arguments
-			else {
-				if ( _command.checkArg("godmode") )
-					glob._player_godmode = true;
-				// other simple arguments go here
-			}
-		}
-	}
-
-	return glob;
 }
