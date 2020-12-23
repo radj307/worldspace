@@ -8,14 +8,12 @@
 		Add a "Killed by <name>" line to the game over screen
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
 		Use the get() function to output localized flares rather than full-screen ones.
-
-	bug: (Possibly fixed) When an NPC's target is erased, occasionally the NPC does not remove this target.
-	bug: When a flare is activated while another flare is currently displaying, neither are cleared correctly.
  */
 #include "game_threads.hpp"
 #include "opt.h"
 
 inline bool prompt_restart(Coord textPos = Coord(5, 6));
+inline std::vector<std::string> interpret(int argc, char* argv[]);
 
 /**
  * main(const int, char*[])
@@ -27,7 +25,7 @@ int main(const int argc, char* argv[])
 {
 	try {
 		// Keep starting the game until the player doesn't press restart
-		do if ( !game::start() ) break; while ( prompt_restart() );
+		do if ( !game::start(interpret(argc, argv)) ) break; while ( prompt_restart() );
 		// Return a success code
 		return 0;
 	} catch ( std::exception& ex ) {
@@ -78,4 +76,20 @@ inline bool prompt_restart(const Coord textPos)
 	sys::cursorPos(textPos); // clear text
 	std::cout << "                            " << std::endl << "                                 " << std::endl << "                             " << std::endl << "                              " << std::endl;
 	return false;
+}
+
+inline std::vector<std::string> interpret(const int argc, char* argv[])
+{
+	opt::list args(argc, argv, "ini:");
+	std::vector<std::string> ini_filelist{};
+	for ( auto& it : args._commands )
+		if ( it._hasArg && it.checkName("ini") )
+			ini_filelist.push_back(it._arg);
+
+#ifdef _DEBUG
+	if ( ini_filelist.empty() )
+		ini_filelist = { "config.ini", "actor_templates.ini" };
+#endif
+	
+	return ini_filelist;
 }

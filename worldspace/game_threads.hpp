@@ -238,10 +238,10 @@ namespace game {
 	 *
 	 * @returns bool	- ( true = game exited normally ) ( false = player pressed the quit button )
 	 */
-	inline bool start()
+	inline bool start(const std::vector<std::string>& INI_Files)
 	{
 		// read from INI file
-		INI cfg("config.ini");
+		INI cfg(INI_Files);
 
 		// Set the framerate
 		_internal::setFramerate(static_cast<unsigned>(cfg.get<int>("display", "framerate", INI::stoi)));
@@ -259,7 +259,7 @@ namespace game {
 		
 		// Create ruleset
 		GameRules rules(cfg);
-		
+
 		// instantiate shared memory
 		_internal::memory mem;
 

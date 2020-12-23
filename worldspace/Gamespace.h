@@ -39,13 +39,12 @@ class Gamespace final {
 	std::vector<ItemStaticStamina> _item_static_stamina;
 
 	// Declare Flare instances
-	FlareClear _FLARE_DEF_CLEAR;
+	std::vector<Flare*> _FLARE_QUEUE{};
 	FlareLevel _FLARE_DEF_LEVEL;			// Flare used when the player levels up
 	FlareChallenge _FLARE_DEF_CHALLENGE;	// Flare used when the final challenge mode begins
-	Flare* _flare;	// Pointer to one of the above instances, this should only be accessed through the flare functions.
 
 
-	bool changeFlare(Flare& newFlare);
+	void addFlare(Flare& newFlare);
 	[[nodiscard]] Coord findValidSpawn(bool isPlayer = false, bool checkForItems = true);
 	template<typename Actor> [[nodiscard]] std::vector<Actor> generate_NPCs(int count, std::vector<ActorTemplate>& templates);
 	template<typename Item> [[nodiscard]] std::vector<Item> generate_items(int count, bool lockToPlayer = false);

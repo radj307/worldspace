@@ -24,8 +24,8 @@ public:
 	bool
 		_walls_always_visible{ true },		// When true, wall tiles are always visible to the player.
 		_override_known_tiles{ false },		// When true, the player can always see all tiles. Disables dark mode.
-		_dark_mode{ true };					// When true, the player can only see the area around them.
-	std::string _world_import_file{};		// The game will attempt to load cell from this file. If blank, generates a new cell.
+		_dark_mode{ false };					// When true, the player can only see the area around them.
+	std::string _world_import_file;		// The game will attempt to load cell from this file. If blank, generates a new cell.
 	Coord _cellSize{ 30, 30 };				// If no filename is set, this is the size of the generated cell
 
 	// TRAPS
@@ -57,7 +57,7 @@ public:
 	// ENEMIES
 	int
 		_enemy_count{ 20 },					// how many enemies are present when the game starts
-		_enemy_aggro_distance{ 3 };			// Determines from how far away enemies notice the player and become aggressive
+		_enemy_aggro_distance{ 2 };			// Determines from how far away enemies notice the player and become aggressive
 	// ActorStats((Level), (Health), (Stamina), (Damage), (Visibility)), (Character), (Color), (Hostile factions), (Max aggression val in move cycles), (Chance to spawn))
 	// Chance to spawn is calculated starting at the end of the list, so the first template should have a chance of 100
 	std::vector<ActorTemplate> _enemy_template{		// Enemy templates, aka default values for enemy types.
@@ -111,23 +111,49 @@ public:
 #pragma endregion FLARE
 
 	/**
+	 * buildTemplate(INI&, string&)
+	 * @brief Builds an ActorTemplate from the specified INI section.
+	 * @param target	- Ref of the target template instance.
+	 * @param cfg		- Ref to the INI instance
+	 * @param section	- INI section name containing variables
+	 */
+	static void buildTemplate(ActorTemplate& target, INI& cfg, const std::string& section)
+	{
+		if ( cfg.isSection(section) ) {
+			target = {
+				cfg.get(section, "name"),
+				ActorStats(cfg.get<int>(section, "level", INI::stoi),
+				cfg.get<int>(section, "health", INI::stoi),
+				cfg.get<int>(section, "stamina", INI::stoi),
+				cfg.get<int>(section, "damage", INI::stoi),
+				cfg.get<int>(section, "visRange", INI::stoi)),
+				cfg.get(section, "char").at(0),
+				Color::stoc(cfg.get(section, "color")),
+				strToFactionList(cfg.get(section, "hostileTo")),
+				cfg.get<int>(section, "maxAggro", INI::stoi),
+				cfg.get<float>(section, "spawnChance", INI::stof)
+			};
+		} // else do nothing
+	}
+	
+	/**
 	 * GameRules(GLOBAL&)
 	 * @brief Construct a GameRules instance from an INI file.
 	 * @param cfg	- Ref to an INI instance.
 	 */
 	explicit GameRules(INI& cfg) :
-		_walls_always_visible(cfg.get<bool>("world", "showAllWalls", INI::stoi)),
-		_override_known_tiles(cfg.get<bool>("world", "showAllTiles", INI::stoi)),
-		_dark_mode(cfg.get<bool>("world", "fogOfWar", INI::stoi)),
+		_walls_always_visible(cfg.get<bool>("world", "showAllWalls", INI::stob)),
+		_override_known_tiles(cfg.get<bool>("world", "showAllTiles", INI::stob)),
+		_dark_mode(cfg.get<bool>("world", "fogOfWar", INI::stob)),
 		_world_import_file(cfg.get("world", "importFromFile")),
 		_cellSize({cfg.get<long>("world", "sizeH", INI::stol), cfg.get<long>("world", "sizeV", INI::stol) }),
 		_trap_dmg(cfg.get<int>("world", "trapDamage", INI::stoi)),
-		_trap_percentage(cfg.get<bool>("world", "trapDamageIsPercentage", INI::stoi)),
+		_trap_percentage(cfg.get<bool>("world", "trapDamageIsPercentage", INI::stob)),
 		_attack_cost_stamina(cfg.get<int>("actors", "attackCostStamina", INI::stoi)),
 		_attack_block_chance(cfg.get<float>("actors", "attackBlockChance", INI::stof)),
 		_attack_miss_chance_full(cfg.get<float>("actors", "attackMissChanceFull", INI::stof)),
 		_attack_miss_chance_drained(cfg.get<float>("actors", "attackMissChanceDrained", INI::stof)),
-		_player_godmode(cfg.get<bool>("player", "godmode", INI::stoi)),
+		_player_godmode(cfg.get<bool>("player", "godmode", INI::stob)),
 		_npc_move_chance(cfg.get<float>("actors", "npcMoveChance", INI::stof)),
 		_npc_move_chance_aggro(cfg.get<float>("actors", "npcMoveChanceAggro", INI::stof)),
 		_npc_vis_mod_aggro(cfg.get<int>("actors", "npcVisModAggro", INI::stoi)),
@@ -150,6 +176,15 @@ public:
 			_player_template._stats.setMaxStamina(cfg.get<int>("player", "stamina", INI::stoi));
 		if ( !cfg.get("player", "damage").empty() )	// Check damage
 			_player_template._stats.setMaxDamage(cfg.get<int>("player", "damage", INI::stoi));
+
+		buildTemplate(_player_template, cfg, "template_player");
+		buildTemplate(_enemy_template.at(0), cfg, "template_enemy1");
+		buildTemplate(_enemy_template.at(1), cfg, "template_enemy2");
+		buildTemplate(_enemy_template.at(2), cfg, "template_enemy3");
+		buildTemplate(_enemy_template.at(3), cfg, "template_enemy4");
+		buildTemplate(_neutral_template.at(0), cfg, "template_neutral1");
+		buildTemplate(_neutral_template.at(1), cfg, "template_neutral2");
+		buildTemplate(_neutral_template.at(2), cfg, "template_neutral3");
 	}
 
 	// Default constructor

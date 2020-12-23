@@ -7,7 +7,7 @@
  *
  * @param ruleset	 - A ref to the ruleset structure
  */
-Gamespace::Gamespace(GameRules& ruleset) : _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles } : Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max), _flare(nullptr)
+Gamespace::Gamespace(GameRules& ruleset) : _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles } : Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max)
 {
 	_hostile = (generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template));
 	_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
@@ -368,8 +368,7 @@ void Gamespace::level_up(ActorBase* a)
 		// If actor who leveled up is the player
 		if ( a->faction() == FACTION::PLAYER ) {
 			regen(&*a, _ruleset._level_up_restore_percent);
-			if ( _flare == nullptr )
-				changeFlare(_FLARE_DEF_LEVEL);
+			addFlare(_FLARE_DEF_LEVEL);
 		}
 	}
 }
@@ -679,10 +678,9 @@ bool Gamespace::actionNPC(NPC* npc)
 void Gamespace::actionAllNPC()
 {
 	// Check if the final challenge should be triggered
-	if ( trigger_final_challenge(_hostile.size()) && (!_game_state._final_challenge.load() || !_game_state._final_challenge_flare_complete.load()) ) {
+	if ( trigger_final_challenge(_hostile.size()) && !_game_state._final_challenge.load()) {
 		_game_state._final_challenge.store(true);
-		if ( changeFlare(_FLARE_DEF_CHALLENGE) )
-			_game_state._final_challenge_flare_complete.store(true);
+		addFlare(_FLARE_DEF_CHALLENGE);
 	}
 	// Perform all NPC actions.
 	apply_to_npc(&Gamespace::actionNPC);
@@ -748,17 +746,9 @@ void Gamespace::cleanupDead()
  *
  * @param newFlare	- A new flare instance.
  */
-bool Gamespace::changeFlare(Flare& newFlare)
+void Gamespace::addFlare(Flare& newFlare)
 {
-	if ( _flare == nullptr ) {
-		_flare = &newFlare;
-		return true;
-	}
-	if ( _flare == &_FLARE_DEF_CLEAR && _flare->time() != 0 )
-		return false;
-	_flare->reset();
-	_flare = &newFlare;
-	return true;
+	_FLARE_QUEUE.push_back(&newFlare);
 }
 
 /**
@@ -767,7 +757,7 @@ bool Gamespace::changeFlare(Flare& newFlare)
  *
  * @returns Flare*	- Pointer to the currently active flare.
  */
- Flare* Gamespace::getFlare() const { return _flare; }
+ Flare* Gamespace::getFlare() const { return !_FLARE_QUEUE.empty() ? _FLARE_QUEUE.at(0) : nullptr; }
 
 /**
  * resetFlare()
@@ -775,10 +765,9 @@ bool Gamespace::changeFlare(Flare& newFlare)
  */
 void Gamespace::resetFlare()
 {
-	// if flare is already reset
-	if ( _flare != nullptr && (_flare != &_FLARE_DEF_CLEAR || _flare->time() == 0) ) {
-		_flare->reset(); // reset the flare instance
-		_flare = nullptr;// set the flare pointer to nullptr
-	}
+	if ( !_FLARE_QUEUE.empty() ) {
+		_FLARE_QUEUE.at(0)->reset();
+		_FLARE_QUEUE.erase(_FLARE_QUEUE.begin());
+	} // else do nothing
 }
 #pragma endregion				GAME_FLARE

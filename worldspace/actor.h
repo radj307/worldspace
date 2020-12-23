@@ -5,6 +5,7 @@
  * by radj307
  */
 #pragma once
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,23 @@ enum class FACTION {
 	NEUTRAL = 2,// neutral actor has faction #2
 	NONE = 3,	// actors cannot be members of this faction, but it can be used to create passive NPCs
 };
+
+static std::vector<FACTION> strToFactionList(const std::string& str)
+{
+	std::stringstream ss{ str };
+	std::vector<FACTION> factionList{};
+	for ( std::string _str{}; std::getline(ss, _str, ','); _str.clear() ) {
+		_str.erase(std::remove_if(_str.begin(), _str.end(), isspace), _str.end());
+		_str.erase(std::remove_if(_str.begin(), _str.end(), ispunct), _str.end());
+		for ( auto& it : _str ) it = static_cast<char>(std::toupper(it));
+		if ( _str == "PLAYER" )		factionList.push_back(FACTION::PLAYER);
+		if ( _str == "ENEMY" )		factionList.push_back(FACTION::ENEMY);
+		if ( _str == "NEUTRAL" )	factionList.push_back(FACTION::NEUTRAL);		
+	}
+	if ( factionList.empty() )
+		factionList.push_back(FACTION::NONE);
+	return factionList;
+}
 
 // Simple struct containing all of the constant base stats of an actor.
 struct ActorMaxStats {
@@ -232,13 +250,13 @@ struct ActorTemplate {
 	std::string _name;
 	ActorStats _stats;
 	char _char;
-	unsigned short _color;
+	SHORT _color;
 	std::vector<FACTION> _hostile_to;
 	int _max_aggression;
 	float _chance;
 
 	/**
-	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
+	 * ActorTemplate(string, ActorStats&, char, SHORT, vector<FACTION>)
 	 * @brief Constructs a human player actor template.
 	 *
 	 * @param templateName	- A name of type string.
@@ -246,9 +264,9 @@ struct ActorTemplate {
 	 * @param templateChar	- A character to represent actors of this type
 	 * @param templateColor	- A color to represent actors of this type
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const unsigned short templateColor) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(0), _chance(100.0f) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const SHORT templateColor) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(0), _chance(100.0f) {}
 	/**
-	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
+	 * ActorTemplate(string, ActorStats&, char, SHORT, vector<FACTION>)
 	 * @brief Constructs a NPC actor template. This template type is used to randomly generate NPCs
 	 *
 	 * @param templateName	- A name of type string.
@@ -259,9 +277,9 @@ struct ActorTemplate {
 	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
 	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const unsigned short templateColor, std::vector<FACTION> hostileTo, const int maxAggro, const float spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro), _chance(spawnChance) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const SHORT templateColor, std::vector<FACTION> hostileTo, const int maxAggro, const float spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _hostile_to(std::move(hostileTo)), _max_aggression(maxAggro), _chance(spawnChance) {}
 	/**
-	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
+	 * ActorTemplate(string, ActorStats&, char, SHORT, vector<FACTION>)
 	 * @brief Constructs a NPC template that is always hostile to all other factions, unless the setRelationship function is used.
 	 *
 	 * @param templateName	- A name of type string.
@@ -271,7 +289,7 @@ struct ActorTemplate {
 	 * @param spawnChance	- The chance that this actor template will be chosen over another. valid: (0-100)
 	 * @param maxAggro		- The number of move cycles passed before this actor loses its target.
 	 */
-	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const unsigned short templateColor, const int maxAggro, const float spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(maxAggro), _chance(spawnChance) {}
+	ActorTemplate(std::string templateName, ActorStats templateStats, const char templateChar, const SHORT templateColor, const int maxAggro, const float spawnChance) : _name(std::move(templateName)), _stats(std::move(templateStats)), _char(templateChar), _color(templateColor), _max_aggression(maxAggro), _chance(spawnChance) {}
 };
 
 #pragma endregion  ACTOR_ATTRIBUTES
@@ -284,7 +302,7 @@ protected:
 	FACTION _faction;		// My faction
 	Coord _pos;				// My position as a coordinate
 	char _char;				// My displayed char
-	unsigned short _color;	// My displayed char's color in the console
+	SHORT _color;	// My displayed char's color in the console
 	std::vector<FACTION> _hostileTo;
 	int _kill_count;
 
@@ -304,7 +322,7 @@ private:
 
 public:
 	/** CONSTRUCTOR **
-	 * ActorBase(FACTION, string, Coord&, char, unsigned short, ActorStats&)
+	 * ActorBase(FACTION, string, Coord&, char, SHORT, ActorStats&)
 	 * @brief Construct an actor from an ActorStats instance.
 	 * @param myFaction	 - My faction / group of actors.
 	 * @param myName	 - My reporting name.
@@ -313,7 +331,7 @@ public:
 	 * @param myColor	 - My character's color when inserted into a stream
 	 * @param myStats	 - My base statistics
 	 */
-	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0) { initHostilities(); }
+	ActorBase(const FACTION myFaction, std::string myName, const Coord& myPos, const char myChar, const SHORT myColor, const ActorStats& myStats) : ActorStats(myStats), _name(std::move(myName)), _faction(myFaction), _pos(myPos), _char(myChar), _color(myColor), _kill_count(0) { initHostilities(); }
 	/** CONSTRUCTOR **
 	 * ActorBase(FACTION, Coord&, ActorTemplate&)
 	 * @brief Construct an actor from a template.
@@ -456,17 +474,17 @@ public:
 	}
 
 	/**
-	 * setColor(unsigned short)
+	 * setColor(SHORT)
 	 * @brief Set this actor's color.
 	 * @param newColor	- New color
 	 */
-	void setColor(const unsigned short newColor) { _color = newColor; }
+	void setColor(const SHORT newColor) { _color = newColor; }
 	/**
 	 * getColor()
 	 * @brief Returns this actor's current display color.
-	 * @returns unsigned short
+	 * @returns SHORT
 	 */
-	[[nodiscard]] unsigned short getColor() const { return _color; }
+	[[nodiscard]] SHORT getColor() const { return _color; }
 	/**
 	 * name()
 	 * @brief Returns this actor's name.
@@ -546,7 +564,7 @@ struct Player final : ActorBase {
 	}
 	
 	/** CONSTRUCTOR **
-	 * Player(FACTION, string, Coord, char, unsigned short, int)
+	 * Player(FACTION, string, Coord, char, SHORT, int)
 	 * This is the base constructor for actor types.
 	 *
 	 * @param myName	- My reporting name.
@@ -555,7 +573,7 @@ struct Player final : ActorBase {
 	 * @param myColor	- My character's color when inserted into a stream
 	 * @param myStats	- My statistics
 	 */
-	Player(const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats
+	Player(const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const ActorStats
 		& myStats) : ActorBase(FACTION::PLAYER, myName, myPos, myChar, myColor, myStats), getDist(_pos) {}
 
 	/**
@@ -654,7 +672,7 @@ public:
 #pragma endregion DEF
 
 	/**
-	 * NPC(FACTION, string&, Coord&, char, unsigned short, ActorStats&, int)
+	 * NPC(FACTION, string&, Coord&, char, SHORT, ActorStats&, int)
 	 *
 	 * @param myFaction		- This NPC's faction
 	 * @param myName		- This NPC's name
@@ -664,9 +682,9 @@ public:
 	 * @param myStats		- This NPC's stats
 	 * @param MAX_AGGRO		- This NPC's maximum aggression value
 	 */
-	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
+	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
 	/**
-	 * NPC(FACTION, string&, Coord&, char, unsigned short, ActorStats&, int)
+	 * NPC(FACTION, string&, Coord&, char, SHORT, ActorStats&, int)
 	 *
 	 * @param myFaction		- This NPC's faction
 	 * @param myPos			- This NPC's position
@@ -889,7 +907,7 @@ public:
 // enemy actor
 struct Enemy final : NPC {
 	/** CONSTRUCTOR **
-	 * Enemy(string, Coord, char, unsigned short, int, int, int, int, int)
+	 * Enemy(string, Coord, char, SHORT, int, int, int, int, int)
 	 * @brief Constructs an enemy with the given parameters.
 	 *
 	 * @param myName	 - My reporting name.
@@ -903,10 +921,10 @@ struct Enemy final : NPC {
 	 * @param myVisRange - My sight range
 	 * @param MAX_AGGRO  - My maximum aggression
 	 */
-	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
+	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
 	
 	/** CONSTRUCTOR **
-	 * Enemy(string, Coord, char, unsigned short, ActorStats&)
+	 * Enemy(string, Coord, char, SHORT, ActorStats&)
 	 * @brief Constructs an enemy from an ActorStats instance.
 	 *
 	 * @param myName	- My reporting name.
@@ -916,7 +934,7 @@ struct Enemy final : NPC {
 	 * @param myStats	- A ref to my base statistics object
 	 * @param MAX_AGGRO	- My maximum aggression
 	 */
-	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats
+	Enemy(const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const ActorStats
 		&
 		myStats, const int MAX_AGGRO) : NPC(FACTION::ENEMY, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
 
@@ -932,7 +950,7 @@ struct Enemy final : NPC {
 // neutral actor
 struct Neutral final : NPC {
 	/** CONSTRUCTOR **
-	 * Neutral(string, Coord, char, unsigned short, int, int, int, int, int)
+	 * Neutral(string, Coord, char, SHORT, int, int, int, int, int)
 	 * @brief Constructs a neutral NPC with the given stats.
 	 * 
 	 * @param myName	 - My reporting name.
@@ -946,10 +964,10 @@ struct Neutral final : NPC {
 	 * @param myVisRange - My sight range
 	 * @param MAX_AGGRO	 - My maximum possible aggression
 	 */
-	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
+	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const int myLevel, const int myHealth, const int myStamina, const int myDamage, const int myVisRange, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, ActorStats(myLevel, myHealth, myStamina, myDamage, myVisRange), MAX_AGGRO) {}
 
 	/** CONSTRUCTOR **
-	 * Neutral(string&, Coord&, char, unsigned short, ActorStats&, int)
+	 * Neutral(string&, Coord&, char, SHORT, ActorStats&, int)
 	 * @brief Constructs a neutral NPC from an ActorStats instance.
 	 *
 	 * @param myName	 - My reporting name.
@@ -959,7 +977,7 @@ struct Neutral final : NPC {
 	 * @param myStats	 - My stat instance
 	 * @param MAX_AGGRO	 - My maximum possible aggression
 	 */
-	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats
+	Neutral(const std::string& myName, const Coord& myPos, const char myChar, const SHORT myColor, const ActorStats
 		& myStats, const int MAX_AGGRO) : NPC(FACTION::NEUTRAL, myName, myPos, myChar, myColor, myStats, MAX_AGGRO) {}
 
 	/** CONSTRUCTOR **

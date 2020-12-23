@@ -92,5 +92,8 @@
     <None Include="config.ini">
       <Filter>0 Utilities &amp; Defaults</Filter>
     </None>
+    <None Include="actor_templates.ini">
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </None>
   </ItemGroup>
 </Project>
