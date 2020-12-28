@@ -210,9 +210,8 @@ struct checkBounds {
 	checkBounds(const long maxPosX, const long maxPosY, const long minPosX = 0, const long minPosY = 0) : _maxPos(maxPosX, maxPosY), _minPos(minPosX, minPosY) {}
 
 	/**
-	 * operator()
+	 * operator()(Coord&)
 	 * @brief Returns true if the given position is within boundaries
-	 *
 	 * @param pos		- Target position to check
 	 * @returns bool
 	 */
@@ -224,16 +223,18 @@ struct checkBounds {
 	}
 
 	/**
-	 * operator()
+	 * operator()(TyX, TyY)
 	 * @brief Returns true if the given position is within boundaries
-	 *
-	 * @param x			- Target X (horizontal) position to check
-	 * @param y			- Target Y (vertical) position to check
+	 * @tparam TyX	- Type of X parameter
+	 * @tparam TyY	- Type of Y parameter
+	 * @param x		- Target X (horizontal) position to check
+	 * @param y		- Target Y (vertical) position to check
 	 * @returns bool
 	 */
-	bool operator()(const long x, const long y) const
+	template<typename TyX, typename TyY>
+	bool operator()(TyX x, TyY y) const
 	{
-		if ( y >= 0 && y < _maxPos._y && (x >= 0 && x < _maxPos._x) )
+		if ( y >= 0 && y < static_cast<TyY>(_maxPos._y) && (x >= 0 && x < static_cast<TyX>(_maxPos._x)) )
 			return true;
 		return false;
 	}

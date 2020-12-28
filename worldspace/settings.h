@@ -1,6 +1,7 @@
 #pragma once
 /**
  * struct CONTROLS
+ * @brief Used to define game key bindings
  */
 struct CONTROLS {
 	// PLAYER CONTROLS
@@ -57,5 +58,5 @@ struct CONTROLS {
 };
 // Default controls instance
 inline CONTROLS _CTRL;
-// Pointer to default controls that can be overridden to modify the control set
-inline CONTROLS* __controlset{ &_CTRL };
+// Pointer used to define the current control set.
+inline CONTROLS* __controlset{ nullptr };

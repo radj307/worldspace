@@ -64,6 +64,9 @@
     <ClInclude Include="GameState.h">
       <Filter>3 Game Operation</Filter>
     </ClInclude>
+    <ClInclude Include="shared.h">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DOCUMENTATION.txt">

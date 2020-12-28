@@ -39,11 +39,14 @@ Worldspace Project
 	[...]		- Represents a namespace.
 	...()		- Represents a function. (Only included if global, or namespace member)
 	enum ...	- Represents an enumerator.
+	var ...		- Represents a variable.
 
 	/*| UTILITIES & DEFAULTS |*/
 	{
 		"settings.h"
-			->  <GLOBAL>					// Global commandline settings & their defaults, as well as world generation defaults.
+			->  <CONTROLS>					// Contains all key bindings
+				->  CONTROLS _CTRL			// Default key bindings
+				->  CONTROLS* __controlset	// A pointer to the current CONTROLS instance.
 
 		"Coord.h"
 			->  <Coord>						// Wrapper for a x/y coordinate
@@ -102,19 +105,31 @@ Worldspace Project
 	}
 	/*| MULTI-THREADING & TASK DELEGATION |*/
 	{
+		"shared.h"
+			->  [game]
+				->  [_internal]
+					->  calcFrametime()		// Calculates the frametime needed to achieve the given framerate.
+					->  setFramerate()		// Sets the target framerate, and sets frametime with calcFrametime()
+					->  setNPCCycle()		// Sets the time between NPC cycles
+					->  <memory>			// Contains all runtime-variables used across multiple threads.
+					
 		"game_threads.hpp"
 			->  [game]						// Namespace containing all high-level game functions & threads.
-				->  start()					// Starts the game threads and returns once they are done.
+				->  start()					// Starts the game threads and returns once they are done. Re-reads INI files each time it is called.
 				->  [_internal]				// Namespace containing all thread functions, the mutex, and shared memory.
 					->  print_game_over()	// Gets the outcome of the game and prints "game over" / "you win" / "you lose"
 					->  thread_player()		// Asyncronous thread for getting player input, and performing player actions.
 					->  thread_npc()		// Asyncronous thread for performing NPC actions.
 					->  thread_display()	// Asyncronous thread for displaying the FrameBuffer to the console.
+					->  initDefaultINI()	// Writes an INI file containing all default values, and comments.
+					->  initRuleset()		// Loads the game ruleset from INI if defined, else uses default.
+					->  initControlSet()	// Loads the control set from INI if defined, else uses _CTRL.
+					->  initTiming()		// Loads the framerate & npc cycle time from INI if defined, else uses 75 & 225 respectively.
 	}
 	/*| MAIN |*/
 	{
 		"main.cpp"
-			->  interpret()					// Interprets commandline arguments from main() and constructs a <GLOBAL> instance.
+			->  interpret()					// Parses commandline-defined INI files, and returns a vector of the filenames.
 			->  prompt_restart()			// Prompts the player to press 'r' to restart, or 'q' to quit
 			->  main()						// Calls interpret(), game::start(), and prompt_restart().
 	}
