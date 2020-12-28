@@ -10,7 +10,7 @@
 		Use the get() function to output localized flares rather than full-screen ones.
  */
 #include "game_threads.hpp"
-#include "opt.h"
+#include "opt.hpp"
 
 inline bool prompt_restart(Coord textPos = Coord(5, 6));
 inline std::vector<std::string> interpret(int argc, char* argv[]);
@@ -82,14 +82,16 @@ inline std::vector<std::string> interpret(const int argc, char* argv[])
 {
 	opt::list args(argc, argv, "ini:");
 	std::vector<std::string> ini_filelist{};
-	for ( auto& it : args._commands )
-		if ( it._hasArg && it.checkName("ini") )
-			ini_filelist.push_back(it._arg);
+
+	for ( auto& [fst, snd] : args.getOptVec() )
+		if ( fst == "ini" )
+			if ( snd.has_value() )
+				ini_filelist.push_back(snd.value());
 
 #ifdef _DEBUG
 	if ( ini_filelist.empty() )
 		ini_filelist = { "config.ini", "actor_templates.ini" };
 #endif
-	
+
 	return ini_filelist;
 }

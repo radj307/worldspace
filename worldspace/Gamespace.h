@@ -43,11 +43,13 @@ class Gamespace final {
 	FlareLevel _FLARE_DEF_LEVEL;			// Flare used when the player levels up
 	FlareChallenge _FLARE_DEF_CHALLENGE;	// Flare used when the final challenge mode begins
 
-
 	void addFlare(Flare& newFlare);
 	[[nodiscard]] Coord findValidSpawn(bool isPlayer = false, bool checkForItems = true);
 	template<typename Actor> [[nodiscard]] std::vector<Actor> generate_NPCs(int count, std::vector<ActorTemplate>& templates);
 	template<typename Item> [[nodiscard]] std::vector<Item> generate_items(int count, bool lockToPlayer = false);
+	template<typename NPC> [[nodiscard]] NPC build_npc(ActorTemplate& actorTemplate);
+	template<typename NPC> [[nodiscard]] NPC build_npc(const Coord& pos, ActorTemplate& actorTemplate);
+	void spawn_boss();
 	void apply_to_all(void (Gamespace::*func)(ActorBase*));
 	void apply_to_npc(void (Gamespace::*func)(NPC*));
 	void apply_to_npc(bool (Gamespace::*func)(NPC*));
@@ -68,10 +70,9 @@ class Gamespace final {
 	[[nodiscard]] constexpr bool trigger_final_challenge(const unsigned int remainingEnemies) const { return remainingEnemies <= _ruleset._enemy_count * _ruleset._challenge_final_trigger_percent / 100; }
 
 public:
-	std::vector<std::vector<bool>> _ACTOR_MAP;
 	// CONSTRUCTOR
 	explicit Gamespace(GameRules& ruleset);
-	
+
 	void actionAllNPC();
 	void actionPlayer(char key);
 	void apply_level_ups();
@@ -83,14 +84,14 @@ public:
 	[[nodiscard]] ItemStaticBase* getItemAt(const Coord& pos);
 	[[nodiscard]] ItemStaticBase* getItemAt(int posX, int posY);
 	[[nodiscard]] Player& getPlayer();
-	[[nodiscard]] Tile& getTile(const Coord& pos);
-	[[nodiscard]] Tile& getTile(int x, int y);
+	[[nodiscard]] Tile* getTile(const Coord& pos);
+	[[nodiscard]] Tile* getTile(int x, int y);
 	[[nodiscard]] Cell& getCell();
 	[[nodiscard]] Coord getCellSize() const;
 	[[nodiscard]] GameRules& getRuleset() const;
 	[[nodiscard]] Flare* getFlare() const;
 	void resetFlare();
-	
+
 	// Contains information about the game outcome.
 	GameState _game_state;
 };
