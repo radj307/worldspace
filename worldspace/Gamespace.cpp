@@ -7,10 +7,10 @@
  *
  * @param ruleset	 - A ref to the ruleset structure
  */
-Gamespace::Gamespace(GameRules& ruleset) : _world(!ruleset._world_import_file.empty() ? Cell{ ruleset._world_import_file, ruleset._walls_always_visible, ruleset._override_known_tiles } : Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max)
+Gamespace::Gamespace(GameRules& ruleset) : _world(Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max)
 {
-	_hostile = (generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template));
-	_neutral = (generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template));
+	_hostile = generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template);
+	_neutral = generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template);
 	_item_static_health = generate_items<ItemStaticHealth>(10, true);
 	_item_static_stamina = generate_items<ItemStaticStamina>(10);
 	_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them
@@ -38,10 +38,10 @@ Coord Gamespace::findValidSpawn(const bool isPlayer, const bool checkForItems)
 	// loop
 	for ( auto i{ 0 }; i < MAX_CHECKS; i++ ) {
 		Coord pos{ 0, 0 };
-		for ( auto findPos{ pos }; !_world.get(findPos)._canSpawn; pos = findPos )
+		for ( auto findPos{ pos }; !_world.get(findPos)->_canSpawn; pos = findPos )
 			findPos = { _rng.get(_world._max._x - 2, 1), _rng.get(_world._max._y - 2, 1) };
 		// Check if this pos is valid
-		if ( !checkForItems ? true : getItemAt(pos) == nullptr && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis() ) 
+		if ( !checkForItems ? true : getItemAt(pos) == nullptr && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis() )
 			return pos;
 	}
 	// Else return invalid coord
@@ -92,6 +92,36 @@ std::vector<Item> Gamespace::generate_items(const int count, const bool lockToPl
 			v.emplace_back(Item{ findValidSpawn(), 50 });
 	}
 	return v;
+}
+/**
+ * spawn(ActorTemplate&)
+ * @brief Spawns a new NPC mid-game at a random position
+ * @tparam NPC			- Type of NPC to build.
+ * @param actorTemplate	- Templated stats for the actor.
+ * @returns NPC
+ */
+template<typename NPC> NPC Gamespace::build_npc(ActorTemplate& actorTemplate)
+{
+	return{ findValidSpawn(), actorTemplate };
+}
+/**
+ * spawn(ActorTemplate&)
+ * @brief Spawns a new NPC mid-game at a given position. Throws std::exception if the position is invalid.
+ * @tparam NPC			- Type of NPC to build
+ * @param pos			- Position of spawned NPC
+ * @param actorTemplate	- Templated stats for the actor.
+ * @returns NPC
+ */
+template<typename NPC> NPC Gamespace::build_npc(const Coord& pos, ActorTemplate& actorTemplate)
+{
+	if ( _world.isValidPos(pos) )
+		return{ pos, actorTemplate };
+	throw std::exception("Attempted to create an NPC at an invalid position.");
+}
+
+void Gamespace::spawn_boss()
+{
+	_hostile.push_back(build_npc<Enemy>(_ruleset._enemy_boss_template.at(_rng.get(_ruleset._enemy_boss_template.size() - 1, 0u))));
 }
 #pragma endregion			GAME_SPAWNING
 // Gamespace functions that apply other functions to multiple types of objects.
@@ -271,7 +301,7 @@ ItemStaticBase* Gamespace::getItemAt(const int posX, const int posY)
  * @brief Returns a reference to the player instance.
  * @returns Player&
  */
- Player& Gamespace::getPlayer() { return _player; }
+Player& Gamespace::getPlayer() { return _player; }
 /**
  * getTile(Coord&)
  * @brief Returns a reference to the tile at a given position
@@ -279,7 +309,7 @@ ItemStaticBase* Gamespace::getItemAt(const int posX, const int posY)
  * @param pos		- Target coordinate in the tile matrix
  * @returns Tile&	- Reference of tile at pos, or __TILE_ERROR if an invalid coordinate was received.
  */
- Tile& Gamespace::getTile(const Coord& pos) { return _world.get(pos); }
+Tile* Gamespace::getTile(const Coord& pos) { return _world.get(pos); }
 /**
  * getTile(int, int)
  * @brief Returns a reference to the tile at a given position
@@ -288,25 +318,25 @@ ItemStaticBase* Gamespace::getItemAt(const int posX, const int posY)
  * @param y			- Target Y-axis coordinate in the tile matrix
  * @returns Tile&	- Reference of tile at pos, or __TILE_ERROR if an invalid coordinate was received.
  */
- Tile& Gamespace::getTile(const int x, const int y) { return _world.get(x, y); }
+Tile* Gamespace::getTile(const int x, const int y) { return _world.get(x, y); }
 /**
  * getCell()
  * @brief Returns a reference to the attached cell
  * @returns Cell&
  */
- Cell& Gamespace::getCell() { return { _world }; }
+Cell& Gamespace::getCell() { return { _world }; }
 /**
  * getCellSize()
  * @brief Returns a copy of the cell's size
  * @returns Coord
  */
- Coord Gamespace::getCellSize() const { return _world._max; }
+Coord Gamespace::getCellSize() const { return _world._max; }
 /**
  * getRuleset()
  * @brief Returns a reference to the attached GameRules instance.
  * @returns GameRules&
  */
- GameRules& Gamespace::getRuleset() const { return _ruleset; }
+GameRules& Gamespace::getRuleset() const { return _ruleset; }
 #pragma endregion			GAME_GETTERS
 // Gamespace functions that apply passive effects to all actors, such as level-ups & stat regeneration.
 #pragma region GAME_PASSIVE_EFFECTS
@@ -407,7 +437,7 @@ char Gamespace::getRandomDir()
  */
 bool Gamespace::canMove(const Coord& pos)
 {
-	return _world.get(pos)._canMove && getActorAt(pos) == nullptr ? true : false;
+	return _world.get(pos)->_canMove && getActorAt(pos) == nullptr ? true : false;
 }
 
 /**
@@ -420,7 +450,7 @@ bool Gamespace::canMove(const Coord& pos)
  */
 bool Gamespace::canMove(const int posX, const int posY)
 {
-	return _world.get(posX, posY)._canMove && getActorAt(posX, posY) == nullptr ? true : false;
+	return _world.get(posX, posY)->_canMove && getActorAt(posX, posY) == nullptr ? true : false;
 }
 
 /**
@@ -433,11 +463,11 @@ bool Gamespace::canMove(const int posX, const int posY)
  */
 bool Gamespace::checkMove(const Coord& pos, const FACTION myFac)
 {
-	if ( _world.get(pos)._canMove ) {
+	if ( _world.get(pos)->_canMove ) {
 		// check pos for an actor
 		auto* target{ getActorAt(pos) };
 		// if there is no target, or if there is a target not of my faction
-		if ( target == nullptr || (target != nullptr && myFac != target->faction()) )
+		if ( target == nullptr || target != nullptr && myFac != target->faction() )
 			return true; // can move to this tile
 	} // else
 	return false; // cannot move to this tile
@@ -456,7 +486,7 @@ bool Gamespace::move(ActorBase* actor, const char dir)
 	auto did_move{ false };
 	if ( actor != nullptr ) {
 		auto* target{ getActorAt(actor->getPosDir(dir)) }; // declare a pointer to potential attack target
-		
+
 		// If the actor killed someone with an attack, move them to the target tile.
 		if ( target != nullptr && (attack(actor, target) == 1 && canMove(target->pos())) ) {  // NOLINT(bugprone-branch-clone)
 			actor->moveDir(dir);
@@ -472,7 +502,7 @@ bool Gamespace::move(ActorBase* actor, const char dir)
 			item->attempt_use(actor);
 		}
 		// Calculate trap damage if applicable
-		if ( _world.get(actor->pos())._isTrap ) {
+		if ( _world.get(actor->pos())->_isTrap ) {
 			if ( actor->faction() == FACTION::PLAYER && _ruleset._player_godmode )
 				return did_move;
 			if ( _ruleset._trap_percentage ) actor->modHealth(-static_cast<int>(static_cast<float>(actor->getMaxHealth()) * (static_cast<float>(_ruleset._trap_dmg) / 100.0f)));
@@ -645,7 +675,7 @@ bool Gamespace::actionNPC(NPC* npc)
 			if ( npc->hasTarget() )
 				rc = moveNPC(&*npc);
 			else npc->removeAggro();
-			
+
 			// If the NPC can still see their target, set aggression to max and continue following
 			if ( npc->canSeeTarget(_ruleset._npc_vis_mod_aggro) )
 				npc->maxAggro();
@@ -678,9 +708,13 @@ bool Gamespace::actionNPC(NPC* npc)
 void Gamespace::actionAllNPC()
 {
 	// Check if the final challenge should be triggered
-	if ( trigger_final_challenge(_hostile.size()) && !_game_state._final_challenge.load()) {
+	if ( trigger_final_challenge(_hostile.size()) && !_game_state._final_challenge.load() ) {
 		_game_state._final_challenge.store(true);
 		addFlare(_FLARE_DEF_CHALLENGE);
+		if ( !_ruleset._boss_spawns_after_final ) {
+			_game_state._boss_challenge.store(true);
+			spawn_boss();
+		}
 	}
 	// Perform all NPC actions.
 	apply_to_npc(&Gamespace::actionNPC);
@@ -732,8 +766,13 @@ void Gamespace::cleanupDead()
 		_game_state._playerDead.store(true);
 	}
 	if ( _hostile.empty() ) {
-		_game_state._game_is_over.store(true);
-		_game_state._allEnemiesDead.store(true);
+		if ( !_game_state._boss_challenge ) {
+			spawn_boss();
+		}
+		else {
+			_game_state._game_is_over.store(true);
+			_game_state._allEnemiesDead.store(true);
+		}
 	}
 }
 #pragma endregion			GAME_CLEANUP
@@ -757,7 +796,7 @@ void Gamespace::addFlare(Flare& newFlare)
  *
  * @returns Flare*	- Pointer to the currently active flare.
  */
- Flare* Gamespace::getFlare() const { return !_FLARE_QUEUE.empty() ? _FLARE_QUEUE.at(0) : nullptr; }
+Flare* Gamespace::getFlare() const { return !_FLARE_QUEUE.empty() ? _FLARE_QUEUE.at(0) : nullptr; }
 
 /**
  * resetFlare()
