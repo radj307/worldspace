@@ -43,7 +43,7 @@ struct Frame {
 		}
 		return false;
 	}
-
+	
 	/**
 	 * size()
 	 * @brief Returns the size of the frame if it is valid.
@@ -87,7 +87,7 @@ struct Frame {
 		for ( auto y = 0; y < cell._max._y; y++ ) { // iterate Y-axis
 			std::vector<char> row;
 			for ( auto x = 0; x < cell._max._x; x++ ) { // iterate X-axis
-				row.push_back(static_cast<char>(cell.get(x, y)->_display));
+				row.push_back(static_cast<char>(cell.get(x, y)._display));
 			}
 			matrix.push_back(row);
 		}
@@ -107,7 +107,7 @@ struct Frame {
 		// check if the file exists
 		if ( file::exists(filename) ) {
 			// copy file content to stringstream
-			auto content{ file::read(filename) };
+			auto content{ file::readToStream(filename) };
 
 			content.seekg(0, std::ios::end);
 			const auto content_size{ static_cast<int>(content.tellg()) };
@@ -225,12 +225,12 @@ class FrameBuffer {
 			std::vector<char> row; row.reserve(_size._x);
 			for ( auto x = 0; x < static_cast<signed>(row.capacity()); x++ ) {
 				auto pos{ Coord(x, y) };
-				if ( _game.getTile(pos)->_isKnown ) {
+				if ( _game.getTile(pos)._isKnown ) {
 					auto* const ptr{ _game.getActorAt(pos) };
 					if ( ptr != nullptr && !ptr->isDead() ) // actor exists at position
 						row.push_back(static_cast<char>(ptr->getChar()));
 					else
-						row.push_back(static_cast<char>(_game.getTile(pos)->_display));
+						row.push_back(static_cast<char>(_game.getTile(pos)._display));
 				}
 				else row.push_back(static_cast<char>(' '));
 			}
@@ -250,7 +250,7 @@ class FrameBuffer {
 
 		// Get a pointer to the player
 		auto* player{ &_game.getPlayer() };
-
+		
 		const auto // Get player integer stats
 			health{ player->getHealth() },
 			maxHealth{ player->getMaxHealth() },
@@ -258,7 +258,7 @@ class FrameBuffer {
 			stamina{ player->getStamina() },
 			maxStamina{ player->getMaxStamina() },
 			staminaSegment{ maxStamina / 10 };
-
+		
 		const auto HEADER{ player->name() + " Stats Level " + std::to_string(player->getLevel()) };
 
 		// { (((each box length) + (4 for bar edges & padding)) * (number of stat bars)) }
@@ -276,20 +276,20 @@ class FrameBuffer {
 		for ( auto i = 1; i <= 10; ++i ) {
 			if ( health >= i * healthSegment )
 				printf("@");
-			else
+			else 
 				printf(" ");
 		}
-
+		
 		// Print health/stamina bar buffer
 		sys::colorReset();
 		printf("]  [");
 		sys::colorSet(Color::f_green);
-
+		
 		// Print the stamina bar
 		for ( auto i = 1; i <= 10; ++i ) {
 			if ( stamina >= i * staminaSegment )
 				printf("@");
-			else
+			else 
 				printf(" ");
 		}
 		// Print stamina bar end buffer
@@ -304,7 +304,7 @@ class FrameBuffer {
 			sys::colorReset();
 			if ( health < 10 )	 printf(" ");
 			if ( health < 100 )	 printf(" ");
-
+			
 			// Print stamina values
 			printf("Stamina: ");
 			sys::colorSet(Color::f_green);
@@ -353,13 +353,13 @@ public:
 			// flush the output buffer to prevent garbage characters from being displayed.
 			// Get the new frame
 			auto next = buildNextFrame(_origin);
-			// iterate vertical axis (frame iterator targets cell coords, console iterator targets screen buffer coords)
+			// iterate vertical axis
 			for ( long frameY{ 0 }, consoleY{ _origin._y }; frameY < static_cast<long>(next._frame.size()); frameY++, consoleY++ ) {
 				// iterate horizontal axis for each vertical index
 				for ( long frameX{ 0 }, consoleX{ _origin._x }; frameX < static_cast<long>(next._frame.at(frameY).size()); frameX++, consoleX++ ) {
 					sys::colorReset();
 					// check if the tile at this pos is known to the player
-					if ( _game.getTile(frameX, frameY)->_isKnown ) {
+					if ( _game.getTile(frameX, frameY)._isKnown ) {
 						auto* const actor = _game.getActorAt(frameX, frameY);
 						auto* const item = _game.getItemAt(frameX, frameY);
 						// Check if an actor is located here
@@ -411,9 +411,9 @@ public:
 		playerStatDisplay();
 		// do flare functions
 		if ( flare != nullptr ) {
-			if ( flare->time() > 1 )
+			if ( flare->time() > 1 ) 
 				flare->decrement();
-			else
+			else 
 				_game.resetFlare();
 		}
 	}

@@ -98,7 +98,7 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 	std::vector<std::vector<Tile>> matrix{};
 
 	if ( file::exists(filename) ) {
-		auto content{ file::read(filename) };
+		auto content{ file::readToStream(filename) };
 
 		content.seekg(0, std::ios::end);				// send sstream to the end
 		const auto content_size{ static_cast<int>(content.tellg()) };  // find the size of received stringstream
@@ -131,17 +131,13 @@ inline std::vector<std::vector<Tile>> importMatrix(const std::string& filename, 
 }
 
 class Cell final {
-	using row = std::vector<Tile>;
-	using cell = std::vector<row>;
-
-	cell _matrix;	// Tile matrix
-	bool
-		_vis_all,	// All tiles are always visible when true
-		_vis_wall;	// Walls are always visible when true
+	// a matrix of tiles
+	std::vector<std::vector<Tile>> _matrix;
+	bool _vis_all, _vis_wall;
 
 	/**
 	 * isAdjacent(Tile::display, Coord&)
-	 * @brief Checks the tiles surrounding a given position for a target type.
+	 * @brief Checks the tiles surrounding a given position for a target type. 
 	 * @param type	 - Tile type to check for
 	 * @param pos	 - Target position
 	 * @returns bool - ( true = At least one of the surrounding tiles are of the target type. ) ( false = No surrounding tiles are of the target type. )
@@ -150,7 +146,7 @@ class Cell final {
 	{
 		for ( auto y{ pos._y - 1 }; y <= pos._y + 1; ++y )
 			for ( auto x{ pos._x - 1 }; x <= pos._x + 1; ++x )
-				if ( isValidPos(x, y) && get(x, y)->_display == type && !(x == pos._x && y == pos._y) )
+				if ( isValidPos(x, y) && get(x, y)._display == type && !(x == pos._x && y == pos._y) )
 					return true;
 		return false;
 	}
@@ -165,7 +161,7 @@ class Cell final {
 		if ( _max._y >= 10 && _max._x >= 10 ) {
 			tRand rng;
 			for ( auto y = 0; y < _max._y; y++ ) {
-				row _row;
+				std::vector<Tile> _row;
 				_row.reserve(_max._x);
 				for ( auto x = 0; x < _max._x; x++ ) {
 					// make walls on all edges
@@ -176,9 +172,9 @@ class Cell final {
 						if ( rand < 7.0f ) // 7:100 chance of a wall tile that isn't on an edge
 							_row.emplace_back(Tile::display::wall, x, y, (_vis_wall ? true : false) || (_vis_all ? true : false));
 						else if ( rand > 7.0f && rand < 9.0f )
-							_row.emplace_back(Tile::display::hole, x, y, _vis_all ? true : false);
+							_row.emplace_back(Tile::display::hole, x, y, (_vis_all ? true : false));
 						else
-							_row.emplace_back(Tile::display::empty, x, y, _vis_all ? true : false);
+							_row.emplace_back(Tile::display::empty, x, y, (_vis_all ? true : false));
 					}
 				}
 				_matrix.push_back(_row);
@@ -219,7 +215,7 @@ public:
 	char getChar(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
-			return static_cast<char>(get(pos)->_display);
+			return static_cast<char>(get(pos)._display);
 		return ' ';
 	}
 
@@ -249,7 +245,7 @@ public:
 	 */
 	void modVis(const bool to, const long X, const long Y)
 	{
-		if ( isValidPos(X, Y) ) {
+		if ( isValidPos(X,Y) ) {
 			if ( _matrix.at(Y).at(X)._display != Tile::display::wall )
 				_matrix.at(Y).at(X)._isKnown = to || _vis_all;
 			else
@@ -323,11 +319,11 @@ public:
 	 * @brief Returns a reference to the target tile.
 	 * @param pos			- The target tile
 	 */
-	Tile* get(const Coord& pos)
+	Tile &get(const Coord& pos)
 	{
 		if ( isValidPos(pos) )
-			return &_matrix.at(pos._y).at(pos._x);
-		return nullptr;
+			return _matrix.at(pos._y).at(pos._x);
+		return __TILE_ERROR;
 	}
 
 	/**
@@ -336,26 +332,27 @@ public:
 	 * @param x				- The target tile's x index
 	 * @param y				- The target tile's y index
 	 */
-	Tile* get(const int x, const int y)
+	Tile &get(const int x, const int y)
 	{
 		if ( isValidPos(x, y) )
-			return &_matrix.at(y).at(x);
-		return nullptr;
+			return _matrix.at(y).at(x);
+		return __TILE_ERROR;
 	}
 
 	/**
 	 * exportToFile(string)
 	 * @brief Exports this cell to a file.
 	 * @param filename	- The name of the output file
+	 * @param saveAs	- Whether to overwrite or append to file if it already exists.
 	 * @returns bool	- ( true = success ) ( false = failed )
 	 */
-	bool exportToFile(const std::string& filename)
+	bool exportToFile(const std::string& filename, file::save_type saveAs = file::save_type::overwrite)
 	{
 		std::stringstream buf;
 		for ( auto& y : _matrix ) {
 			for ( auto& x : y ) buf << x;
 			buf << std::endl;
 		}
-		return file::write(filename, buf, false);
+		return file::write(filename, buf, saveAs);
 	}
 };
