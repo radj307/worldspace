@@ -81,17 +81,5 @@ inline bool prompt_restart(const Coord textPos)
 inline std::vector<std::string> interpret(const int argc, char* argv[])
 {
 	opt::list args(argc, argv, "ini:");
-	std::vector<std::string> ini_filelist{};
-
-	for ( auto& [fst, snd] : args.getOptVec() )
-		if ( fst == "ini" )
-			if ( snd.has_value() )
-				ini_filelist.push_back(snd.value());
-
-#ifdef _DEBUG
-	if ( ini_filelist.empty() )
-		ini_filelist = { "config.ini", "actor_templates.ini" };
-#endif
-
-	return ini_filelist;
+	return args.opt_params("ini").value_or(std::vector<std::string>{ "config.ini", "actor_templates.ini" });
 }

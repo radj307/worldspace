@@ -7,7 +7,7 @@
  *
  * @param ruleset	 - A ref to the ruleset structure
  */
-Gamespace::Gamespace(GameRules& ruleset) : _world(Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max)
+Gamespace::Gamespace(GameRules& ruleset) : _world(Cell{ ruleset._cellSize, ruleset._walls_always_visible, ruleset._override_known_tiles }), _ruleset(ruleset), _player({ findValidSpawn(true), ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max), _FLARE_DEF_BOSS(_world._max)
 {
 	_hostile = generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template);
 	_neutral = generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template);
@@ -122,6 +122,7 @@ template<typename NPC> NPC Gamespace::build_npc(const Coord& pos, ActorTemplate&
 void Gamespace::spawn_boss()
 {
 	_hostile.push_back(build_npc<Enemy>(_ruleset._enemy_boss_template.at(_rng.get(_ruleset._enemy_boss_template.size() - 1, 0u))));
+	addFlare(_FLARE_DEF_BOSS);
 }
 #pragma endregion			GAME_SPAWNING
 // Gamespace functions that apply other functions to multiple types of objects.
@@ -395,9 +396,9 @@ void Gamespace::level_up(ActorBase* a)
 	// return if nullptr was passed
 	if ( a != nullptr && _ruleset.canLevelUp(a) ) {
 		a->addLevel();
+		regen(&*a, _ruleset._level_up_restore_percent);
 		// If actor who leveled up is the player
 		if ( a->faction() == FACTION::PLAYER ) {
-			regen(&*a, _ruleset._level_up_restore_percent);
 			addFlare(_FLARE_DEF_LEVEL);
 		}
 	}
@@ -437,7 +438,7 @@ char Gamespace::getRandomDir()
  */
 bool Gamespace::canMove(const Coord& pos)
 {
-	return _world.get(pos)->_canMove && getActorAt(pos) == nullptr ? true : false;
+	return _world.isValidPos(pos) && _world.get(pos)->_canMove && getActorAt(pos) == nullptr ? true : false;
 }
 
 /**
@@ -450,7 +451,7 @@ bool Gamespace::canMove(const Coord& pos)
  */
 bool Gamespace::canMove(const int posX, const int posY)
 {
-	return _world.get(posX, posY)->_canMove && getActorAt(posX, posY) == nullptr ? true : false;
+	return _world.isValidPos(posX, posY) && _world.get(posX, posY)->_canMove && getActorAt(posX, posY) == nullptr ? true : false;
 }
 
 /**
@@ -628,6 +629,7 @@ int Gamespace::attack(ActorBase* attacker, ActorBase* target)
 	// if target died
 	if ( target->isDead() ) {
 		attacker->addKill(target->getLevel() > attacker->getLevel() ? target->getLevel() - attacker->getLevel() : 1);
+		target->killedBy(attacker->name());
 		if ( target->faction() == FACTION::PLAYER ) {
 			_game_state._game_is_over.store(true);
 			_game_state._playerDead.store(true);
@@ -635,8 +637,10 @@ int Gamespace::attack(ActorBase* attacker, ActorBase* target)
 		}
 	}
 	// if attacker died from parry
-	else if ( attacker->isDead() )
+	else if ( attacker->isDead() ) {
 		target->addKill(attacker->getLevel() > target->getLevel() ? attacker->getLevel() - target->getLevel() : 1);
+		attacker->killedBy(target->name());
+	}
 	else target->setRelationship(attacker->faction(), true);
 	if ( _ruleset._player_godmode && attacker->faction() == FACTION::PLAYER )
 		attacker->modStamina(_ruleset._attack_cost_stamina);
@@ -707,15 +711,6 @@ bool Gamespace::actionNPC(NPC* npc)
  */
 void Gamespace::actionAllNPC()
 {
-	// Check if the final challenge should be triggered
-	if ( trigger_final_challenge(_hostile.size()) && !_game_state._final_challenge.load() ) {
-		_game_state._final_challenge.store(true);
-		addFlare(_FLARE_DEF_CHALLENGE);
-		if ( !_ruleset._boss_spawns_after_final ) {
-			_game_state._boss_challenge.store(true);
-			spawn_boss();
-		}
-	}
 	// Perform all NPC actions.
 	apply_to_npc(&Gamespace::actionNPC);
 }
@@ -741,6 +736,38 @@ void Gamespace::actionPlayer(const char key)
 // Gamespace functions related to cleaning up expired game elements.
 #pragma region GAME_CLEANUP
 /**
+ * update_state()
+ * @brief Checks endgame conditions & challenge conditions, and updates the game state instance accordingly. This function is called automatically by cleanupDead().
+ */
+void Gamespace::update_state()
+{
+	// check lose condition
+	if ( _player.isDead() ) {
+		_game_state._game_is_over.store(true);
+		_game_state._playerDead.store(true);
+	}
+	// check win condition
+	else if ( _hostile.empty() ) {
+		if ( !_game_state._boss_challenge && _ruleset._boss_spawns_after_final ) {
+			_game_state._boss_challenge.store(true); // next time the hostile vec is empty, game is over
+			spawn_boss();
+		}
+		else {
+			_game_state._game_is_over.store(true);
+			_game_state._allEnemiesDead.store(true);
+		}
+	}
+	// Check if the final challenge should be triggered
+	else if ( !_game_state._final_challenge.load() && trigger_final_challenge(_hostile.size()) ) {
+		_game_state._final_challenge.store(true);
+		addFlare(_FLARE_DEF_CHALLENGE);
+		if ( !_ruleset._boss_spawns_after_final ) {
+			_game_state._boss_challenge.store(true);
+			spawn_boss();
+		}
+	}
+}
+/**
  * cleanupDead()
  * @brief Cleans up expired game elements. This is called by the frame buffer before every frame.
  */
@@ -760,20 +787,7 @@ void Gamespace::cleanupDead()
 	// erase dead neutrals
 	for ( auto it{ static_cast<signed>(_neutral.size() - 1) }; it >= 0; it-- )
 		if ( _neutral.at(it).isDead() ) _neutral.erase(_neutral.begin() + it);
-	// check win condition
-	if ( _player.isDead() ) {
-		_game_state._game_is_over.store(true);
-		_game_state._playerDead.store(true);
-	}
-	if ( _hostile.empty() ) {
-		if ( !_game_state._boss_challenge ) {
-			spawn_boss();
-		}
-		else {
-			_game_state._game_is_over.store(true);
-			_game_state._allEnemiesDead.store(true);
-		}
-	}
+	update_state();
 }
 #pragma endregion			GAME_CLEANUP
 // Gamespace functions related to FrameBuffer color flares.

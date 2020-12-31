@@ -1,6 +1,8 @@
 #pragma once
 #include <cassert>
 #include <chrono>
+#include <strconv.hpp>
+#include <sysapi.h>
 #include "actor.h"
 #include "INI.hpp"
 
@@ -117,7 +119,6 @@ public:
 		_enable_boss{ true },
 		_boss_spawns_after_final{ true };
 #pragma endregion FLARE
-
 	/**
 	 * buildTemplate(INI&, string&)
 	 * @brief Builds an ActorTemplate from the specified INI section.
@@ -125,21 +126,21 @@ public:
 	 * @param cfg		- Ref to the INI instance
 	 * @param section	- INI section name containing variables
 	 */
-	static void buildTemplate(ActorTemplate& target, INI& cfg, const std::string& section)
+	static void setINITemplate(ActorTemplate& target, INI& cfg, const std::string& section)
 	{
 		if ( cfg.contains(section) ) {
-			target = {
-				cfg.get(section, "name"),
-				ActorStats(cfg.get<int>(section, "level", conv::stoi),
-				cfg.get<int>(section, "health", conv::stoi),
-				cfg.get<int>(section, "stamina", conv::stoi),
-				cfg.get<int>(section, "damage", conv::stoi),
-				cfg.get<int>(section, "visRange", conv::stoi)),
-				cfg.get(section, "char").at(0),
-				Color::stoColor(cfg.get(section, "color")),
-				strToFactionList(cfg.get(section, "hostileTo")),
-				cfg.get<int>(section, "maxAggro", conv::stoi),
-				cfg.get<float>(section, "spawnChance", conv::stof)
+			target = ActorTemplate{
+				cfg.get(section, "name").value_or(target._name),
+				ActorStats(cfg.get<int>(section, "level", str::stoi).value_or(target._stats.getLevel()),
+				cfg.get<int>(section, "health", str::stoi).value_or(target._stats.getHealth()),
+				cfg.get<int>(section, "stamina", str::stoi).value_or(target._stats.getStamina()),
+				cfg.get<int>(section, "damage", str::stoi).value_or(target._stats.getMaxDamage()),
+				cfg.get<int>(section, "visRange", str::stoi).value_or(target._stats.getVis())),
+				cfg.get<char>(section, "char", str::stoc).value_or(target._char),
+				cfg.get<unsigned short>(section, "color", Color::strToColor).value_or(target._color),
+				strToFactions(cfg.get(section, "hostileTo").value_or("")).value_or(target._hostile_to),
+				cfg.get<int>(section, "maxAggro", str::stoi).value_or(target._max_aggression),
+				cfg.get<float>(section, "spawnChance", str::stof).value_or(target._chance)
 			};
 		} // else do nothing
 	}
@@ -150,51 +151,60 @@ public:
 	 * @param cfg	- Ref to an INI instance.
 	 */
 	explicit GameRules(INI& cfg) :
-		_walls_always_visible(cfg.get<bool>("world", "showAllWalls", conv::stob)),
-		_override_known_tiles(cfg.get<bool>("world", "showAllTiles", conv::stob)),
-		_dark_mode(cfg.get<bool>("world", "fogOfWar", conv::stob)),
-		_cellSize({ cfg.get<long>("world", "sizeH", conv::stol), cfg.get<long>("world", "sizeV", conv::stol) }),
-		_trap_dmg(cfg.get<int>("world", "trapDamage", conv::stoi)),
-		_trap_percentage(cfg.get<bool>("world", "trapDamageIsPercentage", conv::stob)),
-		_attack_cost_stamina(cfg.get<int>("actors", "attackCostStamina", conv::stoi)),
-		_attack_block_chance(cfg.get<float>("actors", "attackBlockChance", conv::stof)),
-		_attack_miss_chance_full(cfg.get<float>("actors", "attackMissChanceFull", conv::stof)),
-		_attack_miss_chance_drained(cfg.get<float>("actors", "attackMissChanceDrained", conv::stof)),
-		_player_godmode(cfg.get<bool>("player", "godmode", conv::stob)),
-		_npc_move_chance(cfg.get<float>("actors", "npcMoveChance", conv::stof)),
-		_npc_move_chance_aggro(cfg.get<float>("actors", "npcMoveChanceAggro", conv::stof)),
-		_npc_vis_mod_aggro(cfg.get<int>("actors", "npcVisModAggro", conv::stoi)),
-		_enemy_count(cfg.get<int>("enemy", "count", conv::stoi)),
-		_enemy_aggro_distance(cfg.get<int>("enemy", "aggroDistance", conv::stoi)),
-		_neutral_count(cfg.get<int>("neutral", "count", conv::stoi)),
-		_regen_timer(cfg.get<int>("actors", "regen_time", conv::stoi)),
-		_regen_health(cfg.get<int>("actors", "regen_health", conv::stoi)),
-		_regen_stamina(cfg.get<int>("actors", "regen_stamina", conv::stoi)),
-		_level_up_kills(cfg.get<int>("actors", "levelKillThreshold", conv::stoi)),
-		_level_up_mult(cfg.get<int>("actors", "levelKillMult", conv::stoi)),
-		_level_up_restore_percent(cfg.get<int>("actors", "levelRestorePercent", conv::stoi)),
-		_enable_boss(cfg.get<bool>("enemy", "enable_boss", conv::stob)),
-		_boss_spawns_after_final(cfg.get<bool>("enemy", "bossDelayedSpawn", conv::stob))
+		_walls_always_visible(cfg.get<bool>("world", "showAllWalls", str::stob).value_or(_walls_always_visible)),
+		_override_known_tiles(cfg.get<bool>("world", "showAllTiles", str::stob).value_or(_override_known_tiles)),
+		_dark_mode(cfg.get<bool>("world", "fogOfWar", str::stob).value_or(_dark_mode)),
+		_cellSize({ cfg.get<long>("world", "sizeH", str::stol).value_or(_cellSize._x), cfg.get<long>("world", "sizeV", str::stol).value_or(_cellSize._y) }),
+		_trap_dmg(cfg.get<int>("world", "trapDamage", str::stoi).value_or(_trap_dmg)),
+		_trap_percentage(cfg.get<bool>("world", "trapDamageIsPercentage", str::stob).value_or(_trap_percentage)),
+		_attack_cost_stamina(cfg.get<int>("actors", "attackCostStamina", str::stoi).value_or(_attack_cost_stamina)),
+		_attack_block_chance(cfg.get<float>("actors", "attackBlockChance", str::stof).value_or(_attack_block_chance)),
+		_attack_miss_chance_full(cfg.get<float>("actors", "attackMissChanceFull", str::stof).value_or(_attack_miss_chance_full)),
+		_attack_miss_chance_drained(cfg.get<float>("actors", "attackMissChanceDrained", str::stof).value_or(_attack_miss_chance_drained)),
+		_player_godmode(cfg.get<bool>("player", "godmode", str::stob).value_or(_player_godmode)),
+		_npc_move_chance(cfg.get<float>("actors", "npcMoveChance", str::stof).value_or(_npc_move_chance)),
+		_npc_move_chance_aggro(cfg.get<float>("actors", "npcMoveChanceAggro", str::stof).value_or(_npc_move_chance_aggro)),
+		_npc_vis_mod_aggro(cfg.get<int>("actors", "npcVisModAggro", str::stoi).value_or(_npc_vis_mod_aggro)),
+		_enemy_count(cfg.get<int>("enemy", "count", str::stoi).value_or(_enemy_count)),
+		_enemy_aggro_distance(cfg.get<int>("enemy", "aggroDistance", str::stoi).value_or(_enemy_aggro_distance)),
+		_neutral_count(cfg.get<int>("neutral", "count", str::stoi).value_or(_neutral_count)),
+		_regen_timer(cfg.get<int>("actors", "regen_time", str::stoi).value_or(_regen_timer.count())),
+		_regen_health(cfg.get<int>("actors", "regen_health", str::stoi).value_or(_regen_health)),
+		_regen_stamina(cfg.get<int>("actors", "regen_stamina", str::stoi).value_or(_regen_stamina)),
+		_level_up_kills(cfg.get<int>("actors", "levelKillThreshold", str::stoi).value_or(_level_up_kills)),
+		_level_up_mult(cfg.get<int>("actors", "levelKillMult", str::stoi).value_or(_level_up_mult)),
+		_level_up_restore_percent(cfg.get<int>("actors", "levelRestorePercent", str::stoi).value_or(_level_up_restore_percent)),
+		_enable_boss(cfg.get<bool>("enemy", "enable_boss", str::stob).value_or(_enable_boss)),
+		_boss_spawns_after_final(cfg.get<bool>("enemy", "bossDelayedSpawn", str::stob).value_or(_boss_spawns_after_final))
 	{
 		assert(!cfg.empty());
 		// Set player stats
 		if ( cfg.contains("player", "name") )		// Check name
-			_player_template._name = cfg.get("player", "name");
+			_player_template._name = cfg.get("player", "name").value_or(_player_template._name);
 		if ( cfg.contains("player", "health") )	// Check health
-			_player_template._stats.setMaxHealth(cfg.get<int>("player", "health", conv::stoi));
+			_player_template._stats.setMaxHealth(cfg.get<int>("player", "health", str::stoi).value_or(_player_template._stats.getMaxHealth()));
 		if ( cfg.contains("player", "stamina") )	// Check stamina
-			_player_template._stats.setMaxStamina(cfg.get<int>("player", "stamina", conv::stoi));
+			_player_template._stats.setMaxStamina(cfg.get<int>("player", "stamina", str::stoi).value_or(_player_template._stats.getMaxStamina()));
 		if ( cfg.contains("player", "damage") )	// Check damage
-			_player_template._stats.setMaxDamage(cfg.get<int>("player", "damage", conv::stoi));
+			_player_template._stats.setMaxDamage(cfg.get<int>("player", "damage", str::stoi).value_or(_player_template._stats.getMaxDamage()));
 
-		buildTemplate(_player_template, cfg, "template_player");
-		buildTemplate(_enemy_template.at(0), cfg, "template_enemy1");
-		buildTemplate(_enemy_template.at(1), cfg, "template_enemy2");
-		buildTemplate(_enemy_template.at(2), cfg, "template_enemy3");
-		buildTemplate(_enemy_template.at(3), cfg, "template_enemy4");
-		buildTemplate(_neutral_template.at(0), cfg, "template_neutral1");
-		buildTemplate(_neutral_template.at(1), cfg, "template_neutral2");
-		buildTemplate(_neutral_template.at(2), cfg, "template_neutral3");
+		setINITemplate(_player_template, cfg, "template_player");
+		for ( size_t i{ 0 }; i < _enemy_template.size(); ++i )
+			setINITemplate(_enemy_template.at(i), cfg, std::string("template_enemy") + std::to_string(i + 1));
+		//setINITemplate(_enemy_template.at(0), cfg, "template_enemy1");
+		//setINITemplate(_enemy_template.at(1), cfg, "template_enemy2");
+		//setINITemplate(_enemy_template.at(2), cfg, "template_enemy3");
+		//setINITemplate(_enemy_template.at(3), cfg, "template_enemy4");
+		for ( size_t i{ 0 }; i < _enemy_boss_template.size(); ++i )
+			setINITemplate(_enemy_boss_template.at(i), cfg, std::string("template_boss") + std::to_string(i + 1));
+		//setINITemplate(_enemy_boss_template.at(0), cfg, "template_boss1");
+		//setINITemplate(_enemy_boss_template.at(1), cfg, "template_boss2");
+		//setINITemplate(_enemy_boss_template.at(2), cfg, "template_boss3");
+		for ( size_t i{ 0 }; i < _neutral_template.size(); ++i )
+			setINITemplate(_neutral_template.at(i), cfg, std::string("template_neutral") + std::to_string(i + 1));
+		//setINITemplate(_neutral_template.at(0), cfg, "template_neutral1");
+		//setINITemplate(_neutral_template.at(1), cfg, "template_neutral2");
+		//setINITemplate(_neutral_template.at(2), cfg, "template_neutral3");
 	}
 
 	// Default constructor

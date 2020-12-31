@@ -20,18 +20,24 @@ namespace game {
 	typedef std::chrono::high_resolution_clock CLK;
 	namespace _internal {
 		/**
-		 * process_game_over(int)
+		 * process_game_over(memory&, Coord)
 		 * @brief Clears the screen & prints an informational game over message to the terminal.
-		 * @param winStateCode	- ( -1 = Player Loses ) ( 0 = Player Wins ) ( 1 = Player exited ) ( Other = Undefined )
-		 * @param textPos		- Position in the screen buffer to print message.
+		 * @param mem		- Shared memory ref
+		 * @param textPos	- Position in the screen buffer to print message.
 		 */
-		inline void print_game_over(const int winStateCode, const Coord textPos = Coord(9, 3))
+		inline void print_game_over(memory& mem, const Coord textPos = Coord(9, 3))
 		{
+			const auto killer_name{ mem.player_killed_by };
 			sys::cls(true);
 			sys::cursorPos(textPos);
-			switch ( winStateCode ) {
+			switch ( mem.kill_code.load() ) {
 			case PLAYER_LOSE_CODE: // player lost the game
 				std::cout << termcolor::red << "You lost!" << termcolor::reset;
+				if ( killer_name.has_value() ) {
+					const auto text{ "killed by: " + killer_name.value() };
+					sys::cursorPos(textPos._x - text.size() / 2u + std::string("You lost!").size() / 2, textPos._y + 1u);
+					std::cout << termcolor::red << text << termcolor::reset;
+				}
 				break;
 			case PLAYER_WIN_CODE: // player won the game
 				std::cout << termcolor::green << "You won!" << termcolor::reset;
@@ -150,8 +156,6 @@ namespace game {
 					}
 					else std::this_thread::sleep_for(__FRAMETIME);
 				}
-				// Once the kill flag is true, show the game over message and return
-				print_game_over(mem.kill_code.load());
 			} catch ( std::exception & ex ) {
 				sys::msg(sys::error, "Exception thrown in thread_display(): \"" + std::string(ex.what()) + "\"");
 				mem.kill.store(true);
@@ -167,7 +171,7 @@ namespace game {
 		inline bool initDefaultINI(const std::string& filename)
 		{
 			// VARIABLES & VALUES
-			const sectionMap defMap{
+			const section_map defMap{
 				{
 					"controls", {
 						{ "key_up",		std::to_string(_CTRL._KEY_UP)	 },
@@ -304,12 +308,12 @@ namespace game {
 			if ( cfg.contains("controls") ) {
 				sys::msg(sys::debug, "Using INI ControlSet");
 				return CONTROLS{ // Initialize controlset from INI
-					cfg.get<char>("controls", "key_up", conv::stoc),
-					cfg.get<char>("controls", "key_down", conv::stoc),
-					cfg.get<char>("controls", "key_left", conv::stoc),
-					cfg.get<char>("controls", "key_right", conv::stoc),
-					cfg.get<char>("controls", "key_pause", conv::stoc),
-					cfg.get<char>("controls", "key_quit", conv::stoc)
+					cfg.get<char>("controls", "key_up", str::stoc).value_or(_CTRL._KEY_UP),
+					cfg.get<char>("controls", "key_down", str::stoc).value_or(_CTRL._KEY_DOWN),
+					cfg.get<char>("controls", "key_left", str::stoc).value_or(_CTRL._KEY_LEFT),
+					cfg.get<char>("controls", "key_right", str::stoc).value_or(_CTRL._KEY_RIGHT),
+					cfg.get<char>("controls", "key_pause", str::stoc).value_or(_CTRL._KEY_PAUSE),
+					cfg.get<char>("controls", "key_quit", str::stoc).value_or(_CTRL._KEY_QUIT)
 				};
 			}
 			sys::msg(sys::debug, "Using default ControlSet");
@@ -324,15 +328,9 @@ namespace game {
 		inline void initTiming(INI& cfg)
 		{
 			// Framerate & Frametime
-			if ( cfg.contains("timing", "framerate") )
-				setFramerate(cfg.get<unsigned int>("timing", "framerate", conv::stoui));
-			else
-				setFramerate(60);
+			setFramerate((cfg.contains("timing", "framerate") ? cfg.get<unsigned int>("timing", "framerate", str::stoui).value() : 60));
 			// NPC Cycle time
-			if ( cfg.contains("timing", "npc_cycle") )
-				setNPCCycle(static_cast<std::chrono::milliseconds>(cfg.get<unsigned int>("timing", "npc_cycle", conv::stoui)));
-			else
-				setNPCCycle(225ms);
+			setNPCCycle(cfg.contains("timing", "npc_cycle") ? cfg.get<unsigned int>("timing", "npc_cycle", str::stoui).value() : 225);
 		}
 	}
 
@@ -375,6 +373,10 @@ namespace game {
 			sys::cls();
 			msg(sys::error, "\"" + std::string(ex.what()) + "\" was thrown while starting the game threads.", "Press any key to exit....");
 		}
+		if ( mem.kill_code.load() == _internal::PLAYER_LOSE_CODE )
+			mem.player_killed_by = thisGame.getPlayer().killedBy();
+		// Once the kill flag is true, show the game over message and return
+		print_game_over(mem);
 		// Check if the restart prompt should be shown, and return
 		if ( mem.kill_code.load() == _internal::PLAYER_QUIT_CODE )
 			return false;

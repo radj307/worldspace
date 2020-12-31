@@ -11,7 +11,6 @@ protected:
 	/**
 	 * Flare(Coord&, unsigned short, unsigned short)
 	 * @brief Construct a flare instance
-	 *
 	 * @param flareTime	 - How many frames total to flare the display. Should be a multiple of 2.
 	 * @param flareColor - Which color to use, this should be a windows API color.
 	 */
@@ -24,25 +23,29 @@ public:
 	/**
 	 * pattern(int, int)
 	 * @brief Pure virtual method that returns true if a tile should change color, false if it should not.
-	 *
 	 * @param x		 - Tile's X-axis index (horizontal)
 	 * @param y		 - Tile's Y-axis index (vertical)
 	 * @returns bool - ( true = flare this tile ) ( false = do not flare this tile )
 	 */
-	virtual bool pattern(int x, int y) = 0;
+	[[nodiscard]] virtual bool pattern(int x, int y) = 0;
 
 	/**
 	 * time()
 	 * @brief Returns the remaining flare time.
-	 *
 	 * @returns unsigned short
 	 */
 	[[nodiscard]] unsigned short time() const { return _time; }
 
 	/**
+	 * max_time()
+	 * @brief Returns the maximum flare time.
+	 * @returns unsigned short
+	 */
+	[[nodiscard]] unsigned short max_time() const { return _max_time; }
+
+	/**
 	 * color()
 	 * @brief Returns the flare color
-	 *
 	 * @returns unsigned short
 	 */
 	[[nodiscard]] unsigned short color() const { return _color; }
@@ -61,26 +64,16 @@ public:
 	Flare& operator=(Flare&&) = default;
 };
 
-struct FlareClear final : Flare {
-	bool pattern(const int x, const int y) override
-	{
-		return true;
-	}
-
-	FlareClear() : Flare(1, Color::reset) {}
-};
-
 // Level-up flare
 struct FlareLevel final : Flare {
 	/**
 	 * pattern(int, int)
 	 * @brief Diagonal flare pattern for level-ups
-	 *
 	 * @param x		 - X-axis (horizontal)
 	 * @param y		 - Y-axis (vertical)
 	 * @returns bool - ( true = flare this tile ) ( false = do not flare this tile )
 	 */
-	bool pattern(const int x, const int y) override
+	[[nodiscard]] bool pattern(const int x, const int y) override
 	{
 		return (x - y % 2) % 2 == 0;
 	}
@@ -89,12 +82,11 @@ struct FlareLevel final : Flare {
 	 * FlareLevel()
 	 * @brief Default constructor with preset color of BACKGROUND_GREEN, and a time of 6 frames.
 	 */
-	FlareLevel() : Flare(6, BACKGROUND_GREEN) {}
+	FlareLevel() : Flare(6, Color::b_green) {}
 
 	/**
 	 * FlareLevel(unsigned short, Color)
 	 * @brief Constructor with defined time & color values.
-	 *
 	 * @param flareTime  - The amount of frames to show a flare.
 	 * @param flareColor - The color to flare.
 	 */
@@ -102,7 +94,7 @@ struct FlareLevel final : Flare {
 };
 
 // Finale flare
-struct FlareChallenge final : Flare {
+struct FlareChallenge : Flare {
 private:
 	Coord _cell_size;	// This is needed to determine the bottom & right edge indexes
 
@@ -110,12 +102,11 @@ public:
 	/**
 	 * pattern(int, int)
 	 * Edge flare pattern for final challenge.
-	 *
 	 * @param x		 - X-axis (horizontal)
 	 * @param y		 - Y-axis (vertical)
 	 * @returns bool - ( true = flare this tile ) ( false = do not flare this tile )
 	 */
-	bool pattern(const int x, const int y) override
+	[[nodiscard]] bool pattern(const int x, const int y) override
 	{
 		return x <= 0 || x >= _cell_size._x || y <= 0 || y >= _cell_size._y;
 	}
@@ -136,5 +127,11 @@ public:
 	 *
 	 * @param cellSize	- A ref to the cell's _max member, representing the size of the tile matrix.
 	 */
-	explicit FlareChallenge(const Coord& cellSize) : Flare(10, BACKGROUND_RED), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
+	explicit FlareChallenge(const Coord& cellSize) : Flare(10, Color::b_red), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
+};
+
+struct FlareBoss final : FlareChallenge {
+	FlareBoss(const Coord& cellSize, const unsigned short flareTime, const unsigned short flareColor) : FlareChallenge(cellSize, flareTime, flareColor)	{}
+
+	explicit FlareBoss(const Coord& cellSize) : FlareChallenge(cellSize, 10, Color::b_magenta) {}
 };

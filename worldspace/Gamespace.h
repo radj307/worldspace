@@ -42,6 +42,7 @@ class Gamespace final {
 	std::vector<Flare*> _FLARE_QUEUE{};
 	FlareLevel _FLARE_DEF_LEVEL;			// Flare used when the player levels up
 	FlareChallenge _FLARE_DEF_CHALLENGE;	// Flare used when the final challenge mode begins
+	FlareBoss _FLARE_DEF_BOSS;
 
 	void addFlare(Flare& newFlare);
 	[[nodiscard]] Coord findValidSpawn(bool isPlayer = false, bool checkForItems = true);
@@ -50,6 +51,7 @@ class Gamespace final {
 	template<typename NPC> [[nodiscard]] NPC build_npc(ActorTemplate& actorTemplate);
 	template<typename NPC> [[nodiscard]] NPC build_npc(const Coord& pos, ActorTemplate& actorTemplate);
 	void spawn_boss();
+	void update_state();
 	void apply_to_all(void (Gamespace::*func)(ActorBase*));
 	void apply_to_npc(void (Gamespace::*func)(NPC*));
 	void apply_to_npc(bool (Gamespace::*func)(NPC*));

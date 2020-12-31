@@ -22,15 +22,25 @@ namespace game::_internal {
 		__FRAMETIME,
 		__NPC_CLOCK{ 200ms };
 
+	/**
+	 * setFramerate(unsigned int)
+	 * @brief Set the target number of frames per second.
+	 * @param newFramerate	- In frames per second
+	 */
 	inline void setFramerate(const unsigned int newFramerate)
 	{
 		__FRAMERATE = newFramerate;
 		__FRAMETIME = calcFrametime(__FRAMERATE);
 	}
 
-	inline void setNPCCycle(const std::chrono::milliseconds cycleTimeMS)
+	/**
+	 * setNPCCycle(unsigned int)
+	 * @brief Set the amount of time between each NPC action cycle.
+	 * @param cycleTimeMS	- Time between cycles in milliseconds
+	 */
+	inline void setNPCCycle(const unsigned int cycleTimeMS)
 	{
-		__NPC_CLOCK = cycleTimeMS;
+		__NPC_CLOCK = std::chrono::milliseconds{ cycleTimeMS };
 	}
 
 	// Shared Memory Object
@@ -48,7 +58,8 @@ namespace game::_internal {
 			pause{ _DEF_PAUSE },						// true = pause all threads
 			pause_complete{ _DEF_PAUSE_COMPLETE };		// true = display has been de-initialized
 		std::atomic<int> kill_code{ _DEF_KILL_CODE };	// -2 = not set | see the above PLAYER_CODE vars.
-
+		std::optional<std::string> player_killed_by{ std::nullopt };
+		
 		/**
 		 * pause_game(Coord)
 		 * @brief Sets the pause flag, clears the screen, and prints the pause message to a given pos.
