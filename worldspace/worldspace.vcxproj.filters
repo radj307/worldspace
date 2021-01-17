@@ -7,9 +7,6 @@
     <Filter Include="1 Game Elements">
       <UniqueIdentifier>{6de560ea-f97f-4994-9d72-397533f0e296}</UniqueIdentifier>
     </Filter>
-    <Filter Include="2 Game Rules">
-      <UniqueIdentifier>{e192340e-721b-4cd9-a7a6-1d8fdd0f92d5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="3 Game Operation">
       <UniqueIdentifier>{c39a1f3c-7037-49b8-b201-82853fd22fdd}</UniqueIdentifier>
     </Filter>
@@ -19,18 +16,18 @@
     <Filter Include="5 HighLevel Operations">
       <UniqueIdentifier>{4565c9ea-0f9f-4885-9d2a-c34c64f11138}</UniqueIdentifier>
     </Filter>
-    <Filter Include="documentation">
-      <UniqueIdentifier>{45a53230-6141-4854-a72e-2593f4a3c127}</UniqueIdentifier>
-    </Filter>
     <Filter Include="VS Resources">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="2 Game Rules / Config">
+      <UniqueIdentifier>{e192340e-721b-4cd9-a7a6-1d8fdd0f92d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Documentation">
+      <UniqueIdentifier>{3ede5811-1f91-480e-8df8-978dbb28ceee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="settings.h">
-      <Filter>0 Utilities &amp; Defaults</Filter>
-    </ClInclude>
     <ClInclude Include="Coord.h">
       <Filter>0 Utilities &amp; Defaults</Filter>
     </ClInclude>
@@ -50,7 +47,7 @@
       <Filter>3 Game Operation</Filter>
     </ClInclude>
     <ClInclude Include="GameRules.h">
-      <Filter>2 Game Rules</Filter>
+      <Filter>2 Game Rules / Config</Filter>
     </ClInclude>
     <ClInclude Include="FrameBuffer.h">
       <Filter>4 Display</Filter>
@@ -67,11 +64,24 @@
     <ClInclude Include="shared.h">
       <Filter>5 HighLevel Operations</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="DOCUMENTATION.txt">
-      <Filter>documentation</Filter>
-    </Text>
+    <ClInclude Include="controls.h">
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </ClInclude>
+    <ClInclude Include="init.h">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClInclude>
+    <ClInclude Include="tilematrix.h">
+      <Filter>0 Utilities &amp; Defaults</Filter>
+    </ClInclude>
+    <ClInclude Include="Frame.h">
+      <Filter>4 Display</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerStatBox.h">
+      <Filter>4 Display</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadFunctions.h">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -79,6 +89,9 @@
     </ClCompile>
     <ClCompile Include="Gamespace.cpp">
       <Filter>3 Game Operation</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameBuffer.cpp">
+      <Filter>4 Display</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -97,6 +110,9 @@
     </None>
     <None Include="actor_templates.ini">
       <Filter>0 Utilities &amp; Defaults</Filter>
+    </None>
+    <None Include="..\Documentation\Doxyfile">
+      <Filter>Documentation</Filter>
     </None>
   </ItemGroup>
 </Project>

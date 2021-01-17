@@ -82,7 +82,7 @@ struct FlareLevel final : Flare {
 	 * FlareLevel()
 	 * @brief Default constructor with preset color of BACKGROUND_GREEN, and a time of 6 frames.
 	 */
-	FlareLevel() : Flare(6, Color::b_green) {}
+	FlareLevel() : Flare(6, Color::_b_green) {}
 
 	/**
 	 * FlareLevel(unsigned short, Color)
@@ -127,11 +127,11 @@ public:
 	 *
 	 * @param cellSize	- A ref to the cell's _max member, representing the size of the tile matrix.
 	 */
-	explicit FlareChallenge(const Coord& cellSize) : Flare(10, Color::b_red), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
+	explicit FlareChallenge(const Coord& cellSize) : Flare(10, Color::_b_red), _cell_size(cellSize._x - 1, cellSize._y - 1) {}
 };
 
 struct FlareBoss final : FlareChallenge {
 	FlareBoss(const Coord& cellSize, const unsigned short flareTime, const unsigned short flareColor) : FlareChallenge(cellSize, flareTime, flareColor)	{}
 
-	explicit FlareBoss(const Coord& cellSize) : FlareChallenge(cellSize, 10, Color::b_magenta) {}
+	explicit FlareBoss(const Coord& cellSize) : FlareChallenge(cellSize, 10, Color::_b_magenta) {}
 };

@@ -2,21 +2,30 @@
  * actor.h
  * Represents characters in the game.
  * Contains all actors used in the game.
- * by radj307
+ * @author radj307
  */
 #pragma once
+#include <algorithm>
+#include <file.h>
 #include <sstream>
+#include <strconv.hpp>
 #include <string>
 #include <strmanip.hpp>
+#include <sysapi.h>
 #include <utility>
 #include <vector>
+#include <xRand.h>
+#include "controls.h"
 #include "Coord.h"
-#include "settings.h"
-#include "sysapi.h"
 
 // Universal attributes and templates
 #pragma region ACTOR_ATTRIBUTES
 
+/**
+ * @enum FACTION
+ * @brief These are all valid factions used in the game.
+ * These can be used as an actor's faction, or hostile faction targets.
+ */
 enum class FACTION {
 	PLAYER = 0,	// player has faction #0
 	ENEMY = 1,	// basic enemy has faction #1
@@ -24,27 +33,37 @@ enum class FACTION {
 	NONE = 3,	// actors cannot be members of this faction, but it can be used to create passive NPCs
 };
 
+/**
+ * strToFactions(string&)
+ * @brief Converts a string to a vector of factions.
+ * This function is mainly used by the INI loader in GameRules.
+ * @param str	- Input string containing faction name(s) separated by commas (',').
+ * @returns optional<vector<FACTION>>
+ */
 inline std::optional<std::vector<FACTION>> strToFactions(const std::string& str)
 {
-	const auto strVecToFacVec
-	{ // Lambda functor to convert string vector to faction vector
-		[](const std::vector<std::string>& vec) -> std::vector<FACTION> {
+	const auto factionVec { // Lambda functor to convert string vector to faction vector
+		[&str]() -> std::vector<FACTION> {
 			std::vector<FACTION> rv;
-			for ( const auto& it : vec ) {
-				if ( it == "ENEMY" )	rv.push_back(FACTION::ENEMY);
-				else if ( it == "NEUTRAL" )	rv.push_back(FACTION::NEUTRAL);
-				else if ( it == "PLAYER" )	rv.push_back(FACTION::PLAYER);
+			std::stringstream ss{ str };
+			for ( std::string parse{}; std::getline(ss, parse, ','); parse.clear() ) {
+				str::remove_all_of(parse, { isspace, ispunct });
+				str::toupper(parse);
+				if ( parse == "ENEMY" )			rv.emplace_back(FACTION::ENEMY);
+				else if ( parse == "NEUTRAL" )	rv.emplace_back(FACTION::NEUTRAL);
+				else if ( parse == "PLAYER" )	rv.emplace_back(FACTION::PLAYER);
 			}
 			if ( rv.empty() )
-				rv.push_back(FACTION::NONE);
+				rv.emplace_back(FACTION::NONE);
 			return rv;
-		}
-	};
-	const auto facVec{ strVecToFacVec(str::parseWithDelim(str, ',', std::vector<std::function<int(int)>>{ isspace, isdigit })) };
-	return facVec.empty() ? std::nullopt : static_cast<std::optional<std::vector<FACTION>>>(facVec);
+		}()};
+	return factionVec.empty() ? std::nullopt : static_cast<std::optional<std::vector<FACTION>>>(factionVec);
 }
 
-// Simple struct containing all of the constant base stats of an actor.
+/**
+ * @struct ActorMaxStats
+ * @brief Contains all actor universal maximum stats, aka their starting stats. This is the base of ActorStats.
+ */
 struct ActorMaxStats {
 protected:
 	// These are modified every level change
@@ -73,7 +92,10 @@ public:
 	[[nodiscard]] int getMaxDamage() const	{ return _MAX_DAMAGE; }
 };
 
-// Simple struct containing all of the current values for each stat defined in ActorMaxStats
+/**
+ * @struct ActorStats
+ * @brief Contains all actor universal statistics, and is the base of ActorBase.
+ */
 struct ActorStats : ActorMaxStats {
 protected:
 	int _level, _health, _stamina;	// level = Stat Multiplier
@@ -83,8 +105,7 @@ protected:
 
 	/**
 	 * update_stats(int)
-	 * Sets this actor's level to a new value, and updates their stats accordingly. This function is called by addLevel()
-	 *
+	 * @brief Sets this actor's level to a new value, and updates their stats accordingly. This function is called by addLevel()
 	 * @param newLevel	- The new level to set
 	 */
 	void update_stats(const int newLevel)
@@ -97,6 +118,10 @@ protected:
 		}
 	}
 
+	/**
+	 * restore_all_stats()
+	 * @brief Restores all stats to their max values.
+	 */
 	void restore_all_stats()
 	{
 		_health = _MAX_HEALTH;
@@ -116,21 +141,32 @@ public:
 	 */
 	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange) : ActorMaxStats(level >= 1 ? level : 1, health, stamina, damage), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
 
-	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	/**
+	 * setMaxHealth(unsigned int)
+	 * @brief Set the max/base health values of an actor. This will also restore all stats to max.
+	 */
 	void setMaxHealth(const unsigned int newValue)
 	{
 		_MAX_HEALTH = static_cast<signed>(newValue);
 		_BASE_HEALTH = _MAX_HEALTH;
 		restore_all_stats();
 	}
-	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	/**
+	 * setMaxStamina(unsigned int)
+	 * @brief Sets the maximum & base stamina of an actor. This will also restore all stats to max.
+	 * @param newValue	- The new max/base stamina value
+	 */
 	void setMaxStamina(const unsigned int newValue)
 	{
 		_MAX_STAMINA = static_cast<signed>(newValue);
 		_BASE_STAMINA = _MAX_STAMINA;
 		restore_all_stats();
 	}
-	// This function will set both the maximum & base values for a given stat, as well as restoring all stats to max.
+	/**
+	 * setMaxDamage(unsigned int)
+	 * @brief Set the maximum damage value of an actor. This will also restore all stats to max.
+	 * @param newValue	- The new max damage value.
+	 */
 	void setMaxDamage(const unsigned int newValue)
 	{
 		_MAX_DAMAGE = static_cast<signed>(newValue);
@@ -149,31 +185,15 @@ public:
 			_killedBy = killer;
 		return _killedBy;
 	}
-	// Returns this actor's level
-	[[nodiscard]] int getLevel() const { return _level; }
-	// Get this actor's visibility range
-	[[nodiscard]] auto getVis() const -> int { return _visRange; }
-	// Increases this actor's level by one
-	void addLevel()
-	{
-		update_stats(++_level);
-	}
-	// Decreases this actor's level by one
-	void subLevel()
-	{
-		update_stats(_level > 1 ? --_level : _level = 1);
-	}
-	/**
-	 * getHealth()
-	 * Returns a copy of this actor's health value
-	 *
-	 * @returns int
-	 */
-	[[nodiscard]] int getHealth() const { return _health; }
+	[[nodiscard]] int getLevel() const { return _level; } ///< @brief Returns the current level of this instance. @returns int
+	[[nodiscard]] auto getVis() const -> int { return _visRange; } ///< @brief Returns the current visibility range of this instance. @returns int
+	void addLevel() { update_stats(++_level); } ///< @brief Increase the current level of this instance by one.
+	void subLevel() { update_stats(_level > 1 ? --_level : _level = 1); } ///< @brief Decrease the current level of this instance by one.
+	[[nodiscard]] int getHealth() const { return _health; } ///< @brief Returns the current health of this instance. @returns int
+	[[nodiscard]] int getStamina() const { return _stamina; } ///< @brief Returns the current stamina value of this instance. @returns int
 	/**
 	 * setHealth(int)
-	 * Sets the actor's health to a new value, and automatically sets the dead flag if it is below 0.
-	 *
+	 * @brief Sets the actor's health to a new value, and automatically sets the dead flag if it is below 0.
 	 * @param newValue	- The new health value
 	 * @returns int		- The new health value
 	 */
@@ -193,8 +213,7 @@ public:
 	}
 	/**
 	 * modHealth(int)
-	 * Modifies the actor's health value, and automatically sets the dead flag if it drops below 0.
-	 *
+	 * @brief Modifies the actor's health value, and automatically sets the dead flag if it drops below 0.
 	 * @param modValue	- The amount to modify health by, negative removes, positive adds.
 	 * @returns int		- The new health value
 	 */
@@ -214,16 +233,8 @@ public:
 		return _health;
 	}
 	/**
-	 * getStamina()
-	 * Returns a copy of this actor's stamina value
-	 *
-	 * @returns int
-	 */
-	[[nodiscard]] int getStamina() const { return _stamina; }
-	/**
 	 * setStamina(int)
-	 * Sets the actor's stamina to a new value.
-	 *
+	 * @brief Sets the actor's stamina to a new value.
 	 * @param newValue	- The new stamina value
 	 * @returns int		- The new stamina value
 	 */
@@ -241,8 +252,7 @@ public:
 	}
 	/**
 	 * modStamina(int)
-	 * Modifies the actor's stamina value.
-	 *
+	 * @brief Modifies the actor's stamina value.
 	 * @param modValue	- The amount to modify stamina by, negative removes, positive adds.
 	 * @returns int		- The new stamina value
 	 */
@@ -261,20 +271,22 @@ public:
 	}
 };
 
-// Used to create stat templates for generating large quantities of actors at once
+/**
+ * @struct ActorTemplate
+ * @brief Contains all of the required values to initialize an Actor of any level, except for the starting position. An instance of this can be passed to the constructor of any actor to quickly create multiple similar actors.
+ */
 struct ActorTemplate {
-	std::string _name;
-	ActorStats _stats;
-	char _char;
-	unsigned short _color;
-	std::vector<FACTION> _hostile_to;
-	int _max_aggression;
-	float _chance;
+	std::string _name;					///< This instance's name.
+	ActorStats _stats;					///< This instance's stats.
+	char _char;							///< This instance's display character.
+	unsigned short _color;				///< This instance's display color.
+	std::vector<FACTION> _hostile_to;	///< This instance's faction relationships.
+	int _max_aggression;				///< This instance's maximum aggression value.
+	float _chance;						///< This instance's spawn chance.
 
 	/**
 	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
 	 * @brief Constructs a human player actor template.
-	 *
 	 * @param templateName	- A name of type string.
 	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
 	 * @param templateChar	- A character to represent actors of this type
@@ -284,7 +296,6 @@ struct ActorTemplate {
 	/**
 	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
 	 * @brief Constructs a NPC actor template. This template type is used to randomly generate NPCs
-	 *
 	 * @param templateName	- A name of type string.
 	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
 	 * @param templateChar	- A character to represent actors of this type
@@ -297,7 +308,6 @@ struct ActorTemplate {
 	/**
 	 * ActorTemplate(string, ActorStats&, char, unsigned short, vector<FACTION>)
 	 * @brief Constructs a NPC template that is always hostile to all other factions, unless the setRelationship function is used.
-	 *
 	 * @param templateName	- A name of type string.
 	 * @param templateStats	- Ref to an ActorStats instance. (level, health, stamina, damage, visible range)
 	 * @param templateChar	- A character to represent actors of this type
@@ -311,16 +321,19 @@ struct ActorTemplate {
 #pragma endregion  ACTOR_ATTRIBUTES
 // Base class of all actors
 #pragma region ACTOR_BASE
-// stats & specs of all actors -- parent struct
+/**
+ * @struct ActorBase
+ * @brief This is the base virtual object of every actor in the game. An ActorBase* parameter in a function means any actor can be operated on by the function.
+ */
 struct ActorBase : ActorStats {
 protected:
-	std::string _name;		// My reporting name
-	FACTION _faction;		// My faction
-	Coord _pos;				// My position as a coordinate
-	char _char;				// My displayed char
-	unsigned short _color;	// My displayed char's color in the console
-	std::vector<FACTION> _hostileTo;
-	int _kill_count;
+	std::string _name;					///< This actor's name.
+	FACTION _faction;					///< This actor's Faction.
+	Coord _pos;							///< This actor's current position.
+	char _char;							///< This actor's display character.
+	unsigned short _color;				///< The color of this actor's display character.
+	std::vector<FACTION> _hostileTo;	///< Factions this actor is hostile to.
+	int _kill_count;					///< This actor's kill count / experience.
 
 private:
 	/**
@@ -391,13 +404,13 @@ public:
 	 */
 	void moveDir(const char dir)
 	{
-		if ( dir == __controlset->_KEY_UP )
+		if ( dir == _current_control_set->_KEY_UP )
 			moveU();
-		else if ( dir == __controlset->_KEY_RIGHT )
+		else if ( dir == _current_control_set->_KEY_RIGHT )
 			moveR();
-		else if ( dir == __controlset->_KEY_DOWN )
+		else if ( dir == _current_control_set->_KEY_DOWN )
 			moveD();
-		else if ( dir == __controlset->_KEY_LEFT )
+		else if ( dir == _current_control_set->_KEY_LEFT )
 			moveL();
 	}
 	/**
@@ -431,13 +444,13 @@ public:
 	 */
 	[[nodiscard]] Coord getPosDir(const char dir) const
 	{
-		if ( dir == __controlset->_KEY_UP )
+		if ( dir == _current_control_set->_KEY_UP )
 			return getPosU();
-		if ( dir == __controlset->_KEY_RIGHT )
+		if ( dir == _current_control_set->_KEY_RIGHT )
 			return getPosR();
-		if ( dir == __controlset->_KEY_DOWN )
+		if ( dir == _current_control_set->_KEY_DOWN )
 			return getPosD();
-		if ( dir == __controlset->_KEY_LEFT )
+		if ( dir == _current_control_set->_KEY_LEFT )
 			return getPosL();
 		return{ -1,-1 }; // undefined
 	}
@@ -467,13 +480,7 @@ public:
 	 * @param target	- A faction
 	 * @returns bool	- ( true = this actor is hostile to target ) ( false = this actor is not hostile to target )
 	 */
-	bool isHostileTo(const FACTION target)
-	{
-		for ( auto it : _hostileTo )
-			if ( it == target )
-				return true;
-		return false;
-	}
+	bool isHostileTo(const FACTION target) { return std::ranges::any_of(_hostileTo.begin(), _hostileTo.end(), [&target](FACTION& it) -> bool { return it == target; }); }
 
 	/**
 	 * isHostileTo(ActorBase*)
@@ -481,13 +488,7 @@ public:
 	 * @param target	- Ptr to an actor
 	 * @returns bool	- ( true = this actor is hostile to target ) ( false = this actor is not hostile to target )
 	 */
-	bool isHostileTo(ActorBase* target)
-	{
-		for ( auto it : _hostileTo )
-			if ( it == target->faction() )
-				return true;
-		return false;
-	}
+	bool isHostileTo(ActorBase* target) { return std::ranges::any_of(_hostileTo.begin(), _hostileTo.end(), [&target](FACTION& it) -> bool { return it == target->faction(); }); }
 
 	/**
 	 * setColor(unsigned short)
@@ -565,24 +566,30 @@ public:
 #pragma endregion		  ACTOR_BASE
 // The player
 #pragma region ACTOR_PLAYER
-// human player
+/**
+ * @struct Player
+ * @brief This is a player actor, which (should be) controlled by a human.
+ */
 struct Player final : ActorBase {
-	checkDistanceFrom getDist;		// Functor that gets the distance from _pos to a given Coord point
+	// ReSharper disable once CppInconsistentNaming
+	checkDistanceFrom getDist;		///< @brief Functor that gets the distance from the player's current position to a given Coord point.
 	
 	/**
 	 * resurrect()
 	 * @brief Revives the player to max health, and removes the dead flag.
 	 */
-	void resurrect()
-	{
-		_dead = false;
-		_health = _MAX_HEALTH;
-	}
+	void resurrect() { _dead = false; _health = _MAX_HEALTH; }
+
+	int* ptrLevel() { return &_level; }				///< @brief Return a pointer to the level value. @returns int*
+	int* ptrHealth() { return &_health; }			///< @brief Return a pointer to the health value. @returns int*
+	int* ptrMaxHealth() { return &_MAX_HEALTH; }	///< @brief Return a pointer to the max health value. @returns int*
+	int* ptrStamina() { return &_stamina; }			///< @brief Return a pointer to the stamina value. @returns int*
+	int* ptrMaxStamina() { return &_MAX_STAMINA; }	///< @brief Return a pointer to the max stamina value. @returns int*
+	int* ptrKills() { return &_kill_count; }		///< @brief Return a pointer to the kill count value. @returns int*
 	
 	/** CONSTRUCTOR **
 	 * Player(FACTION, string, Coord, char, unsigned short, int)
-	 * This is the base constructor for actor types.
-	 *
+	 * @brief This is the base constructor for actor types.
 	 * @param myName	- My reporting name.
 	 * @param myPos		- My current position as a matrix coordinate
 	 * @param myChar	- My display character when inserted into a stream
@@ -595,7 +602,6 @@ struct Player final : ActorBase {
 	/**
 	 * Player(Coord&, ActorTemplate&)
 	 * @brief Construct a player from template
-	 *
 	 * @param myPos		 - My current position as a matrix coordinate
 	 * @param myTemplate - My templated stats
 	 */
@@ -604,20 +610,23 @@ struct Player final : ActorBase {
 #pragma endregion	  ACTOR_PLAYER
 // NPC actors
 #pragma region	  ACTOR_NPC
-// base NPC actor
+/**
+ * @struct NPC
+ * @brief This is the base of all NPC actors in the game.
+ */
 struct NPC : ActorBase {
 private:
 	int
-		_MAX_AGGRO,		// Maximum aggression value
-		_aggro;			// Current aggression value
+		_MAX_AGGRO,		///< @brief Maximum aggression value
+		_aggro;			///< @brief Current aggression value
 protected:
-	ActorBase* _target; // Current target
+	ActorBase* _target; ///< @brief Current target, the NPC will attempt to move towards this actor and kill them.
 
 	/**
 	 * isAfraid()
 	 * @brief Returns true if this NPC's stats are too low to continue fighting
-	 *
-	 * @returns bool - ( true = NPC is afraid, run away ) ( false = NPC is not afraid )
+	 * @return true		- NPC is afraid because their stats are low, they should run away.
+	 * @return false	- NPC is not afraid.
 	 */
 	[[nodiscard]] bool afraid() const
 	{
@@ -625,86 +634,106 @@ protected:
 			return true;
 		return false;
 	}
-
-	/** STATIC **
+	tRand _rng;
+	/**
 	 * getDir(Coord&, bool)
 	 * @brief Returns a direction char from a start point and end point. Called from getDirTo()
-	 *
 	 * @param dist		- The non-absolute difference between 2 actor's positions.
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	static char getDir(const Coord& dist, const bool invert)
+	[[nodiscard]] char getDir(const Coord& dist, const bool invert) const
 	{
 		/// NPC is aligned with target
-	#pragma region ALIGN_BLOCK
-		// if aligned horizontally, move vertically
-		if ( dist._x == 0 )
+#pragma region ALIGN_BLOCK
+		if (dist._x == 0)
 			return dist._y < 0 // Return Y-axis direction
-			? invert ? __controlset->_KEY_UP : __controlset->_KEY_DOWN
-			: invert ? __controlset->_KEY_DOWN : __controlset->_KEY_UP;
+			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
+			: invert ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
 
 		// if aligned vertically, move horizontally
-		if ( dist._y == 0 )
+		if (dist._y == 0)
 			return dist._x < 0 // Return X-axis direction
-			? invert ? __controlset->_KEY_LEFT : __controlset->_KEY_RIGHT
-			: invert ? __controlset->_KEY_RIGHT : __controlset->_KEY_LEFT;
-	#pragma endregion ALIGN_BLOCK
+			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
+			: invert ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
+#pragma endregion ALIGN_BLOCK
 		/// NPC is nearly aligned with target
-	#pragma region NEAR_BLOCK
-		// if nearly aligned horizontally, move vertically
-		if ( dist._x == 1 )
+#pragma region NEAR_BLOCK
+	// if nearly aligned horizontally, move vertically
+		if (abs(dist._x) == 1)
 			return dist._y < 0 // Return Y-axis direction
-			? invert ? __controlset->_KEY_UP : __controlset->_KEY_DOWN
-			: invert ? __controlset->_KEY_DOWN : __controlset->_KEY_UP;
+			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
+			: invert ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
 
 		// if nearly aligned vertically, move horizontally
-		if ( dist._y == 1 )
+		if (abs(dist._y) == 1)
 			return dist._x < 0 // Return X-axis direction
-			? invert ? __controlset->_KEY_LEFT : __controlset->_KEY_RIGHT
-			: invert ? __controlset->_KEY_RIGHT : __controlset->_KEY_LEFT;
-	#pragma endregion NEAR_BLOCK
+			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
+			: invert ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
+#pragma endregion NEAR_BLOCK
 		/// NPC is not aligned with target
-	#pragma region NAV_BLOCK
-		// neither axis is aligned, return the axis with the larger distance val
-		if ( (dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y) )
+#pragma region NAV_BLOCK
+	// neither axis is aligned, return the axis with the larger distance val
+		if ((dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y))
 			return dist._x < 0 // Return X-axis direction
-			? invert ? __controlset->_KEY_LEFT : __controlset->_KEY_RIGHT
-			: invert ? __controlset->_KEY_RIGHT : __controlset->_KEY_LEFT;
-		
+			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
+			: invert ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
+
 		return dist._y < 0 // Return Y-axis direction
-			? invert ? __controlset->_KEY_UP : __controlset->_KEY_DOWN
-			: invert ? __controlset->_KEY_DOWN : __controlset->_KEY_UP;
-	#pragma endregion NAV_BLOCK
+			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
+			: invert ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
+#pragma endregion NAV_BLOCK
+
+		/** The following code block causes NPCs to dodge when attacked from the horizontal axis -- WIP **/
+
+		/*
+		if (invert) { // if actor should run away, return the rverse direction
+			// if aligned horizontally, move vertically
+			if (dist._x == 0 || dist._x == 1 || dist._x == -1 && dist._y != 0) return dist._y < 0 ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN;
+			// if aligned vertically, move horizontally
+			if (dist._y == 0 || dist._y == 1 || dist._y == -1 && dist._x != 0) return dist._x < 0 ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT;
+			// neither axis is aligned, return the axis with the larger distance val
+			if ((dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y)) return dist._x < 0 ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT;
+			return dist._y < 0 ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN;
+		}
+		// else
+		// if aligned horizontally, move vertically
+		if (dist._x == 0 || dist._x == 1 || dist._x == -1) return dist._y < 0 ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
+		// if aligned vertically, move horizontally
+		if (dist._y == 0 || dist._y == 1 || dist._y == -1) return dist._x < 0 ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
+		// neither axis is aligned, return the axis with the larger distance val
+		if ((dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y)) return dist._x < 0 ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
+		return dist._y < 0 ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
+		*/
 	}
 	
 public:
 #pragma region DEF
-	NPC(const NPC&) = default;
-	NPC(NPC&&) = default;
-	virtual ~NPC() = default;
-	NPC& operator=(const NPC&) = default;
-	NPC& operator=(NPC&&) = default;
+	NPC(const NPC&) = default;				///< @brief Default copy constructor.
+	NPC(NPC&&) = default;					///< @brief Default move constructor.
+	virtual ~NPC() = default;				///< @brief Virtual destructor.
+	NPC& operator=(const NPC&) = default;	///< @brief Default copy operator.
+	NPC& operator=(NPC&&) = default;		///< @brief Default move operator.
 #pragma endregion DEF
 
 	/**
 	 * NPC(FACTION, string&, Coord&, char, unsigned short, ActorStats&, int)
-	 *
-	 * @param myFaction		- This NPC's faction
-	 * @param myName		- This NPC's name
-	 * @param myPos			- This NPC's position
-	 * @param myChar		- This NPC's display character
-	 * @param myColor		- This NPC's display color
-	 * @param myStats		- This NPC's stats
-	 * @param MAX_AGGRO		- This NPC's maximum aggression value
+	 * @brief Constructor that requires all values to be given an instantiation.
+	 * @param myFaction		- This NPC's faction.
+	 * @param myName		- This NPC's name.
+	 * @param myPos			- This NPC's position.
+	 * @param myChar		- This NPC's display character.
+	 * @param myColor		- This NPC's display color.
+	 * @param myStats		- This NPC's stats.
+	 * @param MAX_AGGRO		- This NPC's maximum aggression value.
 	 */
 	NPC(const FACTION myFaction, const std::string& myName, const Coord& myPos, const char myChar, const unsigned short myColor, const ActorStats& myStats, const int MAX_AGGRO) : ActorBase(myFaction, myName, myPos, myChar, myColor, myStats), _MAX_AGGRO(MAX_AGGRO), _aggro(0), _target(nullptr) {}
 	/**
 	 * NPC(FACTION, string&, Coord&, char, unsigned short, ActorStats&, int)
-	 *
-	 * @param myFaction		- This NPC's faction
-	 * @param myPos			- This NPC's position
-	 * @param myTemplate	- This NPC's templated stats
+	 * @brief Constructor that takes a ref to an ActorTemplate instance.
+	 * @param myFaction		- This NPC's faction.
+	 * @param myPos			- This NPC's position.
+	 * @param myTemplate	- This NPC's templated stats.
 	 */
 	NPC(const FACTION myFaction, const Coord& myPos, ActorTemplate& myTemplate) : ActorBase(myFaction, myPos, myTemplate), _MAX_AGGRO(myTemplate._max_aggression), _aggro(0), _target(nullptr) {}
 
@@ -712,65 +741,42 @@ public:
 	/**
 	 * canSee(Coord&, int)
 	 * @brief Returns true if a given point is within sight of this NPC.
-	 *
 	 * @param pos		- Coordinate to check
 	 * @param visMod	- (Default: 0) Modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool	- ( true = pos is within this NPC's visibility range ) ( false = pos is not visible )
 	 */
-	[[nodiscard]] bool canSee(const Coord& pos, const int visMod = 0) const
-	{
-		if ( checkDistance::get(_target->pos(), pos, _visRange + visMod) )
-			return true;
-		return false;
-	}
+	[[nodiscard]] bool canSee(const Coord& pos, const int visMod = 0) const { return checkDistance::get(_target->pos(), pos, _visRange + visMod); }
 
 	/**
 	 * canSee(ActorBase*, int)
 	 * @brief Returns true if a given actor is within sight of this NPC.
-	 *
 	 * @param target	- Pointer to an actor to check
 	 * @param visMod	- (Default: 0) Modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool	- ( true = NPC's target is within its visibility range ) ( false = NPC cannot see its target )
 	 */
-	[[nodiscard]] bool canSeeHostile(ActorBase* target, const int visMod = 0)
-	{
-		if ( isHostileTo(&*target) && checkDistance::get(target->pos(), _pos, _visRange + visMod) )
-			return true;
-		return false;
-	}
+	[[nodiscard]] bool canSeeHostile(ActorBase* target, const int visMod = 0) { return isHostileTo(&*target) && checkDistance::get(target->pos(), _pos, _visRange + visMod); }
 
 	/**
 	 * canSee(int)
 	 * @brief Returns true if this NPC has a target, and the target is within sight range.
-	 *
 	 * @param visMod	- (Default: 0) Modifier to NPC visibility, this value is added to NPC's sight range.
 	 * @returns bool	- ( true = NPC's target is within its visibility range ) ( false = NPC cannot see its target )
 	 */
-	[[nodiscard]] bool canSeeTarget(const int visMod = 0) const
-	{
-		if ( _target != nullptr && checkDistance::get(_target->pos(), _pos, _visRange + visMod) )
-			return true;
-		return false;
-	}
+	[[nodiscard]] bool canSeeTarget(const int visMod = 0) const { return _target != nullptr && checkDistance::get(_target->pos(), _pos, _visRange + visMod); }
 #pragma endregion CAN_SEE
 #pragma region DIRECTIONS
 	/**
 	 * getDirTo(Coord&)
-	 * Returns a direction char from a given target position.
-	 *
+	 * @brief Returns a direction char from a given target position.
 	 * @param target	- The target position
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDirTo(const Coord& target, const bool noFear = false) const
-	{
-		return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid());
-	}
+	[[nodiscard]] char getDirTo(const Coord& target, const bool noFear = false) const { return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid()); }
 
 	/**
 	 * getDirTo(ActorBase*)
-	 * Returns a direction char from a given target actor's position.
-	 *
+	 * @brief Returns a direction char from a given target actor's position.
 	 * @param target	- Pointer to a target actor
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
@@ -785,36 +791,15 @@ public:
 	/**
 	 * getDirTo(ActorBase*)
 	 * Returns a direction char from this NPC's current target's position.
-	 *
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDirTo(const bool noFear = false) const
-	{
-		if ( _target != nullptr )
-			return getDir({ _pos._x - _target->pos()._x, _pos._y - _target->pos()._y }, noFear ? false : afraid());
-		return ' ';
-	}
+	[[nodiscard]] char getDirTo(const bool noFear = false) const { return (_target != nullptr ? getDir({ _pos._x - _target->pos()._x, _pos._y - _target->pos()._y }, noFear ? false : afraid()) : ' '); }
 #pragma endregion DIRECTIONS
-#pragma region AGGRESSION	
-	/**
-	 * isAggro()
-	 * @brief Check if this NPC's aggression is above 0.
-	 * @returns bool	- ( true = NPC is aggravated ) ( false = NPC is not aggravated )
-	 */
-	[[nodiscard]] bool isAggro() const
-	{
-		if ( _aggro == 0 )
-			return false;
-		return true;
-	}
+#pragma region AGGRESSION
+	[[nodiscard]] bool isAggro() const { return _aggro > 0; } ///< @brief Check if this NPC is aggravated. @return true - NPC is aggravated. @return false - NPC is not aggravated.
 	
-	/**
-	 * getAggro()
-	 * @brief Returns a copy of this NPC's current aggression value.
-	 * @returns int
-	 */
-	[[nodiscard]] int getAggro() const { return _aggro; }
+	[[nodiscard]] int getAggro() const { return _aggro; } ///< @brief Returns a copy of this NPC's current aggression value. @returns int
 	
 	/**
 	 * modAggro(int)
@@ -831,14 +816,7 @@ public:
 		_aggro = newValue;
 	}
 	
-	/**
-	 * maxAggro()
-	 * @brief Sets this NPC's aggression to maximum, does not check for targets.
-	 */
-	void maxAggro()
-	{
-		_aggro = _MAX_AGGRO;
-	}
+	void maxAggro() { _aggro = _MAX_AGGRO; } ///< @brief Sets this NPC's aggression to maximum, does not check for targets.
 	
 	/**
 	 * maxAggro()
@@ -920,12 +898,14 @@ public:
 	void removeTarget() { _target = nullptr; }
 #pragma endregion TARGET
 };
-// enemy actor
+/**
+ * @struct Enemy
+ * @brief Enemy NPC actor. These are hostile to the player by default.
+ */
 struct Enemy final : NPC {
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, unsigned short, int, int, int, int, int)
 	 * @brief Constructs an enemy with the given parameters.
-	 *
 	 * @param myName	 - My reporting name.
 	 * @param myPos		 - My current position as a matrix coordinate
 	 * @param myChar	 - My display character when inserted into a stream
@@ -942,7 +922,6 @@ struct Enemy final : NPC {
 	/** CONSTRUCTOR **
 	 * Enemy(string, Coord, char, unsigned short, ActorStats&)
 	 * @brief Constructs an enemy from an ActorStats instance.
-	 *
 	 * @param myName	- My reporting name.
 	 * @param myPos		- My current position as a matrix coordinate
 	 * @param myChar	- My display character when inserted into a stream
@@ -957,18 +936,19 @@ struct Enemy final : NPC {
 	/** CONSTRUCTOR **
 	 * Enemy(Coord&, ActorTemplate&)
 	 * @brief Construct an enemy from an ActorTemplate instance.
-	 * 
 	 * @param myPos			- My current position as a matrix coordinate
 	 * @param myTemplate	- My templated stats
 	 */
 	Enemy(const Coord& myPos, ActorTemplate& myTemplate) : NPC(FACTION::ENEMY, myPos, myTemplate) {}
 };
-// neutral actor
+/**
+ * @struct Neutral
+ * @brief Neutral NPC actor. These are not hostile to the player by default.
+ */
 struct Neutral final : NPC {
 	/** CONSTRUCTOR **
 	 * Neutral(string, Coord, char, unsigned short, int, int, int, int, int)
 	 * @brief Constructs a neutral NPC with the given stats.
-	 * 
 	 * @param myName	 - My reporting name.
 	 * @param myPos		 - My current position as a matrix coordinate
 	 * @param myChar	 - My display character when inserted into a stream
@@ -985,7 +965,6 @@ struct Neutral final : NPC {
 	/** CONSTRUCTOR **
 	 * Neutral(string&, Coord&, char, unsigned short, ActorStats&, int)
 	 * @brief Constructs a neutral NPC from an ActorStats instance.
-	 *
 	 * @param myName	 - My reporting name.
 	 * @param myPos		 - My current position as a matrix coordinate
 	 * @param myChar	 - My display character when inserted into a stream
@@ -999,7 +978,6 @@ struct Neutral final : NPC {
 	/** CONSTRUCTOR **
 	 * Neutral(Coord&, ActorTemplate&)
 	 * @brief Constructs a neutral NPC from an ActorTemplate instance.
-	 *
 	 * @param myPos			- My current position as a matrix coordinate
 	 * @param myTemplate	- My templated stats
 	 */

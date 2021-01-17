@@ -2,7 +2,7 @@
  * game.h
  * Represents the game, with a worldspace & actors.
  * Contains the Gamespace class, which is a container for cells, and actors.
- * by radj307
+ * @author radj307
  */
 #pragma once
 #include "actor.h"
@@ -13,14 +13,14 @@
 #include "item.h"
 
 /**
- * class Gamespace
+ * @class Gamespace
  * @brief Contains all of the game-related functions required for running a game. Does not contain any display functions, use external FrameBuffer.
  */
 class Gamespace final {
-	// worldspace cell
-	Cell _world;
 	// Reference to the game's ruleset
 	GameRules& _ruleset;
+	// worldspace cell
+	Cell _world;
 	// Randomization engine
 	tRand _rng;
 	// Functor for checking distance between 2 points
@@ -55,9 +55,6 @@ class Gamespace final {
 	void apply_to_all(void (Gamespace::*func)(ActorBase*));
 	void apply_to_npc(void (Gamespace::*func)(NPC*));
 	void apply_to_npc(bool (Gamespace::*func)(NPC*));
-	[[nodiscard]] std::vector<ActorBase*> get_all_actors();
-	[[nodiscard]] std::vector<NPC*> get_all_npc();
-	[[nodiscard]] std::vector<ItemStaticBase*> get_all_static_items();
 	void regen(ActorBase* actor);
 	static void regen(ActorBase* actor, int percent);
 	void level_up(ActorBase* a);
@@ -65,6 +62,7 @@ class Gamespace final {
 	[[nodiscard]] bool canMove(const Coord& pos);
 	[[nodiscard]] bool canMove(int posX, int posY);
 	[[nodiscard]] bool checkMove(const Coord& pos, FACTION myFac);
+	void trap(ActorBase* actor, bool didMove);
 	[[nodiscard]] bool move(ActorBase* actor, char dir);
 	[[nodiscard]] bool moveNPC(NPC* npc, bool noFear = false);
 	int attack(ActorBase* attacker, ActorBase* target);
@@ -75,6 +73,9 @@ public:
 	// CONSTRUCTOR
 	explicit Gamespace(GameRules& ruleset);
 
+	[[nodiscard]] std::vector<ActorBase*> get_all_actors();
+	[[nodiscard]] std::vector<NPC*> get_all_npc();
+	[[nodiscard]] std::vector<ItemStaticBase*> get_all_static_items();
 	void actionAllNPC();
 	void actionPlayer(char key);
 	void apply_level_ups();

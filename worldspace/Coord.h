@@ -1,7 +1,7 @@
 /**
  * Coord.h
  * Contains the Coord struct, a wrapper for a single location in a matrix, or the size of a matrix.
- * by radj307
+ * @author radj307
  */
 #pragma once
 #include <cmath>
@@ -9,54 +9,68 @@
 
 #include "sysapi.h"
 
+// This must be set to an unused value for internal error checking to work correctly
+constexpr auto __NULL_COORD_VAL = -1L;
+
 /**
  * struct Coord
  * @brief Wrapper for a location in a matrix, with an X & Y index.
  */
 struct Coord {
-	long _y{};	// VERTICAL
-	long _x{};	// HORIZONTAL
+	long
+		_y{},	// VERTICAL
+		_x{};	// HORIZONTAL
 	
-	/** CONSTRUCTOR **
+	/**
 	 * Coord(long, long)
+	 * @brief Constructor
 	 * @param x	- X-axis (horizontal) index.
 	 * @param y	- Y-axis (vertical) index.
 	 */
 	Coord(const long x, const long y) : _y(y), _x(x) {}
+	
 	/**
 	 * Coord()
-	 * @brief Default constructor.
+	 * @brief Default constructor with null values.
 	 */
-	Coord() = default;
+	Coord() : _y(__NULL_COORD_VAL), _x(__NULL_COORD_VAL) {}
+
+	/**
+	 * set(TyX, TyY)
+	 * @brief Change the values of this coord
+	 * @tparam TyX	- Type of param x
+	 * @tparam TyY	- Type of param y
+	 * @param x		- Horizontal X-axis value
+	 * @param y		- Vertical Y-axis value
+	 * @returns bool
+	 */
+	template<typename TyX = long, typename TyY = long>
+	bool set(TyX x, TyY y)
+	{
+		try {
+			_x = static_cast<long>(x);
+			_y = static_cast<long>(y);
+			return true;
+		} catch ( ... ) { return false; }
+	}
 
 	// Comparison operator
-	bool operator==(const Coord &o) const
-	{
-		if ( _y == o._y && _x == o._x )
-			return true;
-		return false;
-	}
+	bool operator==(const Coord &o) const { return _y == o._y && _x == o._x; }
 	// Inverse comparison operator
-	bool operator!=(const Coord &o) const
-	{
-		if ( _y != o._y && _x != o._x )
-			return true;
-		return false;
-	}
+	bool operator!=(const Coord &o) const { return _y != o._y && _x != o._x; }
 };
 
-// Add an overload to the cursorPos function so Coord can be passed as parameter:
+static const Coord _NULL_COORD;
+
+
 namespace sys {
-	/**
-	 * cursorPos(COORD)
+	/** // Add an overload to the cursorPos function so Coord can be passed as parameter:
+	 * cursorPos(Coord)
 	 * @brief Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
 	 * @param pos		- Target position, measured in characters of the screen buffer
 	 * @returns bool	- ( true = success ) ( false = failed )
 	 */
-	inline bool cursorPos(const Coord pos)
-	{
-		return cursorPos(pos._x, pos._y);
-	}
+	static bool cursorPos(const Coord& pos) { return sys::cursorPos(pos._x, pos._y); }
 }
 
 /** FUNCTOR **
@@ -72,10 +86,7 @@ struct checkDistance final {
 	 * @param radius	- The radius of the circle
 	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
 	 */
-	static bool get(const Coord& pos, const Coord& center, const int radius)
-	{
-		return (pos._x - center._x) * (pos._x - center._x) + (pos._y - center._y) * (pos._y - center._y) <= radius * radius;
-	}
+	template < typename Int > static bool get( const Coord& pos, const Coord& center, const Int& radius ) { return ( pos._x - center._x ) * ( pos._x - center._x ) + ( pos._y - center._y ) * ( pos._y - center._y ) <= radius * radius; }
 	/**
 	 * get(Coord&, Coord&, int)
 	 * @brief Returns true if a given coordinate is within a circular radius of a given point
@@ -85,10 +96,7 @@ struct checkDistance final {
 	 * @param radius	- The radius of the circle
 	 * @returns bool	- ( true = point is within circle ) ( false = point is not within circle )
 	 */
-	static bool get(const int posX, const int posY, const Coord& center, const int radius)
-	{
-		return (posX - center._x) * (posX - center._x) + (posY - center._y) * (posY - center._y) <= radius * radius;
-	}
+	template < typename Int > static bool get( const int& posX, const int& posY, const Coord& center, const Int& radius ) { return ( posX - center._x ) * ( posX - center._x ) + ( posY - center._y ) * ( posY - center._y ) <= radius * radius; }
 	/**
 	 * get(Coord&, Coord&)
 	 * @brief Get the distance between 2 points. Always returns a positive value.
@@ -96,10 +104,7 @@ struct checkDistance final {
 	 * @param pos2	- Second position
 	 * @returns long
 	 */
-	static long get(const Coord& pos1, const Coord& pos2)
-	{
-		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
-	}
+	static long get(const Coord& pos1, const Coord& pos2) { return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y); }
 	/**
 	 * get(long, long, long, long)
 	 * @brief Get the distance between 2 points. Always returns a positive value.
@@ -109,10 +114,7 @@ struct checkDistance final {
 	 * @param pos2Y	- Second position's Y-axis
 	 * @returns long
 	 */
-	static long get(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y)
-	{
-		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
-	}
+	static long get(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) { return abs(pos1X - pos2X) + abs(pos1Y - pos2Y); }
 	/**
 	 * operator()
 	 * @brief Returns the distance between 2 given points.
@@ -120,10 +122,7 @@ struct checkDistance final {
 	 * @param pos2	- Second point
 	 * @returns long
 	 */
-	long operator()(const Coord& pos1, const Coord& pos2) const
-	{
-		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
-	}
+	long operator()(const Coord& pos1, const Coord& pos2) const { return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y); }
 	/**
 	 * operator()
 	 * @brief Returns the distance between 2 given points.
@@ -133,10 +132,7 @@ struct checkDistance final {
 	 * @param pos2Y	- Second point's Y (vertical) index.
 	 * @returns long
 	 */
-	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) const
-	{
-		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
-	}
+	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) const { return abs(pos1X - pos2X) + abs(pos1Y - pos2Y); }
 };
 
 /** FUNCTOR **
@@ -153,10 +149,7 @@ struct checkDistanceFrom final {
 	 *
 	 * @param followThis	- A pointer to a Coord instance to use when checking distance.
 	 */
-	explicit checkDistanceFrom(Coord& followThis) : _follow(&followThis)
-	{
-		if ( _follow == nullptr ) throw std::exception("checkDistanceFrom() exception: Given coord to follow was nullptr");
-	}
+	explicit checkDistanceFrom(Coord& followThis) : _follow(&followThis) { if ( _follow == nullptr ) throw std::exception("checkDistanceFrom() exception: Given coord to follow was nullptr"); }
 
 	/**
 	 * operator()
@@ -165,10 +158,7 @@ struct checkDistanceFrom final {
 	 * @param pos	- Target position to check
 	 * @returns long
 	 */
-	long operator()(const Coord& pos) const noexcept
-	{
-		return abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y);
-	}
+	long operator()(const Coord& pos) const noexcept { return abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y); }
 	/**
 	 * operator()
 	 * @brief Returns the distance between this instance's coord pointer and a given point.
@@ -177,10 +167,7 @@ struct checkDistanceFrom final {
 	 * @param posY	- Target Y (vertical) position to check
 	 * @returns long
 	 */
-	long operator()(const long posX, const long posY) const noexcept
-	{
-		return abs(_follow->_x - posX) + abs(_follow->_y - posY);
-	}
+	long operator()(const long posX, const long posY) const noexcept { return abs(_follow->_x - posX) + abs(_follow->_y - posY); }
 };
 
 /** FUNCTOR **

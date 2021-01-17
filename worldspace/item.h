@@ -1,7 +1,7 @@
 /**
  * item.h
  * Represents an item that can be possessed by an actor, or dropped on the map
- * by radj307
+ * @author radj307
  */
 #pragma once
 #include <string>
@@ -49,7 +49,7 @@ public:
 	 * @param name			- This item's name
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 */
-	ItemStats(std::string name, const int maxUses) : _char('&'), _color(Color::reset), _name(std::move(name)), _use_count(maxUses)
+	ItemStats(std::string name, const int maxUses) : _char('&'), _color(Color::_reset), _name(std::move(name)), _use_count(maxUses)
 	{
 		// Allow any faction to use
 		initFactionLock();
@@ -70,7 +70,6 @@ public:
 	/**
 	 * ItemStats(char, Color, string, int, vector<FACTION>)
 	 * @brief Constructor that allows locking this item to specific factions.
-	 *
 	 * @param display		- This item's display character
 	 * @param displayColor	- This item's display color
 	 * @param name			- This item's name
@@ -90,11 +89,24 @@ public:
 
 	/**
 	 * getUses()
-	 * Returns this item's remaining uses.
-	 *
+	 * @brief Returns this item's remaining uses.
 	 * @returns int
 	 */
 	[[nodiscard]] int getUses() const { return _use_count; }
+
+	/**
+	 * getChar()
+	 * @brief Get this item's display character.
+	 * @returns char
+	 */
+	[[nodiscard]] char getChar() const { return _char; }
+
+	/**
+	 * getColor()
+	 * @brief Get this item's display color.
+	 * @returns unsigned short
+	 */
+	[[nodiscard]] unsigned short getColor() const { return _color; }
 };
 
 // Base static item
@@ -165,8 +177,7 @@ public:
 
 	/**
 	 * attempt_use(ActorBase*)
-	 * Given actor pointer will try to use this item, if actor's faction is allowed.
-	 *
+	 * @brief Given actor pointer will try to use this item, if actor's faction is allowed.
 	 * @param actor	- Pointer to a target actor
 	 */
 	void attempt_use(ActorBase* actor)
@@ -180,8 +191,7 @@ public:
 
 	/**
 	 * pos()
-	 * Get this item's position
-	 *
+	 * @brief Get this item's position
 	 * @returns Coord
 	 */
 	[[nodiscard]] Coord pos() const { return _pos; }
@@ -236,7 +246,7 @@ public:
 	 * @param myPos				- This item's position in the cell
 	 * @param amountRestored	- The amount of health this item restores
 	 */
-	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', Color::f_red, "Restore Health", 1, myPos), _amount(amountRestored) {}
+	ItemStaticHealth(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', Color::_f_red, "Restore Health", 1, myPos), _amount(amountRestored) {}
 
 	/**
 	 * ItemStaticHealth(Coord&, int, vector<FACTION>)
@@ -246,7 +256,7 @@ public:
 	 * @param amountRestored	- The amount of health this item restores
 	 * @param lockToFaction		- Vector of factions allowed to use this item
 	 */
-	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::b_red, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::_b_red, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
 	ItemStaticHealth(const ItemStaticHealth&) = default;
@@ -305,7 +315,7 @@ public:
 	 * @param amountRestored	- The amount of stamina this item restores
 	 * @param lockToFaction		- Vector of factions allowed to use this item
 	 */
-	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::_b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
