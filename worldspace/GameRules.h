@@ -52,6 +52,7 @@ public:
 		_npc_move_chance{ 6 },				///< @brief The chance an NPC will move when idle (1 in (this) chance)
 		_npc_move_chance_aggro{ 6 };		///< @brief The chance an NPC will move when aggravated ((this) to 1 chance)
 	int _npc_vis_mod_aggro{ 1 };			///< @brief This value is added to an NPC's sight range when chasing target
+	bool _level_stat_mult{ true };
 
 	/// ENEMIES
 	int
@@ -59,24 +60,24 @@ public:
 		_enemy_aggro_distance{ 2 };			///< @brief Determines from how far away enemies notice the player and become aggressive
 	
 	std::vector<ActorTemplate> _enemy_template{	///< @brief Default Enemy templates.
-		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1), 'Y', Color::_f_yellow, _enemy_hostile_to, 30, 100.0f },	///< @brief Level 1 Enemy
-		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1), 'T', Color::_f_red, _enemy_hostile_to, 20, 45.0f },		///< @brief Level 2 Enemy
-		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance), 'T', Color::_f_magenta, _enemy_hostile_to, 20, 20.0f },		///< @brief Level 3 Enemy
-		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance), 'M', Color::_f_magenta, _enemy_hostile_to, 30, 2.0f },		///< @brief Level 4 Enemy
+		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1, _level_stat_mult), 'Y', Color::_f_yellow, _enemy_hostile_to, 30, 100.0f },	///< @brief Level 1 Enemy
+		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1, _level_stat_mult), 'T', Color::_f_red, _enemy_hostile_to, 20, 45.0f },		///< @brief Level 2 Enemy
+		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance, _level_stat_mult), 'T', Color::_f_magenta, _enemy_hostile_to, 20, 20.0f },		///< @brief Level 3 Enemy
+		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance, _level_stat_mult), 'M', Color::_f_magenta, _enemy_hostile_to, 30, 2.0f },		///< @brief Level 4 Enemy
 	};
 	
 	/// BOSSES
 	std::vector<ActorTemplate> _enemy_boss_template{
-		{ "Grim Reaper", ActorStats(10, 25, 50, 40, _cellSize._x * _cellSize._y), 'N', Color::_b_magenta, _enemy_hostile_to, 100, 0.0 },///< @brief Level 10 Enemy - (Boss: Grim Reaper)
-		{ "Pit Boss", ActorStats(10, 25, 50, 40, _enemy_aggro_distance + 2), 'N', Color::_b_magenta, _enemy_hostile_to, 100, 0.0 },		///< @brief Level 10 Enemy - (Boss: Pit Boss)
+		{ "Grim Reaper", ActorStats(10, 25, 50, 40, _cellSize._x * _cellSize._y, _level_stat_mult), 'N', Color::_b_magenta, _enemy_hostile_to, 100, 0.0 },///< @brief Level 10 Enemy - (Boss: Grim Reaper)
+		{ "Pit Boss", ActorStats(10, 25, 50, 40, _enemy_aggro_distance + 2, _level_stat_mult), 'N', Color::_b_magenta, _enemy_hostile_to, 100, 0.0 },		///< @brief Level 10 Enemy - (Boss: Pit Boss)
 	};
 
 	/// NEUTRALS
 	int	_neutral_count{ 12 }; ///< @brief how many neutrals are present when the game starts
 	std::vector<ActorTemplate> _neutral_template{ ///< @brief Neutral templates, aka default values for neutral types
-		{ "Chicken",ActorStats(1, 30, 30, 5, 5), '`', Color::_f_cyan, _neutral_hostile_to, 100, 100.0f },	///< Level 1 Neutral
-		{ "Sheep",	ActorStats(2, 30, 30, 5, 4), '@', Color::_f_cyan, _neutral_hostile_to, 50, 45.0f },		///< Level 2 Neutral
-		{ "Cow",	ActorStats(3, 30, 30, 5, 4), '%', Color::_f_blue, _neutral_hostile_to, 35, 20.0f },		///< Level 3 Neutral
+		{ "Chicken",ActorStats(1, 30, 30, 5, 5, _level_stat_mult), '`', Color::_f_cyan, _neutral_hostile_to, 100, 100.0f },	///< Level 1 Neutral
+		{ "Sheep",	ActorStats(2, 30, 30, 5, 4, _level_stat_mult), '@', Color::_f_cyan, _neutral_hostile_to, 50, 45.0f },		///< Level 2 Neutral
+		{ "Cow",	ActorStats(3, 30, 30, 5, 4, _level_stat_mult), '%', Color::_f_blue, _neutral_hostile_to, 35, 20.0f },		///< Level 3 Neutral
 	};
 	
 	/// PASSIVE EFFECTS
@@ -153,7 +154,7 @@ public:
 	 * @param cfg	- Ref to an INI instance.
 	 */
 	explicit GameRules(INI& cfg) :
-		_walls_always_visible			(cfg.get<bool>	("world", "showAllWalls", str::stob).value_or(_walls_always_visible)),
+		_walls_always_visible(cfg.get<bool>	("world", "showAllWalls", str::stob).value_or(_walls_always_visible)),
 		_override_known_tiles			(cfg.get<bool>	("world", "showAllTiles", str::stob).value_or(_override_known_tiles)),
 		_dark_mode						(cfg.get<bool>	("world", "fogOfWar", str::stob).value_or(_dark_mode)),
 		_cellSize						(cfg.get<long>	("world", "sizeH", str::stol).value_or(_cellSize._x), cfg.get<long>("world", "sizeV", str::stol).value_or(_cellSize._y)),
@@ -167,6 +168,7 @@ public:
 		_npc_move_chance				(cfg.get<float>	("actors", "npcMoveChance", str::stof).value_or(_npc_move_chance)),
 		_npc_move_chance_aggro			(cfg.get<float>	("actors", "npcMoveChanceAggro", str::stof).value_or(_npc_move_chance_aggro)),
 		_npc_vis_mod_aggro				(cfg.get<int>	("actors", "npcVisModAggro", str::stoi).value_or(_npc_vis_mod_aggro)),
+		_level_stat_mult				(cfg.get<bool>("actors", "multStatsByLevel", str::stob)),
 		_enemy_count					(cfg.get<int>	("enemy", "count", str::stoi).value_or(_enemy_count)),
 		_enemy_aggro_distance			(cfg.get<int>	("enemy", "aggroDistance", str::stoi).value_or(_enemy_aggro_distance)),
 		_neutral_count					(cfg.get<int>	("neutral", "count", str::stoi).value_or(_neutral_count)),

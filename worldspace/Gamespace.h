@@ -51,7 +51,7 @@ class Gamespace final {
 	template<typename NPC> [[nodiscard]] NPC build_npc(ActorTemplate& actorTemplate);
 	template<typename NPC> [[nodiscard]] NPC build_npc(const Coord& pos, ActorTemplate& actorTemplate);
 	void spawn_boss();
-	void update_state();
+	void update_state() noexcept;
 	void apply_to_all(void (Gamespace::*func)(ActorBase*));
 	void apply_to_npc(void (Gamespace::*func)(NPC*));
 	void apply_to_npc(bool (Gamespace::*func)(NPC*));
@@ -80,7 +80,7 @@ public:
 	void actionPlayer(char key);
 	void apply_level_ups();
 	void apply_passive();
-	void cleanupDead();
+	void cleanupDead() noexcept;
 	[[nodiscard]] ActorBase* getClosestActor(const Coord& pos, int visRange);
 	[[nodiscard]] ActorBase* getActorAt(const Coord& pos);
 	[[nodiscard]] ActorBase* getActorAt(int posX, int posY);

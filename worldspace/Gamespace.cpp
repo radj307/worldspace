@@ -721,55 +721,64 @@ void Gamespace::actionPlayer(const char key)
  * update_state()
  * @brief Checks endgame conditions & challenge conditions, and updates the game state instance accordingly. This function is called automatically by cleanupDead().
  */
-void Gamespace::update_state()
+void Gamespace::update_state() noexcept
 {
-	// check lose condition
-	if ( _player.isDead() ) {
-		_game_state._game_is_over.store(true);
-		_game_state._playerDead.store(true);
-	}
-	// check win condition
-	else if ( _hostile.empty() ) {
-		if ( _ruleset._enable_boss && !_game_state._boss_challenge && _ruleset._boss_spawns_after_final ) {
-			_game_state._boss_challenge.store(true); // next time the hostile vec is empty, game is over
-			spawn_boss();
-		}
-		else {
+	try {
+		// check lose condition
+		if ( _player.isDead() ) {
 			_game_state._game_is_over.store(true);
-			_game_state._allEnemiesDead.store(true);
+			_game_state._playerDead.store(true);
+		}
+			// check win condition
+		else if ( _hostile.empty() ) {
+			if ( _ruleset._enable_boss && !_game_state._boss_challenge && _ruleset._boss_spawns_after_final ) {
+				_game_state._boss_challenge.store(true); // next time the hostile vec is empty, game is over
+				spawn_boss();
+			}
+			else {
+				_game_state._game_is_over.store(true);
+				_game_state._allEnemiesDead.store(true);
+			}
+		}
+			// Check if the final challenge should be triggered
+		else if ( !_game_state._final_challenge.load() && trigger_final_challenge(
+			static_cast<unsigned int>(_hostile.size())) ) {
+			_game_state._final_challenge.store(true);
+			addFlare(_FLARE_DEF_CHALLENGE);
+			if ( _ruleset._enable_boss && !_ruleset._boss_spawns_after_final ) {
+				_game_state._boss_challenge.store(true);
+				spawn_boss();
+			}
 		}
 	}
-	// Check if the final challenge should be triggered
-	else if ( !_game_state._final_challenge.load() && trigger_final_challenge( static_cast<unsigned int>(_hostile.size()) ) ) {
-		_game_state._final_challenge.store(true);
-		addFlare(_FLARE_DEF_CHALLENGE);
-		if ( _ruleset._enable_boss && !_ruleset._boss_spawns_after_final ) {
-			_game_state._boss_challenge.store(true);
-			spawn_boss();
-		}
-	}
+	catch ( ... ) {}
 }
 /**
  * cleanupDead()
- * @brief Cleans up expired game elements. This is called by the frame buffer before every frame.
+ * @brief Cleans up expired game elements. This should be called approx. once per draw cycle.
  */
-void Gamespace::cleanupDead()
+void Gamespace::cleanupDead() noexcept
 {
-	// Erase used health potions
-	for ( auto it{ static_cast<signed>(_item_static_health.size() - 1) }; it >= 0; it-- )
-		if ( _item_static_health.at(it).getUses() <= 0 )
-			_item_static_health.erase(_item_static_health.begin() + it);
-	// Erase used stamina potions
-	for ( auto it{ static_cast<signed>(_item_static_stamina.size() - 1) }; it >= 0; it-- )
-		if ( _item_static_stamina.at(it).getUses() <= 0 )
-			_item_static_stamina.erase(_item_static_stamina.begin() + it);
-	// erase dead enemies
-	for ( auto it{ static_cast<int>(_hostile.size()) - 1 }; it >= 0; it-- )
-		if ( _hostile.at(it).isDead() ) _hostile.erase(_hostile.begin() + it);
-	// erase dead neutrals
-	for ( auto it{ static_cast<signed>(_neutral.size() - 1) }; it >= 0; it-- )
-		if ( _neutral.at(it).isDead() ) _neutral.erase(_neutral.begin() + it);
-	update_state();
+	try {
+		// erase dead enemies
+		for ( auto it{static_cast<signed>(_hostile.size()) - 1}; it >= 0; --it )
+			if ( _hostile.at(it).isDead() )
+				_hostile.erase(_hostile.begin() + it);
+		// erase dead neutrals
+		for ( auto it{static_cast<signed>(_neutral.size() - 1)}; it >= 0; --it )
+			if ( _neutral.at(it).isDead() )
+				_neutral.erase(_neutral.begin() + it);
+		// Erase used health potions
+		for ( auto it{static_cast<signed>(_item_static_health.size() - 1)}; it >= 0; --it )
+			if ( _item_static_health.at(it).getUses() <= 0 )
+				_item_static_health.erase(_item_static_health.begin() + it);
+		// Erase used stamina potions
+		for ( auto it{static_cast<signed>(_item_static_stamina.size() - 1)}; it >= 0; --it )
+			if ( _item_static_stamina.at(it).getUses() <= 0 )
+				_item_static_stamina.erase(_item_static_stamina.begin() + it);
+		update_state();
+	}
+	catch ( ... ) {}
 }
 #pragma endregion			GAME_CLEANUP
 // Gamespace functions related to FrameBuffer color flares.

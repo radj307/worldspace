@@ -60,6 +60,8 @@ inline std::optional<std::vector<FACTION>> strToFactions(const std::string& str)
 	return factionVec.empty() ? std::nullopt : static_cast<std::optional<std::vector<FACTION>>>(factionVec);
 }
 
+static bool INIT_ACTOR_STATS_WITH_LEVEL{ false }; ///< @brief When true, all actors starting stats are multiplied by their starting level when created.
+
 /**
  * @struct ActorMaxStats
  * @brief Contains all actor universal maximum stats, aka their starting stats. This is the base of ActorStats.
@@ -79,7 +81,16 @@ protected:
 	 * @param STAMINA	- My maximum stamina value	(Minimum is 10)
 	 * @param DAMAGE	- My damage modifier value	(Minimum is 10)
 	 */
-	ActorMaxStats(const unsigned int Mult, const unsigned int HEALTH, const unsigned int STAMINA, const unsigned int DAMAGE) : _MAX_HEALTH(static_cast<signed>(HEALTH * (Mult < 1 ? 1 : Mult))), _MAX_STAMINA(static_cast<signed>(STAMINA * (Mult < 1 ? 1 : Mult))), _MAX_DAMAGE(static_cast<signed>(DAMAGE * (Mult < 1 ? 1 : Mult))), _BASE_HEALTH(_MAX_HEALTH), _BASE_STAMINA(_MAX_STAMINA), _BASE_DAMAGE(_MAX_DAMAGE) {}
+	ActorMaxStats(const int HEALTH, const int STAMINA, const int DAMAGE, int Mult = 1) :
+		_MAX_HEALTH{ HEALTH * Mult },
+		_MAX_STAMINA{ STAMINA * Mult },
+		_MAX_DAMAGE{ DAMAGE * Mult },
+		_BASE_HEALTH{ _MAX_HEALTH },
+		_BASE_STAMINA{ _MAX_STAMINA },
+		_BASE_DAMAGE{ _MAX_DAMAGE } 
+	{
+		if ( HEALTH <= 0 || STAMINA <= 0 || DAMAGE <= 0 ) throw std::exception("INVALID_ACTOR_STATS");
+	}
 	ActorMaxStats(const ActorMaxStats&) = default;
 	ActorMaxStats(ActorMaxStats&&) = default;
 	virtual ~ActorMaxStats() = default;
@@ -97,6 +108,8 @@ public:
  * @brief Contains all actor universal statistics, and is the base of ActorBase.
  */
 struct ActorStats : ActorMaxStats {
+private:
+	bool _level_stat_mult;
 protected:
 	int _level, _health, _stamina;	// level = Stat Multiplier
 	bool _dead;						// Am I dead?
@@ -106,15 +119,15 @@ protected:
 	/**
 	 * update_stats(int)
 	 * @brief Sets this actor's level to a new value, and updates their stats accordingly. This function is called by addLevel()
-	 * @param newLevel	- The new level to set
+	 * @param newLevel		- The new level to set
 	 */
 	void update_stats(const int newLevel)
 	{
 		_level = newLevel;
 		if ( _level % 3 == 0 ) {
 			_MAX_HEALTH = static_cast<int>(static_cast<float>(_BASE_HEALTH) * (static_cast<float>(_level) / 1.5f));
-			_MAX_STAMINA = static_cast<int>(static_cast<float>(_BASE_STAMINA) * (static_cast<float>(_level) / 1.5f));
-			_MAX_DAMAGE = static_cast<int>(static_cast<float>(_BASE_DAMAGE) * (static_cast<float>(_level) / 1.5f));
+			_MAX_STAMINA = static_cast<int>(static_cast<float>(_BASE_STAMINA) * (static_cast<float>(_level) / 1.3f));
+			_MAX_DAMAGE = static_cast<int>(static_cast<float>(_BASE_DAMAGE) * (static_cast<float>(_level) / 1.9f));
 		}
 	}
 
@@ -139,7 +152,8 @@ public:
 	 * @param damage	- My damage modifier
 	 * @param visRange	- My sight range
 	 */
-	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange) : ActorMaxStats(level >= 1 ? level : 1, health, stamina, damage), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
+	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange, const bool multStatsByLevel = false) : 
+		ActorMaxStats(health, stamina, damage, multStatsByLevel ? level : 1), _level_stat_mult(multStatsByLevel), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
 
 	/**
 	 * setMaxHealth(unsigned int)

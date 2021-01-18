@@ -62,6 +62,7 @@ namespace game::_internal {
 						{ "npcMoveChance",			 "6.0"	},
 						{ "npcMoveChanceAggro",		 "6.0"	},
 						{ "npcVisModAggro",			 "1"	},
+				        { "multStatsByLevel",       "false" },
 						{ "regen_time",				 "2"	},
 						{ "regen_health",			 "5"	},
 						{ "regen_stamina",			 "10"	},

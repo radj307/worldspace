@@ -19,6 +19,7 @@
  */
 namespace game::_internal {
 	using CLK = std::chrono::high_resolution_clock; ///< Game timer clock
+
 	/**
 	 * game_thread_player(Gamespace&, GLOBAL&)
 	 * @brief Thread function that receives & processes player key presses independantly of the display/npc threads.
@@ -99,26 +100,24 @@ namespace game::_internal {
 			for ( auto tLastRegenCycle{ CLK::now() }; !mem.kill.load(); ) {
 				if ( !mem.pause.load() ) {
 					mem.pause_complete.store( false );
-					std::this_thread::sleep_for( __FRAMETIME );		// sleep this thread for half of a clock cycle
-					std::cout.flush();									// flush the cout buffer
-					std::scoped_lock<std::mutex> lock( mutx );			// lock the mutex
-					game.apply_level_ups();								// Apply level ups
+					std::this_thread::sleep_for( __FRAMETIME );
+					std::scoped_lock<std::mutex> lock( mutx );
 					try {
-						gameBuffer.display();								// display the gamespace
-					} catch ( ... ) {
-					}
+						gameBuffer.display();
+					} catch ( ... ) {}
 
-					if ( CLK::now() - tLastRegenCycle >= cfg._regen_timer ) {
-						game.apply_passive();							// Apply passive effects every second
-						tLastRegenCycle = CLK::now();
-					}
+					game.apply_level_ups();
 					if ( game._game_state._game_is_over.load() ) {
-						mem.kill.store( true );							// Send kill code
+						mem.kill.store( true );
 						if ( game._game_state._playerDead.load() )
 							mem.kill_code.store( PLAYER_LOSE_CODE );
 						else if ( game._game_state._allEnemiesDead.load() )
 							mem.kill_code.store( PLAYER_WIN_CODE );
-						break;											// break loop
+						break;
+					}
+					else if ( CLK::now() - tLastRegenCycle >= cfg._regen_timer ) {
+						game.apply_passive();
+						tLastRegenCycle = CLK::now();
 					}
 				}
 				else if ( !mem.pause_complete.load() ) {
