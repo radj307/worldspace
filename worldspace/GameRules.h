@@ -105,9 +105,7 @@ public:
 	 */
 	bool canLevelUp(ActorBase* actor) const
 	{
-		if ( actor != nullptr && CAN_LEVEL_UP(actor->getLevel(), actor->getKills()) )
-			return true;
-		return false;
+		return actor != nullptr && CAN_LEVEL_UP(actor->getLevel(), actor->getKills());
 	}
 
 	unsigned short

@@ -170,7 +170,7 @@ public:
 	// Default constructors/destructor/operators
 	ItemStaticBase(const ItemStaticBase&) = default;
 	ItemStaticBase(ItemStaticBase&&) = default;
-	virtual ~ItemStaticBase() = default;
+	~ItemStaticBase() override = default;
 	ItemStaticBase& operator=(const ItemStaticBase&) = default;
 	ItemStaticBase& operator=(ItemStaticBase&&) = default;
 #pragma endregion DEFAULT
@@ -232,9 +232,7 @@ protected:
 	 */
 	bool cond(ActorBase* target) override
 	{
-		if ( target->getHealth() < target->getMaxHealth() )
-			return true;
-		return false;
+		return target->getHealth() < target->getMaxHealth();
 	}
 
 public:
@@ -291,9 +289,7 @@ protected:
 	 */
 	bool cond(ActorBase* target) override
 	{
-		if ( target->getStamina() < target->getMaxStamina() )
-			return true;
-		return false;
+		return target->getStamina() < target->getMaxStamina();
 	}
 
 public:

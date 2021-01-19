@@ -153,7 +153,8 @@ public:
 	 * @param visRange	- My sight range
 	 */
 	ActorStats(const int level, const int health, const int stamina, const int damage, const int visRange, const bool multStatsByLevel = false) : 
-		ActorMaxStats(health, stamina, damage, multStatsByLevel ? level : 1), _level_stat_mult(multStatsByLevel), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(_health == 0 ? true : false), _visRange(visRange) {}
+		ActorMaxStats(health, stamina, damage, multStatsByLevel ? level : 1), _level_stat_mult(multStatsByLevel), _level(level >= 1 ? level : 1), _health(_MAX_HEALTH), _stamina(_MAX_STAMINA), _dead(
+			_health == 0), _visRange(visRange) {}
 
 	/**
 	 * setMaxHealth(unsigned int)
@@ -644,9 +645,8 @@ protected:
 	 */
 	[[nodiscard]] bool afraid() const
 	{
-		if ( static_cast<float>(_health) < static_cast<float>(_MAX_HEALTH) / 5.0f || static_cast<float>(_stamina) < static_cast<float>(_MAX_STAMINA) / 6.0f )
-			return true;
-		return false;
+		return static_cast<float>(_health) < static_cast<float>(_MAX_HEALTH) / 5.0f || static_cast<float>(_stamina) <
+			static_cast<float>(_MAX_STAMINA) / 6.0f;
 	}
 	tRand _rng;
 	/**

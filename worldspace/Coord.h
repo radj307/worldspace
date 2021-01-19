@@ -205,9 +205,7 @@ struct checkBounds {
 	 */
 	bool operator()(const Coord& pos) const
 	{
-		if ( pos._y >= 0 && pos._y < _maxPos._y && (pos._x >= 0 && pos._x < _maxPos._x) )
-			return true;
-		return false;
+		return pos._y >= 0 && pos._y < _maxPos._y && (pos._x >= 0 && pos._x < _maxPos._x);
 	}
 
 	/**
@@ -220,8 +218,6 @@ struct checkBounds {
 	 */
 	bool operator()(const long x, const long y) const
 	{
-		if ( y >= 0 && y < _maxPos._y && (x >= 0 && x < _maxPos._x) )
-			return true;
-		return false;
+		return y >= 0 && y < _maxPos._y && (x >= 0 && x < _maxPos._x);
 	}
 };
