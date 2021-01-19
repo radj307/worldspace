@@ -33,7 +33,6 @@ namespace game {
 		 */
 		inline void print_game_over(memory& mem, const std::optional<const COORD>& textPos = std::nullopt)
 		{
-			const auto killer_name{ mem.player_killed_by };
 			const auto pos{ textPos.has_value() ? sys::iCOORD(textPos.value()) : sys::iCOORD{ sys::getScreenBufferCenter()._x - 9, 10 } };
 			sys::cls(true);
 			sys::cursorPos(pos._x, pos._y);
@@ -102,9 +101,9 @@ namespace game {
 		
 		try { // Start the game threads
 			auto // Init asynchronous threads
-				display{ std::async(std::launch::async, &_internal::thread_display, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(rules)) },
-				enemy{ std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
-				player{ std::async(std::launch::async, &_internal::thread_player, std::ref(mutx), std::ref(mem), std::ref(thisGame)) };
+				display[[maybe_unused]]{ std::async(std::launch::async, &_internal::thread_display, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(rules)) },
+				enemy[[maybe_unused]]{ std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
+				player[[maybe_unused]]{ std::async(std::launch::async, &_internal::thread_player, std::ref(mutx), std::ref(mem), std::ref(thisGame)) };
 		} catch ( std::exception & ex ) {
 			sys::cls();
 			std::cout << sys::error << "An unhandled thread exception occurred, but was caught by the thread manager: \"" << ex.what() << "\"" << std::endl;

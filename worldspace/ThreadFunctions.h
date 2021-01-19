@@ -9,7 +9,6 @@
 #include <conio.h>
 #include <mutex>
 
-#include "controls.h"
 #include "FrameBuffer.h"
 #include "Gamespace.h"
 #include "shared.h"
@@ -30,21 +29,12 @@ namespace game::_internal {
 	 */
 	inline void thread_player( std::mutex& mutx, memory& mem, Gamespace& game )
 	{
-		const auto end_game { [&mem](const int KILL_CODE) {
-			mem.kill_code.store(KILL_CODE);
-			mem.kill.store(true);
-
-		} };
 		while ( !mem.kill.load() ) {
 			// getch waits until key press, no need to sleep this thread.
 			if ( _kbhit() ) {
 				const auto key{ static_cast<char>(std::tolower( _getch() )) };
 				// if game is not paused
 				if ( !mem.pause.load() ) {
-					if ( key == _current_control_set->_KEY_QUIT ) {
-
-						return;
-					}
 					// switch player keypress
 					switch ( key ) {
 					case 'q': // player pressed the exit game key
