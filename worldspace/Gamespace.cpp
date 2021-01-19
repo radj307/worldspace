@@ -6,7 +6,7 @@
  * @brief Creates a new gamespace with the given settings.
  * @param ruleset	 - A ref to the ruleset structure
  */
-Gamespace::Gamespace(GameRules& ruleset) : _ruleset(ruleset), _world(Cell{ _ruleset._cellSize, _ruleset._walls_always_visible, _ruleset._override_known_tiles }), _player({ findValidSpawn(true), _ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max), _FLARE_DEF_BOSS(_world._max)
+Gamespace::Gamespace(GameRules& ruleset) noexcept : _ruleset(ruleset), _world(Cell{ _ruleset._cellSize, _ruleset._walls_always_visible, _ruleset._override_known_tiles }), _player({ findValidSpawn(true), _ruleset._player_template }), _FLARE_DEF_CHALLENGE(_world._max), _FLARE_DEF_BOSS(_world._max)
 {
 	_hostile = generate_NPCs<Enemy>(ruleset._enemy_count, ruleset._enemy_template);
 	_neutral = generate_NPCs<Neutral>(ruleset._neutral_count, ruleset._neutral_template);
@@ -23,6 +23,7 @@ Gamespace::Gamespace(GameRules& ruleset) : _ruleset(ruleset), _world(Cell{ _rule
  * @param isPlayer		- When true, does not check positions for proximity to the player.
  * @param checkForItems	- When true, does not check positions for static items.
  * @returns Coord
+ * @throws std::exception() - Couldn't find a valid spawn location.
  */
 Coord Gamespace::findValidSpawn(const bool isPlayer, const bool checkForItems)
 {
@@ -37,8 +38,7 @@ Coord Gamespace::findValidSpawn(const bool isPlayer, const bool checkForItems)
 		if ( !checkForItems ? true : getItemAt(pos) == nullptr && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis() * 2 )
 			return pos;
 	}
-	// Else return invalid coord
-	return { -1, -1 };
+	throw std::exception("Failed to find a valid spawn, are there enough empty tiles?");
 }
 /**
  * generate_NPCs(int, vector<ActorTemplate>)
@@ -52,6 +52,7 @@ template <typename Actor>
 std::vector<Actor> Gamespace::generate_NPCs(const int count, std::vector<ActorTemplate>& templates)
 {
 	std::vector<Actor> v;
+	v.reserve(static_cast<unsigned>(count));
 	for ( auto i{ 0 }; i < count; i++ ) {
 		unsigned int sel{ 0 };
 
@@ -63,6 +64,7 @@ std::vector<Actor> Gamespace::generate_NPCs(const int count, std::vector<ActorTe
 		}
 		v.push_back({ findValidSpawn(), templates.at(sel) });
 	}
+	v.shrink_to_fit();
 	return v;
 }
 /**
@@ -76,12 +78,14 @@ template<typename Item>
 std::vector<Item> Gamespace::generate_items(const int count, const bool lockToPlayer)
 {
 	std::vector<Item> v;
+	v.reserve(static_cast<unsigned>( count ));
 	for ( auto i{ 0 }; i < count; i++ ) {
 		if ( lockToPlayer )
 			v.emplace_back(Item{ findValidSpawn(), 50, { FACTION::PLAYER } });
 		else
 			v.emplace_back(Item{ findValidSpawn(), 50 });
 	}
+	v.shrink_to_fit();
 	return v;
 }
 /**
@@ -643,25 +647,23 @@ bool Gamespace::actionNPC(NPC* npc)
 	auto rc{ false }; // return code
 	// Finale Challenge Event - enemies always attack player, neutrals attack player if ruleset allows it
 	if ( _game_state._final_challenge.load() && (npc->faction() == FACTION::ENEMY || npc->faction() == FACTION::NEUTRAL && _ruleset._challenge_neutral_is_hostile) ) {
-		if ( !npc->isAggro() || npc->getTarget() != &_player ) { // during the final challenge event, force all Enemies to be aggravated against the player.
-			npc->maxAggroTarget(&_player);
-		}
+		if ( !npc->isAggro() || npc->getTarget() != &_player ) // during the final challenge event, force all hostiles to be aggravated against the player.
+			npc->setTargetMaxAggro(&_player);
 		rc = moveNPC(&*npc, true);
 	}
 	else { // Normal turn
 		// if the npc is hostile to player, and can see them, switch targets
 		if ( npc->canSeeHostile(&_player) ) {
 			//npc->setTarget(&_player);
-			if ( npc->maxAggroTarget(&_player) )
+			if ( npc->setTargetMaxAggro(&_player) )
 				rc = moveNPC(&*npc);
 		}
 		// npc is aggravated
-		else if ( npc->isAggro() && _rng.get(_ruleset._npc_move_chance_aggro, 0.0f) >= 1.0f ) {
-			// if the NPC has a target, move to it
+		else if ( npc->isAggro() && _rng.get(100.0f, 0.0f) < _ruleset._npc_move_chance_aggro ) {
+			// if the NPC has a target, move to it, else remove aggression
 			if ( npc->hasTarget() )
 				rc = moveNPC(&*npc);
 			else npc->removeAggro();
-
 			// If the NPC can still see their target, set aggression to max and continue following
 			if ( npc->canSeeTarget(_ruleset._npc_vis_mod_aggro) )
 				npc->maxAggro();
@@ -671,17 +673,16 @@ bool Gamespace::actionNPC(NPC* npc)
 		else {
 			// get a pointer to the nearest actor
 			auto* const nearest{ getClosestActor(npc->pos(), npc->getVis()) };
-			if ( nearest != nullptr ) {
-				if ( npc->canSeeHostile(&*nearest) ) {
+			if ( nearest != nullptr && npc->canSeeHostile(&*nearest) ) {
 				//	npc->setTarget(&*nearest);
-					if ( npc->maxAggroTarget(&*nearest) )
+					if ( npc->setTargetMaxAggro(&*nearest) )
 						rc = moveNPC(&*npc);
-				}
-				else if ( _rng.get(_ruleset._npc_move_chance, 0.0f) < 1.0f )
-					rc = move(&*npc, getRandomDir());
+				//else if ( _rng.get(_ruleset._npc_move_chance, 0.0f) < 1.0f )
+				//	rc = move(&*npc, getRandomDir());
 			}
-			else if ( _rng.get(_ruleset._npc_move_chance, 0.0f) < 1.0f )
+			else if ( _rng.get(100.0f, 0.0f) < _ruleset._npc_move_chance )
 				rc = move(&*npc, getRandomDir());
+			// else do nothing
 		}
 	}
 	return rc;

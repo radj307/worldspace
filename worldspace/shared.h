@@ -74,7 +74,7 @@ namespace game::_internal {
 			_DEF_PAUSE{ false }, ///< Default pause flag value
 			_DEF_PAUSE_COMPLETE{ false }; ///< Default pause_complete flag value
 		const int _DEF_KILL_CODE{ -2 }; ///< Default kill_code value
-		const std::string pause_msg{ "GAME PAUSED" };
+		const std::string _pause_msg{ "GAME PAUSED" };
 		///< This is the message displayed to the screen while the game is paused
 
 	public:
@@ -96,7 +96,7 @@ namespace game::_internal {
 			pause.store(true);
 			sys::cls();
 			sys::cursorPos(textPos);
-			std::cout << termcolor::cyan << pause_msg << termcolor::reset;
+			std::cout << termcolor::cyan << _pause_msg << termcolor::reset;
 		}
 
 		/**

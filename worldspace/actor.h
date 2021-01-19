@@ -838,7 +838,7 @@ public:
 	 * @param target	- Actor to set as new target
 	 * @returns bool	- ( true = Aggression & Target set successfully ) ( false = failed to set target )
 	 */
-	bool maxAggroTarget(ActorBase* target)
+	bool setTargetMaxAggro(ActorBase* target)
 	{
 		// If target was set successfully, set aggression to max & return true
 		if ( setTarget(target) ) {
@@ -886,7 +886,7 @@ public:
 
 	/**
 	 * setTarget(ActorBase*)
-	 * @brief Sets a target for this NPC, this function should be called from maxAggroTarget() instead.
+	 * @brief Sets a target for this NPC, this function should be called from setTargetMaxAggro() instead.
 	 * @param target	- A pointer to the target
 	 * @returns bool	- ( true = Set target successfully ) ( false = failed, target is same faction, or nullptr )
 	 */

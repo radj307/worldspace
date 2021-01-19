@@ -71,7 +71,7 @@ class Gamespace final {
 
 public:
 	// CONSTRUCTOR
-	explicit Gamespace(GameRules& ruleset);
+	explicit Gamespace(GameRules& ruleset) noexcept;
 
 	[[nodiscard]] std::vector<ActorBase*> get_all_actors();
 	[[nodiscard]] std::vector<NPC*> get_all_npc();

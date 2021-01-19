@@ -1,3 +1,8 @@
+/**
+ * @file GameRules.h
+ * @author radj307
+ * @brief This file contains all configurable settings used in a game. These settings are members of the GameRules struct, an object that is required by the Gamespace to initialize.
+ */
 #pragma once
 #include <cassert>
 #include <chrono>
@@ -8,7 +13,7 @@
 
 /**
  * @struct GameRules
- * @brief Gamespace requires an instance of GameRules to construct, these are generic settings that may be used by a game to allow user-customization.
+ * @brief Contains configurable game settings, their defaults, and configurable game methods, which are required for the game to operate.
  */
 struct GameRules final {
 private:
@@ -49,8 +54,8 @@ public:
 		_enemy_hostile_to = { FACTION::PLAYER, /*FACTION::NEUTRAL*/ }, // Which factions are enemies hostile to by default.
 		_neutral_hostile_to = { FACTION::NONE }; // Which factions are neutrals hostile to by default. This changes if NPC is attacked.
 	float
-		_npc_move_chance{ 6 },				///< @brief The chance an NPC will move when idle (1 in (this) chance)
-		_npc_move_chance_aggro{ 6 };		///< @brief The chance an NPC will move when aggravated ((this) to 1 chance)
+		_npc_move_chance{ 60.0f },			///< @brief The chance an NPC will move when idle
+		_npc_move_chance_aggro{ 90.0f };	///< @brief The chance an NPC will move when aggravated
 	int _npc_vis_mod_aggro{ 1 };			///< @brief This value is added to an NPC's sight range when chasing target
 	bool _level_stat_mult{ true };
 
@@ -58,14 +63,14 @@ public:
 	int
 		_enemy_count{ 20 },					///< @brief how many enemies are present when the game starts
 		_enemy_aggro_distance{ 2 };			///< @brief Determines from how far away enemies notice the player and become aggressive
-	
+
 	std::vector<ActorTemplate> _enemy_template{	///< @brief Default Enemy templates.
 		{ "Bandit",	 ActorStats(1, 40, 100, 15, _enemy_aggro_distance + 1, _level_stat_mult), 'Y', Color::_f_yellow, _enemy_hostile_to, 30, 100.0f },	///< @brief Level 1 Enemy
 		{ "Marauder",ActorStats(2, 40, 90, 13, _enemy_aggro_distance + 1, _level_stat_mult), 'T', Color::_f_red, _enemy_hostile_to, 20, 45.0f },		///< @brief Level 2 Enemy
 		{ "Reaver",	 ActorStats(3, 60, 90, 30, _enemy_aggro_distance, _level_stat_mult), 'T', Color::_f_magenta, _enemy_hostile_to, 20, 20.0f },		///< @brief Level 3 Enemy
 		{ "Reaper",	 ActorStats(4, 60, 100, 30, _enemy_aggro_distance, _level_stat_mult), 'M', Color::_f_magenta, _enemy_hostile_to, 30, 2.0f },		///< @brief Level 4 Enemy
 	};
-	
+
 	/// BOSSES
 	std::vector<ActorTemplate> _enemy_boss_template{
 		{ "Grim Reaper", ActorStats(10, 25, 50, 40, _cellSize._x * _cellSize._y, _level_stat_mult), 'N', Color::_b_magenta, _enemy_hostile_to, 100, 0.0 },///< @brief Level 10 Enemy - (Boss: Grim Reaper)
@@ -79,7 +84,7 @@ public:
 		{ "Sheep",	ActorStats(2, 30, 30, 5, 4, _level_stat_mult), '@', Color::_f_cyan, _neutral_hostile_to, 50, 45.0f },		///< Level 2 Neutral
 		{ "Cow",	ActorStats(3, 30, 30, 5, 4, _level_stat_mult), '%', Color::_f_blue, _neutral_hostile_to, 35, 20.0f },		///< Level 3 Neutral
 	};
-	
+
 	/// PASSIVE EFFECTS
 	std::chrono::seconds _regen_timer{ 2 };	///< @brief Amount of time between stat regen cycles
 	int
@@ -107,7 +112,7 @@ public:
 
 	unsigned short
 		_level_up_flare_time{ 6 };			///< @brief How many frames to flare when the player levels up. Must be a multiple of 2
-	unsigned int 
+	unsigned int
 		_challenge_final_trigger_percent{ 25 }; ///< @brief Percentage of remaining enemies to trigger finale. (0 to disable.)
 	bool
 		_challenge_neutral_is_hostile{ false }, ///< @brief When true, all Neutral NPCs become hostile to the player during the final challenge.
@@ -200,6 +205,6 @@ public:
 		for ( size_t i{ 0 }; i < _neutral_template.size(); ++i )
 			setINITemplate(_neutral_template.at(i), cfg, std::string("template_neutral") + std::to_string(i + 1));
 	}
-	
+
 	GameRules() = default; ///< @brief Default Constructor.
 };

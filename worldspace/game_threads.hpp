@@ -112,10 +112,8 @@ namespace game {
 		if ( mem.kill_code.load() == _internal::PLAYER_LOSE_CODE )
 			mem.player_killed_by = thisGame.getPlayer().killedBy();
 		// Once the kill flag is true, show the game over message and return
-		print_game_over(mem);
+		_internal::print_game_over(mem);
 		// Check if the restart prompt should be shown, and return
-		if ( mem.kill_code.load() == _internal::PLAYER_QUIT_CODE )
-			return false;
-		return true;
+		return mem.kill_code.load() != _internal::PLAYER_QUIT_CODE;
 	}
 }
