@@ -72,16 +72,16 @@ public:
 				return r;
 			} );
 		sys::cursorPos( _origin ); // Set cursor pos
-		std::cout << std::setw( _MAX_LINE_LENGTH ) << str::center( { _pName + " Stats Level " + str( _pLevel ) } );
+		std::cout << str::align_center( { _pName + " Stats Level " + str( _pLevel ) }, _MAX_LINE_LENGTH );
 		sys::cursorPos( _origin._x, _origin._y + 1 );
 		sys::print_line( getStatBar( _pMaxHealth, _pHealth ), { { '(', ')' }, Color::_f_red } );
 		printf( "  " );
 		sys::print_line( getStatBar( _pMaxStamina, _pStamina ), { { '(', ')' }, Color::_f_green } );
 		sys::cursorPos( _origin._x, _origin._y + 2 );
 		if ( _SHOW_VALUES ) {
-			std::cout << std::setw( _MAX_LINE_LENGTH ) << str::center( { "Health: " + str( _pHealth ) + "  Stamina: " + str( _pStamina ) } );
+			std::cout << str::align_center( { "Health: " + str( _pHealth ) + "  Stamina: " + str( _pStamina ) }, _MAX_LINE_LENGTH );
 			sys::cursorPos( _origin._x, _origin._y + 3 );
 		}
-		std::cout << std::setw( _MAX_LINE_LENGTH ) << str::center( { "Kills: " + str( _pKills ) } );
+		std::cout << str::align_center( { "Kills: " + str( _pKills ) }, _MAX_LINE_LENGTH );
 	}
 };

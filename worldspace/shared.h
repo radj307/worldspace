@@ -6,7 +6,6 @@
 #include <string>
 
 #include "Coord.h"
-#include "termcolor/termcolor.hpp"
 
 namespace game::_internal {
 	using namespace std::chrono_literals; // for time literals
@@ -67,23 +66,13 @@ namespace game::_internal {
 	 * @brief Contains atomic variables shared between all threads
 	 */
 	struct memory {
-	private:
-		// Default values are set here
-		const bool 
-			_DEF_KILL{ false }, ///< Default kill flag value
-			_DEF_PAUSE{ false }, ///< Default pause flag value
-			_DEF_PAUSE_COMPLETE{ false }; ///< Default pause_complete flag value
-		const int _DEF_KILL_CODE{ -2 }; ///< Default kill_code value
-		const std::string _pause_msg{ "GAME PAUSED" };
-		///< This is the message displayed to the screen while the game is paused
-
-	public:
 		std::atomic<bool>
-			kill{ _DEF_KILL }, ///< true = kill all threads
-			pause{ _DEF_PAUSE }, ///< true = pause all threads
-			pause_complete{ _DEF_PAUSE_COMPLETE }; ///< true = display has been de-initialized
-		std::atomic<int> kill_code{ _DEF_KILL_CODE }; ///< -2 = not set | see the above PLAYER_CODE vars.
-		std::optional<std::string> player_killed_by{ std::nullopt };
+			_kill{ false }, ///< true = kill all threads
+			_pause{ false }, ///< true = pause all threads
+			_pause_complete{ false }; ///< true = display has been de-initialized
+		std::atomic<int> _kill_code{ -2 }; ///< -2 = not set | see the above PLAYER_CODE vars.
+		std::optional<std::string> _player_killed_by{ std::nullopt };
+		const std::string _pause_msg{ "GAME PAUSED" };
 		///< This is an optional string used to display the name of the actor who killed the player. This is only set by the game::start() function
 		
 		/**
@@ -93,10 +82,10 @@ namespace game::_internal {
 		 */
 		void pause_game(const Coord textPos = Coord(5, 3))
 		{
-			pause.store(true);
+			_pause.store(true);
 			sys::cls();
 			sys::cursorPos(textPos);
-			std::cout << termcolor::cyan << _pause_msg << termcolor::reset;
+			std::cout << Color::f_cyan << _pause_msg << Color::reset;
 		}
 
 		/**
@@ -106,19 +95,7 @@ namespace game::_internal {
 		void unpause_game()
 		{
 			sys::cls();
-			pause.store(false);
-		}
-
-		/**
-		 * reset_all()
-		 * Resets all variables to their original state.
-		 */
-		void reset_all()
-		{
-			kill.store(_DEF_KILL);
-			pause.store(_DEF_PAUSE);
-			pause_complete.store(_DEF_PAUSE_COMPLETE);
-			kill_code.store(_DEF_KILL_CODE);
+			_pause.store(false);
 		}
 	};
 }

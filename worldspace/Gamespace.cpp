@@ -54,15 +54,14 @@ std::vector<Actor> Gamespace::generate_NPCs(const int count, std::vector<ActorTe
 	std::vector<Actor> v;
 	v.reserve(static_cast<unsigned>(count));
 	for ( auto i{ 0 }; i < count; i++ ) {
-		unsigned int sel{ 0 };
-
-		for ( auto it{ static_cast<signed>(templates.size() - 1) }; it >= 0; it-- ) {
+		size_t sel{ 0 };
+		for ( size_t it{ 0 }; it < templates.size(); ++it ) {
 			if ( _rng.get(100.0f, 0.0f) < templates.at(it)._chance ) {
 				sel = it;
 				break;
 			}
 		}
-		v.push_back({ findValidSpawn(), templates.at(sel) });
+		v.push_back({ findValidSpawn(), templates.at(sel < templates.size() ? sel : 0) });
 	}
 	v.shrink_to_fit();
 	return v;

@@ -179,8 +179,7 @@ void FrameBuffer::display()
 				_game.resetFlare();
 		}
 	}
-	else
-		initFrame(); // if the frame hasn't been initialized, initialize it.
+	else initFrame(); // if the frame hasn't been initialized, initialize it.
 }
 
 /**

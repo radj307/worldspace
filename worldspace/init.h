@@ -5,14 +5,14 @@
  * Used in game_threads.hpp
  */
 #pragma once
+#include <INI.hpp>
 #include <ostream>
+#include <strconv.hpp>
+#include <sysapi.h>
 
 #include "controls.h"
 #include "GameRules.h"
-#include "INI.hpp"
 #include "shared.h"
-#include "strconv.hpp"
-#include "sysapi.h"
 
 /**
  * @namespace _internal

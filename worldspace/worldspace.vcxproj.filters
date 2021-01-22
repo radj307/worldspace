@@ -52,9 +52,6 @@
     <ClInclude Include="FrameBuffer.h">
       <Filter>4 Display</Filter>
     </ClInclude>
-    <ClInclude Include="game_threads.hpp">
-      <Filter>5 HighLevel Operations</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>VS Resources</Filter>
     </ClInclude>
@@ -80,6 +77,9 @@
       <Filter>4 Display</Filter>
     </ClInclude>
     <ClInclude Include="ThreadFunctions.h">
+      <Filter>5 HighLevel Operations</Filter>
+    </ClInclude>
+    <ClInclude Include="game.hpp">
       <Filter>5 HighLevel Operations</Filter>
     </ClInclude>
   </ItemGroup>

@@ -9,8 +9,8 @@
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
 		Use the get() function to output localized flares rather than full-screen ones.
  */
-#include "game_threads.hpp"
-#include "opt.hpp"
+#include "game.hpp"
+#include <opt.hpp>
 
 inline bool prompt_restart(const std::optional<const Coord>& textPos = std::nullopt);
 inline std::vector<std::string> interpret(int argc, char* argv[]);
@@ -54,14 +54,14 @@ bool prompt_restart(const std::optional<const Coord>& textPos)
 	const auto pos{ textPos.has_value() ? textPos.value() : Coord{ static_cast<long>(sys::getScreenBufferCenter()._x - 14L), 14L } };
 
 	sys::cursorPos(pos);	// move to target line, print restart key
-	std::cout << "Press <" << termcolor::green << 'r' << termcolor::reset << "> to restart.";
+	std::cout << "Press <" << Color::f_green << 'r' << Color::reset << "> to restart.";
 
 	sys::cursorPos(pos._x, pos._y + 1);	// move to next line, print quit key
-	std::cout << "Press <" << termcolor::red << 'q' << termcolor::reset << "> to quit.";
+	std::cout << "Press <" << Color::f_red << 'q' << Color::reset << "> to quit.";
 
 	// loop until timeout, or valid key press
 	for ( const auto t{ CLK::now() }; CLK::now() - t <= timeout; ) {
-		if ( _kbhit() ) { // If a key is pressed, process it
+		if ( static_cast<bool>(_kbhit()) ) { // If a key is pressed, process it
 			switch ( std::tolower(_getch()) ) {
 			case 'r': // r was pressed, restart the game
 				return true;

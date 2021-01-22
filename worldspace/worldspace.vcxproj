@@ -186,7 +186,7 @@
     <ClInclude Include="PlayerStatBox.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="controls.h" />
-    <ClInclude Include="game_threads.hpp" />
+    <ClInclude Include="game.hpp" />
     <ClInclude Include="shared.h" />
     <ClInclude Include="ThreadFunctions.h" />
     <ClInclude Include="tilematrix.h" />

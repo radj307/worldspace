@@ -36,7 +36,7 @@ namespace game {
 			const auto pos{ textPos.has_value() ? sys::iCOORD(textPos.value()) : sys::iCOORD{ sys::getScreenBufferCenter()._x - 9, 10 } };
 			sys::cls(true);
 			sys::cursorPos(pos._x, pos._y);
-			switch ( mem.kill_code.load() ) {
+			switch ( mem._kill_code.load() ) {
 			case PLAYER_LOSE_CODE: // player lost the game
 				[&pos](const std::optional<std::string>& killer) {
 					const std::string
@@ -47,7 +47,7 @@ namespace game {
 						sys::cursorPos(pos._x - killerText.size() / 2u + loseText.size() / 2, pos._y + 1);
 						std::cout << Color::f_red << killerText << Color::reset;
 					}
-				}(mem.player_killed_by);
+				}(mem._player_killed_by);
 				break;
 			case PLAYER_WIN_CODE: // player won the game
 				std::cout << Color::f_green << "You won!" << Color::reset;
@@ -108,11 +108,11 @@ namespace game {
 			sys::cls();
 			std::cout << sys::error << "An unhandled thread exception occurred, but was caught by the thread manager: \"" << ex.what() << "\"" << std::endl;
 		}
-		if ( mem.kill_code.load() == _internal::PLAYER_LOSE_CODE )
-			mem.player_killed_by = thisGame.getPlayer().killedBy();
+		if ( mem._kill_code.load() == _internal::PLAYER_LOSE_CODE )
+			mem._player_killed_by = thisGame.getPlayer().killedBy();
 		// Once the kill flag is true, show the game over message and return
-		_internal::print_game_over(mem);
+		print_game_over(mem);
 		// Check if the restart prompt should be shown, and return
-		return mem.kill_code.load() != _internal::PLAYER_QUIT_CODE;
+		return mem._kill_code.load() != _internal::PLAYER_QUIT_CODE;
 	}
 }
