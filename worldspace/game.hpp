@@ -79,7 +79,8 @@ namespace game {
 		// read from INI file
 		if ( !file::exists("def.ini") )
 			_internal::initDefaultINI("def.ini");
-		INI cfg(INI_Files);
+		file::INI cfg;// (INI_Files);
+		cfg.read(INI_Files, false);
 		cfg.read("def.ini");
 
 		try {

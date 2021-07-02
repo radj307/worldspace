@@ -6,7 +6,7 @@
  */
 #pragma once
 #include <INI.hpp>
-#include <INI_Defaults.hpp>
+//#include <INI_Defaults.hpp>
 #include <ostream>
 #include <strconv.hpp>
 #include <sysapi.h>
@@ -27,11 +27,12 @@ namespace game::_internal {
 		 * @param filename	- The name of the created file
 		 * @return true		- Success, default INI config was written to disk.
 		 * @return false	- An error occurred while writing the default INI config to disk.
-		 */
+		 */// ReSharper disable once CppInconsistentNaming
 		inline bool initDefaultINI(const std::string& filename) noexcept
 		{
 			// VARIABLES & VALUES
-			const section_map defMap{
+			//const section_map defMap{
+			file::SectionedKVFile::filemap defMap{
 				{
 					"controls", {
 						{ "key_up",		str::ctos(_CTRL._KEY_UP)	 },
@@ -100,7 +101,7 @@ namespace game::_internal {
 						{ "npc_cycle",		"225"	 },
 					}
 				},
-			},
+			};/*,
 			// VARIABLE COMMENTS
 			defCommentMap{
 				{
@@ -136,9 +137,10 @@ namespace game::_internal {
 						{ "bossDelayedSpawn", "When true, the boss is spawned after the final challenge is completed. Else, it spawns during." },
 					}
 				},
-			};
+			};*/
 			try { // Write to file & return result
-				return INI_Defaults{ defMap, defCommentMap }.write(filename);
+				return file::INI{ std::forward<file::SectionedKVFile::filemap>(defMap) }.write(filename);
+				//	return INI_Defaults{ defMap, defCommentMap }.write(filename);
 			} catch (...) { return false; }
 		}
 
@@ -148,7 +150,7 @@ namespace game::_internal {
 		 * @param cfg	- INI instance ref, this calls the GameRules constructor if sections [world], [actors], [player], [neutral], and [enemy] exist. Else calls the default gamerules constructor.
 		 * @returns GameRules
 		 */
-		inline GameRules initRuleset(INI& cfg) noexcept
+		inline GameRules initRuleset(file::INI& cfg) noexcept
 		{
 			if ( cfg.contains("world") && cfg.contains("actors") && cfg.contains("player") && cfg.contains("neutral") && cfg.contains("enemy") ) { // if cfg is not empty
 				std::cout << sys::debug << "Using GameRules from INI" << std::endl;
@@ -164,7 +166,7 @@ namespace game::_internal {
 		 * @param cfg	- INI instance ref, only the [controls] section is used.
 		 * @returns CONTROLS
 		 */
-		inline CONTROLS initControlSet(INI& cfg) noexcept
+		inline CONTROLS initControlSet(file::INI& cfg) noexcept
 		{
 			// Check if the INI contains a "controls" section.
 			if ( cfg.contains("controls") ) {
@@ -189,7 +191,7 @@ namespace game::_internal {
 		 * @return true		- Successfully initialized timing values.
 		 * @return false	- An exception occurred.
 		 */
-		inline bool initTiming(INI& cfg) noexcept
+		inline bool initTiming(file::INI& cfg) noexcept
 		{
 			try {
 				if ( setFramerate(cfg.get<unsigned int>("timing", "framerate", str::stoui).value_or(60u)) && setNPCCycle(cfg.get<unsigned int>("timing", "npc_cycle", str::stoui).value_or(225u)) )

@@ -24,7 +24,10 @@ private:
 	 * @param kills	 - Actor's current kill count
 	 * @returns bool - ( true = Actor can level up ) ( false = Actor can't level up yet )
 	 */
-	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const { return kills >= _level_up_kills * (level * _level_up_mult); }
+	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const
+	{
+		return kills > 0 && kills >= _level_up_kills * (level * _level_up_mult);
+	}
 
 public:
 	/// CELL / WORLD
@@ -132,7 +135,7 @@ public:
 	 * @param cfg		- Ref to the INI instance
 	 * @param section	- INI section name containing variables
 	 */
-	static void setINITemplate(ActorTemplate& target, INI& cfg, const std::string& section)
+	static void setINITemplate(ActorTemplate& target, file::INI& cfg, const std::string& section)
 	{
 		if ( cfg.contains(section) ) {
 			target = ActorTemplate{
@@ -156,7 +159,7 @@ public:
 	 * @brief Construct a GameRules instance from an INI file.
 	 * @param cfg	- Ref to an INI instance.
 	 */
-	explicit GameRules(INI& cfg) :
+	explicit GameRules(file::INI& cfg) :
 		_walls_always_visible(cfg.get<bool>	("world", "showAllWalls", str::stob).value_or(_walls_always_visible)),
 		_override_known_tiles			(cfg.get<bool>	("world", "showAllTiles", str::stob).value_or(_override_known_tiles)),
 		_dark_mode						(cfg.get<bool>	("world", "fogOfWar", str::stob).value_or(_dark_mode)),

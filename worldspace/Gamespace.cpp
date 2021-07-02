@@ -658,15 +658,18 @@ bool Gamespace::actionNPC(NPC* npc)
 				rc = moveNPC(&*npc);
 		}
 		// npc is aggravated
-		else if ( npc->isAggro() && _rng.get(100.0f, 0.0f) < _ruleset._npc_move_chance_aggro ) {
-			// if the NPC has a target, move to it, else remove aggression
-			if ( npc->hasTarget() )
-				rc = moveNPC(&*npc);
-			else npc->removeAggro();
-			// If the NPC can still see their target, set aggression to max and continue following
-			if ( npc->canSeeTarget(_ruleset._npc_vis_mod_aggro) )
-				npc->maxAggro();
-			npc->decrementAggro();
+		else if ( npc->isAggro() ) {
+			//if ( _rng.get(100.0f, 0.0f) < _ruleset._npc_move_chance_aggro )	{
+				// if the NPC has a target, move to it, else remove aggression
+				if ( npc->hasTarget() )
+					rc = moveNPC(&*npc);
+				else npc->removeAggro();
+				// If the NPC can still see their target, set aggression to max and continue following
+				if ( npc->canSeeTarget(_ruleset._npc_vis_mod_aggro) )
+					npc->maxAggro();
+				else
+					npc->decrementAggro();
+		//	}
 		}
 		// npc is idle, check nearby
 		else {
