@@ -6,6 +6,7 @@
  */
 #pragma once
 #include <INI.hpp>
+#include <INI_Defaults.hpp>
 #include <ostream>
 #include <strconv.hpp>
 #include <sysapi.h>
