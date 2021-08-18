@@ -24,9 +24,9 @@ private:
 	 * @param kills	 - Actor's current kill count
 	 * @returns bool - ( true = Actor can level up ) ( false = Actor can't level up yet )
 	 */
-	[[nodiscard]] constexpr bool CAN_LEVEL_UP(const int level, const int kills) const
+	[[nodiscard]] bool CAN_LEVEL_UP(const unsigned level, const unsigned kills)
 	{
-		return kills > 0 && kills >= _level_up_kills * (level * _level_up_mult);
+		return kills > 0 && kills >= _level_up_kills * ((level == 0 ? 1 : level) * _level_up_mult);
 	}
 
 public:
@@ -95,7 +95,7 @@ public:
 		_regen_stamina{ 10 };				///< @brief Amount of stamina regenerated every second
 
 	/// LEVELS
-	int
+	unsigned
 		_level_up_kills{ 2 },				///< @brief Kills required for an actor to level up. This value is arbitrary.
 		_level_up_mult{ 2 },				///< @brief Multiplies the level_up_kills threshold for every level
 		_level_up_restore_percent{ 50 };	///< @brief How much health/stamina is regenerated when the player levels up ( 0 - 100 )
@@ -106,9 +106,14 @@ public:
 	 * @param actor	 - Pointer to an actor
 	 * @returns bool - ( true = can level up ) ( false = cannot level up )
 	 */
-	bool canLevelUp(ActorBase* actor) const
+	bool canLevelUp(ActorBase* actor)
 	{
-		return actor != nullptr && CAN_LEVEL_UP(actor->getLevel(), actor->getKills());
+		return static_cast<unsigned>(actor->getKills()) > _level_up_kills * actor->getLevel();
+	/*	if (_level_up_kills == 2)
+			return actor != nullptr && static_cast<float>(actor->getLevel() * _level_up_mult) / 1.5f > _level_up_kills;
+		else
+			throw std::exception("CORRUPTED_LEVELING_DATA");
+*///		return actor != nullptr && CAN_LEVEL_UP(actor->getLevel(), actor->getKills());
 	}
 
 	unsigned short
@@ -181,8 +186,8 @@ public:
 		_regen_timer					(cfg.get<int>	("actors", "regen_time", str::stoi).value_or(2)),
 		_regen_health					(cfg.get<int>	("actors", "regen_health", str::stoi).value_or(_regen_health)),
 		_regen_stamina					(cfg.get<int>	("actors", "regen_stamina", str::stoi).value_or(_regen_stamina)),
-		_level_up_kills					(cfg.get<int>	("actors", "levelKillThreshold", str::stoi).value_or(_level_up_kills)),
-		_level_up_mult					(cfg.get<int>	("actors", "levelKillMult", str::stoi).value_or(_level_up_mult)),
+//		_level_up_kills					(cfg.get<int>	("player", "levelKillThreshold", str::stoi).value_or(_level_up_kills)),
+//		_level_up_mult					(cfg.get<int>	("player", "levelKillMult", str::stoi).value_or(_level_up_mult)),
 		_level_up_restore_percent		(cfg.get<int>	("actors", "levelRestorePercent", str::stoi).value_or(_level_up_restore_percent)),
 		_enable_boss					(cfg.get<bool>	("enemy", "enable_boss", str::stob).value_or(_enable_boss)),
 		_boss_spawns_after_final		(cfg.get<bool>	("enemy", "bossDelayedSpawn", str::stob).value_or(_boss_spawns_after_final))

@@ -84,14 +84,14 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>5 HighLevel Operations</Filter>
-    </ClCompile>
     <ClCompile Include="Gamespace.cpp">
       <Filter>3 Game Operation</Filter>
     </ClCompile>
     <ClCompile Include="FrameBuffer.cpp">
       <Filter>4 Display</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>5 HighLevel Operations</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

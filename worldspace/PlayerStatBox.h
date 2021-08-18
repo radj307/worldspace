@@ -63,20 +63,25 @@ public:
 		// Simply turns an int* to a string
 		const auto str( []( const int* integer ) -> std::string { return std::to_string( *integer ); } );
 		const auto getStatBar(
-			[]( const int* max, const int* val, const std::string& openSeq = "[(", const char fillCh = '@', const std::string& closeSeq = ")]" ) -> std::string {
-				auto r{ openSeq };
+			[]( const int* max, const int* val, const char fillCh = '@' ) -> std::string {
+				std::string r{ "" };
 				const auto seg{ *max / 10 };
 				for ( auto i{ 1 }; i <= 10; ++i )
 					r += *val >= i * seg ? fillCh : ' ';
-				r += closeSeq;
 				return r;
 			} );
 		sys::cursorPos( _origin ); // Set cursor pos
 		std::cout << str::align_center( { _pName + " Stats Level " + str( _pLevel ) }, _MAX_LINE_LENGTH );
 		sys::cursorPos( _origin._x, _origin._y + 1 );
-		sys::print_line( getStatBar( _pMaxHealth, _pHealth ), { { '(', ')' }, Color::_f_red } );
-		printf( "  " );
-		sys::print_line( getStatBar( _pMaxStamina, _pStamina ), { { '(', ')' }, Color::_f_green } );
+		printf("(");
+		sys::colorSet(Color::_f_red);
+		printf("%s", getStatBar(_pMaxHealth, _pHealth).c_str());
+		sys::colorReset();
+		printf(")  (");
+		sys::colorSet(Color::_f_green);
+		printf("%s", getStatBar(_pMaxStamina, _pStamina).c_str());
+		sys::colorReset();
+		printf(")");
 		sys::cursorPos( _origin._x, _origin._y + 2 );
 		if ( _SHOW_VALUES ) {
 			std::cout << str::align_center( { "Health: " + str( _pHealth ) + "  Stamina: " + str( _pStamina ) }, _MAX_LINE_LENGTH );

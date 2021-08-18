@@ -53,7 +53,7 @@ class FrameBuffer {
 	void initFrame( bool doCLS = true );
 	[[nodiscard]] std::optional<std::pair<char, unsigned short> > checkPos( const Coord& pos ) const noexcept;
 	[[nodiscard]] std::optional<std::pair<char, unsigned short> > checkPos( long x, long y ) const noexcept;
-	[[nodiscard]] Frame buildNextFrame( const Coord& origin ) noexcept;
+	[[nodiscard]] Frame buildNextFrame( const Coord& origin );
 
 public:
 	/**

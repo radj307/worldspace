@@ -26,6 +26,7 @@ int main(const int argc, char* argv[])
 	try {
 		// Keep starting the game until the player doesn't press restart
 		do if ( !game::start(interpret(argc, argv)) ) break; while ( prompt_restart() );
+		
 		// Return a success code
 		return 0;
 	} catch ( std::exception& ex ) {
@@ -53,7 +54,7 @@ bool prompt_restart(const std::optional<const Coord>& textPos)
 	const auto timeout{ std::chrono::duration_cast<std::chrono::nanoseconds>(6s) };	///< @brief Maximum time to wait before returning false
 	const auto pos{ textPos.has_value() ? textPos.value() : Coord{ static_cast<long>(sys::getScreenBufferCenter()._x - 14L), 14L } };
 
-	sys::cursorPos(pos);	// move to target line, print restart key
+	sys::cursorPos(pos._x, pos._y);	// move to target line, print restart key
 	std::cout << "Press <" << Color::f_green << 'r' << Color::reset << "> to restart.";
 
 	sys::cursorPos(pos._x, pos._y + 1);	// move to next line, print quit key

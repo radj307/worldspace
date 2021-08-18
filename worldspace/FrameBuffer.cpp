@@ -13,7 +13,7 @@
  */
 void FrameBuffer::rebuildCache() noexcept
 {
-	try {
+//	try {
 		const auto size{ _cache.size() };
 		_cache.clear();
 		_cache.reserve( size );
@@ -22,8 +22,8 @@ void FrameBuffer::rebuildCache() noexcept
 		for ( auto& it : _game.get_all_static_items() )
 			_cache.emplace_back( std::make_tuple( it->pos(), it->getChar(), it->getColor() ) );
 		_cache.shrink_to_fit();
-	} catch ( ... ) {
-	}
+//	} catch ( ... ) {
+//	}
 }
 
 
@@ -79,11 +79,11 @@ std::optional<std::pair<char, unsigned short> > FrameBuffer::checkPos( const lon
  * @param origin	- The top-left corner of the frame, as shown in the console screen buffer
  * @returns Frame
  */
-Frame FrameBuffer::buildNextFrame( const Coord& origin ) noexcept
+Frame FrameBuffer::buildNextFrame( const Coord& origin )
 {
 	rebuildCache();
 	std::vector<std::vector<char> > buffer;
-	try {
+	//try {
 		buffer.reserve( _size._y );
 		for ( auto y = 0; y < static_cast<signed>(buffer.capacity()); y++ ) {
 			std::vector<char> row;
@@ -103,7 +103,7 @@ Frame FrameBuffer::buildNextFrame( const Coord& origin ) noexcept
 			buffer.emplace_back( row );
 	}
 	return Frame{ buffer, origin };
-	} catch ( ... ) { return {}; }
+	//} catch ( ... ) { return {}; }
 }
 
 /**
