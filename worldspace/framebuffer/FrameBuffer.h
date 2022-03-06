@@ -1,7 +1,7 @@
 #pragma once
 #include "Frame.h"
 #include "PlayerStatBox.h"
-#include "Gamespace.h"
+#include "../gameworld/Gamespace.h"
 #include <TermAPI.hpp>
 
 #include <utility>
@@ -10,9 +10,8 @@
 #endif
 
 /**
- * initConsole()
- * @brief Changes the size & position of the console window, and hides the cursor.
- * @returns bool	- ( true = success ) ( false = Failed to retrieve information about the console window. )
+ * @brief			Changes the size & position of the console window, and hides the cursor.
+ * @returns bool:	True when successful, or reportedly successful.
  */
 [[nodiscard]] bool initConsole(const Coord& window_origin, const Coord& size)
 {
@@ -113,21 +112,20 @@ class FrameBuffer {
 	}
 	/**
 	 * checkPos(long, long)
-	 * @brief Checks a given position for matches in the cache.
-	 * @param x								- Target horizontal X-axis position.
-	 * @param y								- Target vertical Y-axis position.
-	 * @return nullopt						- No entities are located at the given position.
-	 * @return pair<char, unsigned short>	- The display character & color of the entity located at the given position.
+	 * @brief								Checks a given position for matches in the cache.
+	 * @param x:							Target horizontal X-axis position.
+	 * @param y:							Target vertical Y-axis position.
+	 * @return nullopt:						No entities are located at the given position.
+	 * @return pair<char, unsigned short>:	The display character & color of the entity located at the given position.
 	 */
 	[[nodiscard]] std::optional<std::pair<char, unsigned short> > checkPos(long x, long y) const noexcept
 	{
 		return checkPos({ x, y });
 	}
 	/**
-	 * buildNextFrame(Coord)
-	 * @brief Returns a new frame of the entire cell
-	 * @param origin	- The top-left corner of the frame, as shown in the console screen buffer
-	 * @returns Frame
+	 * @brief			Returns a new frame of the entire cell
+	 * @param origin:	The top-left corner of the frame, as shown in the console screen buffer
+	 * @returns			Frame
 	 */
 	[[nodiscard]] Frame buildNextFrame(const Coord& origin)
 	{
@@ -158,7 +156,6 @@ class FrameBuffer {
 
 public:
 	/**
-	 * FrameBuffer(Cell&, Coord&, Coord&)
 	 * @brief Instantiate a FrameBuffer display. Throws make_exception if console window did not initialize correctly.
 	 * @param gamespace		- Reference to the attached Gamespace instance
 	 * @param windowOrigin	- (Default: (1,1)) Position of the window on the monitor
@@ -173,7 +170,6 @@ public:
 	}
 
 	/**
-	 * display()
 	 * @brief (Re)Build the frame from current Gamespace data, and cleanup expired entities by calling Gamespace::cleanupDead().
 	 */
 	void display()
@@ -243,7 +239,6 @@ public:
 	}
 
 	/**
-	 * deinitialize()
 	 * @brief Set the initialized flag to false, causing the display to be re-initialized next time display() is called.
 	 */
 	void deinitialize() noexcept

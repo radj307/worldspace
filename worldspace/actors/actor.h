@@ -5,8 +5,8 @@
  * @author radj307
  */
 #pragma once
-#include "controls.h"
-#include "Coord.h"
+#include "../controls.h"
+#include "../gameworld/Coord.h"
 
 #include <fileio.hpp>
 #include <TermAPI.hpp>

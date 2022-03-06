@@ -9,7 +9,7 @@
 		Add a check when an NPC is pursuing its target to re-apply aggression if the target is still visible.
 		Use the get() function to output localized flares rather than full-screen ones.
  */
-#include "game.hpp"
+#include "runtime/game.hpp"
 #include <TermAPI.hpp>
 #include <ParamsAPI2.hpp>
 

@@ -5,8 +5,8 @@
  * Used in game_threads.hpp
  */
 #pragma once
-#include "FrameBuffer.h"
-#include "Gamespace.h"
+#include "../framebuffer/FrameBuffer.h"
+#include "../gameworld/Gamespace.h"
 #include "shared.h"
 
  //#include <conio.h>

@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 
-#include "Coord.h"
+#include "../gameworld/Coord.h"
 
 namespace game::_internal {
 	using namespace std::chrono_literals; // for time literals

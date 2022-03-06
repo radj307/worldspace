@@ -7,7 +7,7 @@
 #pragma once
 #include <vector>
 
-#include "Coord.h"
+#include "../gameworld/Coord.h"
 
  /**
   * @struct Frame

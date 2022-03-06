@@ -4,7 +4,7 @@
  * @author radj307
  */
 #pragma once
-#include "Coord.h"
+#include "../gameworld/Coord.h"
 #include "init.h"
 #include "shared.h"
 #include "ThreadFunctions.h"

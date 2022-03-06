@@ -1,5 +1,5 @@
 #pragma once
-#include "Coord.h"
+#include "../gameworld/Coord.h"
 
 // Base flare class
 struct Flare {

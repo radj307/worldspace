@@ -5,12 +5,12 @@
  * @author radj307
  */
 #pragma once
-#include "actor.h"
+#include "../actors/actor.h"
+#include "../framebuffer/Flare.h"
+#include "../GameRules.h"
+#include "../GameState.h"
+#include "../items/item.h"
 #include "cell.h"
-#include "Flare.h"
-#include "GameRules.h"
-#include "GameState.h"
-#include "item.h"
 
  /**
   * @class Gamespace

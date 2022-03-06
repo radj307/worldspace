@@ -7,8 +7,8 @@
 #pragma once
 #include <string>
 
-#include "actor.h"
-#include "Coord.h"
+#include "../actors/actor.h"
+#include "../gameworld/Coord.h"
  /**
   * @struct PlayerStatBox
   * @brief Object used to display player stats.

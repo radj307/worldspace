@@ -4,7 +4,7 @@
  * @brief This file contains all configurable settings used in a game. These settings are members of the GameRules struct, an object that is required by the Gamespace to initialize.
  */
 #pragma once
-#include "actor.h"
+#include "actors/actor.h"
 
 #include <INIRedux.hpp>
 #include <strconv.hpp>

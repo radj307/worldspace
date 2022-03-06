@@ -10,8 +10,8 @@
 #include <strconv.hpp>
 #include <TermAPI.hpp>
 
-#include "controls.h"
-#include "GameRules.h"
+#include "../controls.h"
+#include "../GameRules.h"
 #include "shared.h"
 
 /**
@@ -26,7 +26,7 @@ namespace game::_internal {
 	 * @param filename	- The name of the created file
 	 * @return true		- Success, default INI config was written to disk.
 	 * @return false	- An error occurred while writing the default INI config to disk.
-	 */// ReSharper disable once CppInconsistentNaming
+	 */
 	inline bool initDefaultINI(const std::string& filename) noexcept
 	{
 		// VARIABLES & VALUES

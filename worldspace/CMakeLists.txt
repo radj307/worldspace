@@ -12,14 +12,13 @@ file(GLOB SRCS
 	"*.c*"
 )
 
+# Create a version header
 include(VersionTag)
-
 file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/version.h")
 MAKE_VERSION_HEADER("${CMAKE_CURRENT_SOURCE_DIR}/version.h" "WORLDSPACE" "${WORLDSPACE_VERSION}")
 
-if (WIN32)
+if (WIN32) # Include resources on windows
 	include(ResourceMaker)
-
 	set(WORLDSPACE_RESOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/worldspace.rc")
 	file(REMOVE "${WORLDSPACE_RESOURCE_FILE}")
 	CREATE_VERSION_RESOURCE(
@@ -37,6 +36,7 @@ if (WIN32)
 	APPEND_ICON_RESOURCE("${WORLDSPACE_RESOURCE_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/MAINICON.ico")
 endif()
 
+# Require multithreading support
 find_package(Threads REQUIRED)
 
 # Create an executable
@@ -48,9 +48,9 @@ set_property(TARGET worldspace PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET worldspace PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (MSVC)
 	target_compile_options(worldspace PUBLIC "/Zc:__cplusplus")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang: Use -pthread compiler option
 	target_compile_options(worldspace PUBLIC "-pthread")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") # gcc: Use -pthread linker option
 	target_link_options(worldspace PUBLIC "-pthread")
 endif()
 

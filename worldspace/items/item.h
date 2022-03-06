@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "actor.h"
+#include "../actors/actor.h"
 
  // Base item statistics
 struct ItemStats {
