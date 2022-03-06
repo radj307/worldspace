@@ -5,13 +5,14 @@
  * Used in game_threads.hpp
  */
 #pragma once
-#pragma region THREAD_FUNC
-#include <conio.h>
-#include <mutex>
-
 #include "FrameBuffer.h"
 #include "Gamespace.h"
 #include "shared.h"
+
+//#include <conio.h>
+#include <cstdio>
+#include <mutex>
+#include <hasPendingDataSTDIN.h>
 
 /**
  * @namespace _internal
@@ -31,8 +32,8 @@ namespace game::_internal {
 	{
 		while ( !mem._kill.load() ) {
 			// getch waits until key press, no need to sleep this thread.
-			if ( _kbhit() ) {
-				const auto key{ static_cast<char>(std::tolower( _getch() )) };
+			if ( term::kbhit() ) {
+				const auto key{ static_cast<char>(std::tolower(term::getch())) };
 				// if game is not paused
 				if ( !mem._pause.load() ) {
 					// switch player keypress

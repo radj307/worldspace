@@ -202,7 +202,7 @@ public:
 	 */
 	void print() const
 	{
-		printf("%s%c%s", _color.as_sequence().c_str(), _char, color::reset);
+		printf("%s%c%s", _color.as_sequence().c_str(), _char, color::reset.c_str());
 	}
 };
 

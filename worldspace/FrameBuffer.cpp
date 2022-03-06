@@ -164,7 +164,7 @@ void FrameBuffer::display()
 				if (_game.getTile(frameX, frameY)->_isKnown) {
 					const auto entity{ checkPos(frameX, frameY) };
 					if (entity.has_value()) {
-						printf("%s%s%c", term::setCursorPosition(consoleX * 2, consoleY), color::setcolor(entity.value().second).as_sequence().c_str(), entity.value().first);
+						printf("%s%s%c", term::setCursorPosition(consoleX * 2, consoleY).c_str(), color::setcolor(entity.value().second).as_sequence().c_str(), entity.value().first);
 					}
 					// Check if the game wants a screen color flare
 					else if (flare != nullptr && flare->pattern(frameX, frameY)) {

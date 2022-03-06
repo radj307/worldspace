@@ -11,26 +11,9 @@
  */
 #include "game.hpp"
 #include <TermAPI.hpp>
-#include <ColorPalette.hpp>
 #include <ParamsAPI2.hpp>
-#include <sys_legacy/sys/sysapiwin.h>
 
 inline bool prompt_restart(const std::optional<const Coord>& textPos = std::nullopt);
-inline std::vector<std::string> interpret(int argc, char* argv[]);
-
-enum class ColorElem : unsigned char {
-	KEY_RESTART,
-	KEY_QUIT,
-};
-using PaletteT = color::ColorPalette<ColorElem>;
-inline static PaletteT Color{
-	{
-		{ ColorElem::KEY_RESTART, color::green },
-	{ ColorElem::KEY_QUIT, color::red },
-
-	}
-};
-
 /**
  * main(const int, char*[])
  * @brief Main program entry point.
@@ -42,15 +25,15 @@ int main(const int argc, char* argv[])
 	try {
 		opt::ParamsAPI2 args{ argc, argv, "ini" };
 
-		std::cout << sys::term::EnableANSI << sys::term::setAlternateScreenBuffer();
+		std::cout << term::EnableANSI << term::EnableAltScreenBuffer;
 		// Keep starting the game until the player doesn't press restart
-		do if (!game::start(interpret(argc, argv))) break; while (prompt_restart());
+		do if (!game::start(args.typegetv_all<opt::Parameter>())) break; while (prompt_restart());
 
 		// Return a success code
 		return 0;
 	} catch (std::exception& ex) {
 		// Fill the screen buffer with spaces
-		std::cout << sys::term::setMainScreenBuffer() << sys::term::error << "The game crashed because an exception was thrown: \"" << ex.what() << "\"\nPress any key to exit." << std::endl;
+		std::cout << term::DisableAltScreenBuffer << term::error << "The game crashed because an exception was thrown: \"" << ex.what() << "\"\nPress any key to exit." << std::endl;
 		// Return an error code
 		return -1;
 	}
@@ -69,18 +52,16 @@ bool prompt_restart(const std::optional<const Coord>& textPos)
 	using namespace std::chrono_literals;
 	using CLK = std::chrono::steady_clock; ///< @brief Chrono steady clock
 	const auto timeout{ std::chrono::duration_cast<std::chrono::nanoseconds>(6s) };	///< @brief Maximum time to wait before returning false
-	const auto pos{ textPos.has_value() ? textPos.value() : Coord{ static_cast<long>(sys::getScreenBufferCenter()._x - 14L), 14L } };
+	const auto pos{ textPos.has_value() ? textPos.value() : Coord{ static_cast<long>(40), 14L } };
 
-	sys::term::setCursorPosition(pos._x, pos._y);	// move to target line, print restart key
-	std::cout << "Press <" << Color.set(ColorElem::KEY_RESTART) << 'r' << Color.reset() << "> to restart.";
+	std::cout << term::setCursorPosition(pos._x, pos._y) << "Press <" << color::setcolor::green << 'r' << color::setcolor::reset << "> to restart.";
 
-	sys::term::setCursorPosition(pos._x, pos._y + 1);	// move to next line, print quit key
-	std::cout << "Press <" << Color.set(ColorElem::KEY_QUIT) << 'q' << Color.reset() << "> to quit.";
+	std::cout << term::setCursorPosition(pos._x, pos._y + 1)<< "Press <" << color::setcolor::red << 'q' << color::setcolor::reset << "> to quit.";
 
 	// loop until timeout, or valid key press
 	for (const auto t{ CLK::now() }; CLK::now() - t <= timeout; ) {
-		if (static_cast<bool>(_kbhit())) { // If a key is pressed, process it
-			switch (std::tolower(_getch())) {
+		if (static_cast<bool>(term::kbhit())) { // If a key is pressed, process it
+			switch (std::tolower(term::getch())) {
 			case 'r': // r was pressed, restart the game
 				return true;
 			case 'q': // q was pressed, quit the game
@@ -88,22 +69,8 @@ bool prompt_restart(const std::optional<const Coord>& textPos)
 			default:break;
 			}
 		} // else wait for timeout
-		sys::term::setCursorPosition(pos._x + 2, pos._y + 3);
+		term::setCursorPosition(pos._x + 2, pos._y + 3);
 		std::cout << std::chrono::duration_cast<std::chrono::seconds>(timeout - (CLK::now() - t)).count() << "s remaining..." << std::endl;
 	}
 	return false;
-}
-
-/**
- * interpret(int, char*[])
- * @brief Interpret commandline arguments and return the list of INI files to load.
- * @param argc	- Argument count from main.
- * @param argv	- Argument array from main.
- * @returns vector<string>
- */
-inline std::vector<std::string> interpret(const int argc, char* argv[])
-{
-
-	const auto files{ opt::list(argc, argv, "ini:").getParams("ini") };
-	return files.empty() ? std::vector<std::string>{ "actor_templates.ini", "config.ini" } : files;
 }

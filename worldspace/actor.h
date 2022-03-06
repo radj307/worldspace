@@ -92,7 +92,7 @@ protected:
 		_BASE_STAMINA{ _MAX_STAMINA },
 		_BASE_DAMAGE{ _MAX_DAMAGE }
 	{
-		if (HEALTH <= 0 || STAMINA <= 0 || DAMAGE <= 0) throw std::exception("INVALID_ACTOR_STATS");
+		if (HEALTH <= 0 || STAMINA <= 0 || DAMAGE <= 0) throw make_exception("INVALID_ACTOR_STATS");
 	}
 	ActorMaxStats(const ActorMaxStats&) = default;
 	ActorMaxStats(ActorMaxStats&&) = default;

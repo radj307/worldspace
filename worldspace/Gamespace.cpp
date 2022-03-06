@@ -23,7 +23,7 @@ Gamespace::Gamespace(GameRules& ruleset) noexcept : _ruleset(ruleset), _world(Ce
  * @param isPlayer		- When true, does not check positions for proximity to the player.
  * @param checkForItems	- When true, does not check positions for static items.
  * @returns Coord
- * @throws std::exception() - Couldn't find a valid spawn location.
+ * @throws make_exception() - Couldn't find a valid spawn location.
  */
 Coord Gamespace::findValidSpawn(const bool isPlayer, const bool checkForItems)
 {
@@ -38,7 +38,7 @@ Coord Gamespace::findValidSpawn(const bool isPlayer, const bool checkForItems)
 		if (!checkForItems ? true : getItemAt(pos) == nullptr && isPlayer ? true : getActorAt(pos) == nullptr && getDist(_player.pos(), pos) >= _ruleset._enemy_aggro_distance + _player.getVis() * 2)
 			return pos;
 	}
-	throw std::exception("Failed to find a valid spawn, are there enough empty tiles?");
+	throw make_exception("Failed to find a valid spawn, are there enough empty tiles?");
 }
 /**
  * generate_NPCs(int, vector<ActorTemplate>)
@@ -100,7 +100,7 @@ template<typename NPC> NPC Gamespace::build_npc(ActorTemplate& actorTemplate)
 }
 /**
  * spawn(ActorTemplate&)
- * @brief Spawns a new NPC mid-game at a given position. Throws std::exception if the position is invalid.
+ * @brief Spawns a new NPC mid-game at a given position. Throws make_exception if the position is invalid.
  * @tparam NPC			- Type of NPC to build
  * @param pos			- Position of spawned NPC
  * @param actorTemplate	- Templated stats for the actor.
@@ -110,7 +110,7 @@ template<typename NPC> NPC Gamespace::build_npc(const Coord& pos, ActorTemplate&
 {
 	if (_world.isValidPos(pos))
 		return{ pos, actorTemplate };
-	throw std::exception("Attempted to create an NPC at an invalid position.");
+	throw make_exception("Attempted to create an NPC at an invalid position.");
 }
 
 void Gamespace::spawn_boss()

@@ -36,7 +36,7 @@ class FrameBuffer {
 public:
 	/**
 	 * FrameBuffer(Cell&, Coord&, Coord&)
-	 * @brief Instantiate a FrameBuffer display. Throws std::exception if console window did not initialize correctly.
+	 * @brief Instantiate a FrameBuffer display. Throws make_exception if console window did not initialize correctly.
 	 * @param gamespace		- Reference to the attached Gamespace instance
 	 * @param windowOrigin	- (Default: (1,1)) Position of the window on the monitor
 	 * @param showPlayerValues	- (Default: false) When true, displays the raw stat values below the stat bars.
@@ -45,7 +45,7 @@ public:
 		_origin(0,0/*{ sys::term::getScreenBufferCenter()._x - _size._x - 1, sys::term::getScreenBufferCenter()._y - _size._y / 2L - (showPlayerValues ? 4 : 3) - 2 }*/), _player_stats(&_game.getPlayer(), { _origin._x + _size._x, _origin._y + _size._y + 1 }, showPlayerValues)
 	{
 		if (!_console_initialized)
-			throw std::exception("The console window failed to initialize.");
+			throw make_exception("The console window failed to initialize.");
 	}
 
 	void display();
