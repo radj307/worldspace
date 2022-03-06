@@ -1,8 +1,8 @@
 1 TYPELIB "worldspace.rc"
 
 1 VERSIONINFO
- FILEVERSION 0, 0, 0, 0
- PRODUCTVERSION 0, 0, 0, 0
+ FILEVERSION 0, 0, 1, 0
+ PRODUCTVERSION 0, 0, 1, 0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -19,12 +19,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "radj307"
             VALUE "FileDescription", "Console-based Live-action Roguelike RPG"
-            VALUE "FileVersion","0, 0, 0, 0"
+            VALUE "FileVersion","0, 0, 1, 0"
             VALUE "InternalName", "worldspace"
             VALUE "LegalCopyright", "GPLv3"
             VALUE "OriginalFilename", "worldspace.exe"
             VALUE "ProductName", "worldspace"
-            VALUE "ProductVersion","0, 0, 0"
+            VALUE "ProductVersion","0, 0, 1"
         END
     END
     BLOCK "VarFileInfo"
