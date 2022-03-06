@@ -37,6 +37,8 @@ if (WIN32)
 	APPEND_ICON_RESOURCE("${WORLDSPACE_RESOURCE_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/MAINICON.ico")
 endif()
 
+find_package(Threads REQUIRED)
+
 # Create an executable
 add_executable(worldspace "${SRCS}" "${WORLDSPACE_RESOURCE_FILE}")
 
@@ -46,6 +48,10 @@ set_property(TARGET worldspace PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET worldspace PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (MSVC)
 	target_compile_options(worldspace PUBLIC "/Zc:__cplusplus")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_options(worldspace PUBLIC "-pthread")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_link_options(worldspace PUBLIC "-pthread")
 endif()
 
 # Include source files

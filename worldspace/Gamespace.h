@@ -294,10 +294,7 @@ class Gamespace final {
 	 */
 	[[nodiscard]] bool canMove(const Coord& pos)
 	{
-		try {
-			return _world.isValidPos(pos) && _world.get(pos)->_canMove && getActorAt(pos) == nullptr;
-		} catch (...) {}
-		return false;
+		return _world.isValidPos(pos) && _world.get(pos)->_canMove && getActorAt(pos) == nullptr;
 	}
 	/**
 	 * canMove(int, int)
@@ -576,7 +573,7 @@ public:
 	 * @param ruleset	 - A ref to the ruleset structure
 	 */
 	explicit Gamespace(GameRules& ruleset) noexcept
-		: _ruleset(ruleset), 
+		: _ruleset(ruleset),
 		_world(Cell{ _ruleset._cellSize, _ruleset._walls_always_visible, _ruleset._override_known_tiles }),
 		_player({ findValidSpawn(true), _ruleset._player_template }),
 		_FLARE_DEF_CHALLENGE(_world._max), _FLARE_DEF_BOSS(_world._max)

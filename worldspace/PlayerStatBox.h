@@ -80,6 +80,7 @@ public:
 			<< color::setcolor::green
 			<< getStatBar(_pMaxStamina, _pStamina).c_str()
 			<< color::setcolor::reset
+			<< ')'
 			<< term::setCursorPosition(_origin._x, _origin._y + 2);
 		if (_SHOW_VALUES) 
 			std::cout << str::align_center({ "Health: " + str(_pHealth) + "  Stamina: " + str(_pStamina) }, _MAX_LINE_LENGTH) << term::setCursorPosition(_origin._x, _origin._y + 3);

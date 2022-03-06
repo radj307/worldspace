@@ -32,6 +32,8 @@ namespace game::_internal {
 	{
 		try {
 			while (!mem._kill.load()) {
+				//	if (mem._exception.has_value())
+				//		return;
 				// getch waits until key press, no need to sleep this thread.
 				if (term::kbhit()) {
 					const auto key{ static_cast<char>(std::tolower(term::getch())) };
@@ -104,6 +106,8 @@ namespace game::_internal {
 			FrameBuffer gameBuffer(game, Coord(1920 / 3, 1080 / 8));
 			// Loop until kill flag is true
 			for (auto tLastRegenCycle{ CLK::now() }; !mem._kill.load(); ) {
+			//	if (mem._exception.has_value())
+			//		return;
 				if (!mem._pause.load()) {
 					mem._pause_complete.store(false);
 					std::this_thread::sleep_for(__FRAMETIME);

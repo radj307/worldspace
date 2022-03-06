@@ -29,7 +29,7 @@
 		});
 	const auto chSize{ getCharSize(GetDC(cw)) };
 
-	printf(term::CursorVisible(false).c_str());
+	//printf(term::CursorVisible(false).c_str());
 
 	// return result of modifying the window & hiding the cursor
 	return MoveWindow(
@@ -169,6 +169,7 @@ public:
 	{
 		if (!_console_initialized)
 			throw make_exception("The console window failed to initialize.");
+		else std::cout << term::CursorVisible(false);
 	}
 
 	/**
