@@ -9,7 +9,7 @@
 #include "shared.h"
 #include "ThreadFunctions.h"
 
-#include <INI.hpp>	// for INI parser
+#include <INIRedux.hpp>	// for INI parser
 #include <TermAPI.hpp>
 #include <fileutil.hpp>
 
@@ -111,6 +111,10 @@ namespace game {
 		} catch (std::exception& ex) {
 			std::cout << term::clear << term::error << "An unhandled thread exception occurred, but was caught by the thread manager: \"" << ex.what() << "\"" << std::endl;
 		}
+
+		if (mem._exception != std::nullopt)
+			throw mem._exception.value();
+
 		if (mem._kill_code.load() == _internal::PLAYER_LOSE_CODE)
 			mem._player_killed_by = thisGame.getPlayer().killedBy();
 		// Once the kill flag is true, show the game over message and return

@@ -5,7 +5,7 @@
  * Used in game_threads.hpp
  */
 #pragma once
-#include <INI.hpp>
+#include <INIRedux.hpp>
 #include <ostream>
 #include <strconv.hpp>
 #include <TermAPI.hpp>
@@ -171,12 +171,12 @@ namespace game::_internal {
 		if (cfg.check("controls")) {
 			std::cout << term::debug << "Using ControlSet from INI" << std::endl;
 			return CONTROLS{ // Initialize controlset from INI
-				str::stoc(cfg.getvs("controls", "key_up").value_or(_CTRL._KEY_UP)),
-				str::stoc(cfg.getvs("controls", "key_down").value_or(_CTRL._KEY_DOWN)),
-				str::stoc(cfg.getvs("controls", "key_left").value_or(_CTRL._KEY_LEFT)),
-				str::stoc(cfg.getvs("controls", "key_right").value_or(_CTRL._KEY_RIGHT)),
-				str::stoc(cfg.getvs("controls", "key_pause").value_or(_CTRL._KEY_PAUSE)),
-				str::stoc(cfg.getvs("controls", "key_quit").value_or(_CTRL._KEY_QUIT))
+				cfg.getvs_cast<char>("controls", "key_up", str::stoc).value_or(_CTRL._KEY_UP),
+				cfg.getvs_cast<char>("controls", "key_down", str::stoc).value_or(_CTRL._KEY_DOWN),
+				cfg.getvs_cast<char>("controls", "key_left", str::stoc).value_or(_CTRL._KEY_LEFT),
+				cfg.getvs_cast<char>("controls", "key_right", str::stoc).value_or(_CTRL._KEY_RIGHT),
+				cfg.getvs_cast<char>("controls", "key_pause", str::stoc).value_or(_CTRL._KEY_PAUSE),
+				cfg.getvs_cast<char>("controls", "key_quit", str::stoc).value_or(_CTRL._KEY_QUIT)
 			};
 		}
 		std::cout << term::debug << "Using ControlSet from defaults" << std::endl;
@@ -193,7 +193,7 @@ namespace game::_internal {
 	inline bool initTiming(file::INI& cfg) noexcept
 	{
 		try {
-			if (setFramerate(str::stoui(cfg.getvs("timing", "framerate").value_or(60u))) && setNPCCycle(str::stoui(cfg.getvs("timing", "npc_cycle").value_or(225u))))
+			if (setFramerate(cfg.getvs_cast<unsigned>("timing", "framerate", str::stoui).value_or(60u)) && setNPCCycle(cfg.getvs_cast<unsigned>("timing", "npc_cycle", str::stoui).value_or(225u)))
 				std::cout << term::debug << "Game timings were set successfully." << std::endl;
 			return true;
 		} catch (...) {

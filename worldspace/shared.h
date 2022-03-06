@@ -73,6 +73,7 @@ namespace game::_internal {
 		std::atomic<int> _kill_code{ -2 }; ///< -2 = not set | see the above PLAYER_CODE vars.
 		std::optional<std::string> _player_killed_by{ std::nullopt };
 		const std::string _pause_msg{ "GAME PAUSED" };
+		std::optional<std::exception> _exception{ std::nullopt };
 		///< This is an optional string used to display the name of the actor who killed the player. This is only set by the game::start() function
 
 		/**
@@ -83,7 +84,7 @@ namespace game::_internal {
 		void pause_game(const Coord textPos = Coord(5, 3))
 		{
 			_pause.store(true);
-			printf("%s%s", term::clear.c_str(), term::setCursorPosition(textPos._x, textPos._y));
+			printf("%s%s", term::clear.c_str(), term::setCursorPosition(textPos._x, textPos._y).c_str());
 			std::cout << color::setcolor::cyan << _pause_msg << color::setcolor::reset;
 		}
 

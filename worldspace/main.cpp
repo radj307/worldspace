@@ -25,7 +25,7 @@ int main(const int argc, char* argv[])
 	try {
 		opt::ParamsAPI2 args{ argc, argv, "ini" };
 
-		std::cout << term::EnableANSI << term::EnableAltScreenBuffer;
+		std::cout << term::EnableAltScreenBuffer << term::EnableANSI << term::CursorVisible(false);
 		// Keep starting the game until the player doesn't press restart
 		do if (!game::start(args.typegetv_all<opt::Parameter>())) break; while (prompt_restart());
 
@@ -69,8 +69,7 @@ bool prompt_restart(const std::optional<const Coord>& textPos)
 			default:break;
 			}
 		} // else wait for timeout
-		term::setCursorPosition(pos._x + 2, pos._y + 3);
-		std::cout << std::chrono::duration_cast<std::chrono::seconds>(timeout - (CLK::now() - t)).count() << "s remaining..." << std::endl;
+		std::cout << term::setCursorPosition(pos._x + 2l, pos._y + 3l) << std::chrono::duration_cast<std::chrono::seconds>(timeout - (CLK::now() - t)).count() << "s remaining..." << std::endl;
 	}
 	return false;
 }

@@ -106,7 +106,7 @@ struct checkDistance final {
 	 */
 	static long get(const Coord& pos1, const Coord& pos2)
 	{
-		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
+		return static_cast<long>(abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y));
 	}
 	/**
 	 * get(long, long, long, long)
@@ -119,7 +119,7 @@ struct checkDistance final {
 	 */
 	static long get(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y)
 	{
-		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
+		return static_cast<long>(abs(pos1X - pos2X) + abs(pos1Y - pos2Y));
 	}
 	/**
 	 * operator()
@@ -130,7 +130,7 @@ struct checkDistance final {
 	 */
 	long operator()(const Coord& pos1, const Coord& pos2) const
 	{
-		return abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y);
+		return static_cast<long>(abs(pos1._x - pos2._x) + abs(pos1._y - pos2._y));
 	}
 	/**
 	 * operator()
@@ -143,7 +143,7 @@ struct checkDistance final {
 	 */
 	long operator()(const long pos1X, const long pos1Y, const long pos2X, const long pos2Y) const
 	{
-		return abs(pos1X - pos2X) + abs(pos1Y - pos2Y);
+		return static_cast<long>(abs(pos1X - pos2X) + abs(pos1Y - pos2Y));
 	}
 };
 
@@ -176,7 +176,7 @@ struct checkDistanceFrom final {
 	 */
 	long operator()(const Coord& pos) const noexcept
 	{
-		return abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y);
+		return static_cast<long>(abs(_follow->_x - pos._x) + abs(_follow->_y - pos._y));
 	}
 	/**
 	 * operator()
@@ -188,7 +188,7 @@ struct checkDistanceFrom final {
 	 */
 	long operator()(const long posX, const long posY) const noexcept
 	{
-		return abs(_follow->_x - posX) + abs(_follow->_y - posY);
+		return static_cast<long>(abs(_follow->_x - posX) + abs(_follow->_y - posY));
 	}
 };
 
