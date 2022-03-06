@@ -115,7 +115,7 @@ template<typename NPC> NPC Gamespace::build_npc(const Coord& pos, ActorTemplate&
 
 void Gamespace::spawn_boss()
 {
-	_hostile.push_back(build_npc<Enemy>(_ruleset._enemy_boss_template.at(_rng.get(static_cast<unsigned int>(_ruleset._enemy_boss_template.size()) - 1u, 0u))));
+	_hostile.push_back(build_npc<Enemy>(_ruleset._enemy_boss_template.at(_rng.get(static_cast<std::vector<ActorTemplate, std::allocator<ActorTemplate>>::size_type>(static_cast<unsigned int>(_ruleset._enemy_boss_template.size())) - 1u, 0u))));
 	addFlare(_FLARE_DEF_BOSS);
 }
 #pragma endregion			GAME_SPAWNING
@@ -465,7 +465,7 @@ void Gamespace::trap(ActorBase* actor, const bool didMove)
 			actor->modHealth(-_ruleset._trap_dmg);
 		// Check if actor died
 		if (actor->isDead())
-			actor->killedBy(_ruleset._killed_by_trap.at(_rng.get(static_cast<unsigned int>(_ruleset._killed_by_trap.size()) - 1u, 0u)));
+			actor->killedBy(_ruleset._killed_by_trap.at(_rng.get(static_cast<std::vector<std::string, std::allocator<std::string>>::size_type>(static_cast<unsigned int>(_ruleset._killed_by_trap.size())) - 1u, 0u)));
 	}
 }
 /**

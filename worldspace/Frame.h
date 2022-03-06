@@ -74,8 +74,7 @@ struct Frame {
 		// use dual-iterators to iterate both the frame, and console position from the origin offset
 		for (int consoleY{ _origin._y }, frameY{ 0 }; consoleY < _origin._y + static_cast<int>(_frame.size()); consoleY++, frameY++) {
 			for (int consoleX = _origin._x, frameX{ 0 }; consoleX < _origin._x + static_cast<int>(_frame.at(frameY).size()); consoleX++, frameX++) {
-				sys::term::cursorPos(consoleX * 2, consoleY);		// set the cursor position
-				printf("%c", _frame.at(frameY).at(frameX));
+				printf("%s%c", term::setCursorPosition(consoleX * 2, consoleY).c_str(), _frame.at(frameY).at(frameX));
 				if (_space_columns)
 					printf(" ");
 			}

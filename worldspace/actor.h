@@ -5,18 +5,20 @@
  * @author radj307
  */
 #pragma once
-#include <algorithm>
-#include <file.h>
-#include <sstream>
-#include <strconv.hpp>
-#include <string>
-#include <strmanip.hpp>
-#include <utility>
-#include <vector>
-#include <xRand.hpp>
-#include <TermAPI.hpp>
 #include "controls.h"
 #include "Coord.h"
+
+#include <fileio.hpp>
+#include <TermAPI.hpp>
+#include <strconv.hpp>
+#include <strmanip.hpp>
+#include <xRand.hpp>
+
+#include <algorithm>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
  // Universal attributes and templates
 #pragma region ACTOR_ATTRIBUTES

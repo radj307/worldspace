@@ -83,9 +83,8 @@ namespace game::_internal {
 		void pause_game(const Coord textPos = Coord(5, 3))
 		{
 			_pause.store(true);
-			sys::term::cls();
-			sys::term::cursorPos(textPos);
-			std::cout << Color::f_cyan << _pause_msg << Color::reset;
+			printf("%s%s", term::clear.c_str(), term::setCursorPosition(textPos._x, textPos._y));
+			std::cout << color::setcolor::cyan << _pause_msg << color::setcolor::reset;
 		}
 
 		/**
@@ -94,7 +93,7 @@ namespace game::_internal {
 		 */
 		void unpause_game()
 		{
-			sys::term::cls();
+			printf(term::clear.c_str());
 			_pause.store(false);
 		}
 	};

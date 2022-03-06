@@ -43,7 +43,7 @@ public:
 	 * @param myUses		- The number of times this item can be used before being removed.
 	 * @param myPos			- Ref to a coord position
 	 */
-	ItemStaticBase(const char display, const unsigned short displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
+	ItemStaticBase(const char display, const color::setcolor& displayColor, std::string myName, const int myUses, const Coord& myPos) : ItemStats(display, displayColor, std::move(myName), myUses), _pos(myPos) {}
 
 	/**
 	 * ItemStaticBase(char, Color, string, int, Coord&, vector<FACTION>)
@@ -55,7 +55,7 @@ public:
 	 * @param myPos			- Ref to a coord position
 	 * @param lockToFaction	- Vector of factions allowed to use this item
 	 */
-	ItemStaticBase(const char display, const unsigned short displayColor, std::string myName, const int myUses, const Coord& myPos, std::vector<FACTION> lockToFaction) : ItemStats(display, displayColor, std::move(myName), myUses, std::move(lockToFaction)), _pos(myPos) {}
+	ItemStaticBase(const char display, const color::setcolor& displayColor, std::string myName, const int myUses, const Coord& myPos, std::vector<FACTION> lockToFaction) : ItemStats(display, displayColor, std::move(myName), myUses, std::move(lockToFaction)), _pos(myPos) {}
 
 	/**
 	 * ItemStaticBase(ItemStats&, Coord&)
@@ -153,7 +153,7 @@ public:
 	 * @param amountRestored	- The amount of health this item restores.
 	 * @param lockToFaction		- Vector of factions allowed to use this item.
 	 */
-	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::_b_red, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticHealth(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', color::setcolor(color::red, color::Layer::B), "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 #pragma region DEFAULT
 	// Default constructors/destructor/operators
 	ItemStaticHealth(const ItemStaticHealth&) = default;
@@ -199,7 +199,7 @@ public:
 	 * @param myPos				- This item's position in the cell.
 	 * @param amountRestored	- The amount of stamina this item restores.
 	 */
-	ItemStaticStamina(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', Color::_b_green, "Restore Health", 1, myPos), _amount(amountRestored) {}
+	ItemStaticStamina(const Coord& myPos, const int amountRestored) : ItemStaticBase('&', color::setcolor(color::green, color::Layer::B), "Restore Health", 1, myPos), _amount(amountRestored) {}
 
 	/**
 	 * ItemStaticStamina(Coord&, int, vector<FACTION>)
@@ -208,7 +208,7 @@ public:
 	 * @param amountRestored	- The amount of stamina this item restores.
 	 * @param lockToFaction		- Vector of factions allowed to use this item.
 	 */
-	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', Color::_b_green, "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
+	ItemStaticStamina(const Coord& myPos, const int amountRestored, std::vector<FACTION> lockToFaction) : ItemStaticBase('&', color::setcolor(color::green, color::Layer::B), "Restore Health", 1, myPos, std::move(lockToFaction)), _amount(amountRestored) {}
 
 #pragma region DEFAULT
 	// Default constructors/destructor/operators

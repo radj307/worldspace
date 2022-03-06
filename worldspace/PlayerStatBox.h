@@ -37,9 +37,7 @@ public:
 	 * @param chars			- Characters used for stat bars. { \<open bracket\>, \<fill char\>, \<close bracket\> }
 	 * @param showValues	- (Default: false) When true, values are displayed below the stat bars.
 	 */
-	explicit PlayerStatBox(Player* playerPtr, const Coord center_top, const bool showValues = false, std::tuple<char, char, char> chars = { '[', '@', ']' }) : _pName(playerPtr->name()), _pKills(playerPtr->ptrKills()), _pLevel(playerPtr->ptrLevel()), _pHealth(playerPtr->ptrHealth()), _pMaxHealth(playerPtr->ptrMaxHealth()), _pStamina(playerPtr->ptrStamina()), _pMaxStamina(playerPtr->ptrMaxStamina()), _SHOW_VALUES(showValues), _MAX_LINE_LENGTH(28), _LINE_COUNT(3 + showValues), _origin(center_top._x + 3 - _MAX_LINE_LENGTH / 2, center_top._y), _max(_origin._x + _MAX_LINE_LENGTH, _origin._y + _LINE_COUNT), _CH_BAR(std::move(chars))
-	{
-	}
+	explicit PlayerStatBox(Player* playerPtr, const Coord center_top, const bool showValues = false, std::tuple<char, char, char> chars = { '[', '@', ']' }) : _pName(playerPtr->name()), _pKills(playerPtr->ptrKills()), _pLevel(playerPtr->ptrLevel()), _pHealth(playerPtr->ptrHealth()), _pMaxHealth(playerPtr->ptrMaxHealth()), _pStamina(playerPtr->ptrStamina()), _pMaxStamina(playerPtr->ptrMaxStamina()), _SHOW_VALUES(showValues), _MAX_LINE_LENGTH(28), _LINE_COUNT(3 + showValues), _origin(center_top._x + 3 - _MAX_LINE_LENGTH / 2, center_top._y), _max(_origin._x + _MAX_LINE_LENGTH, _origin._y + _LINE_COUNT), _CH_BAR(std::move(chars)) {}
 
 	/**
 	 * width()
@@ -70,23 +68,21 @@ public:
 					r += *val >= i * seg ? fillCh : ' ';
 				return r;
 			});
-		sys::term::cursorPos(_origin); // Set cursor pos
-		std::cout << str::align_center({ _pName + " Stats Level " + str(_pLevel) }, _MAX_LINE_LENGTH);
-		sys::term::cursorPos(_origin._x, _origin._y + 1);
-		printf("(");
-		sys::term::colorSet(Color::_f_red);
-		printf("%s", getStatBar(_pMaxHealth, _pHealth).c_str());
-		sys::term::colorReset();
-		printf(")  (");
-		sys::term::colorSet(Color::_f_green);
-		printf("%s", getStatBar(_pMaxStamina, _pStamina).c_str());
-		sys::term::colorReset();
-		printf(")");
-		sys::term::cursorPos(_origin._x, _origin._y + 2);
-		if (_SHOW_VALUES) {
-			std::cout << str::align_center({ "Health: " + str(_pHealth) + "  Stamina: " + str(_pStamina) }, _MAX_LINE_LENGTH);
-			sys::term::cursorPos(_origin._x, _origin._y + 3);
-		}
+		std::cout
+			<< term::setCursorPosition(_origin._x, _origin._y)
+			<< str::align_center({_pName + " Stats Level " + str(_pLevel)}, _MAX_LINE_LENGTH)
+			<< term::setCursorPosition(_origin._x, _origin._y + 1)
+			<< '('
+			<< color::setcolor::red
+			<< getStatBar(_pMaxHealth, _pHealth)
+			<< color::setcolor::reset
+			<< ")  ("
+			<< color::setcolor::green
+			<< getStatBar(_pMaxStamina, _pStamina).c_str()
+			<< color::setcolor::reset
+			<< term::setCursorPosition(_origin._x, _origin._y + 2);
+		if (_SHOW_VALUES) 
+			std::cout << str::align_center({ "Health: " + str(_pHealth) + "  Stamina: " + str(_pStamina) }, _MAX_LINE_LENGTH) << term::setCursorPosition(_origin._x, _origin._y + 3);
 		std::cout << str::align_center({ "Kills: " + str(_pKills) }, _MAX_LINE_LENGTH);
 	}
 };

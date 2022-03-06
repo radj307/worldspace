@@ -4,9 +4,10 @@
  * @brief Contains the FACTION enumerator list, and functions related to faction type conversions.
  */
 #pragma once
-#include <optional>
 #include <strconv.hpp>
 #include <strmanip.hpp>
+
+#include <optional>
 #include <vector>
 
 /**

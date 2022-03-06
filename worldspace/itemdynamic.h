@@ -17,9 +17,9 @@ struct ItemDynamicBase : ItemStats { protected:
 	virtual bool cond() = 0;
 
 public:
-	ItemDynamicBase(const char display, const unsigned short displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses } {}
+	ItemDynamicBase(const char display, const color::setcolor& displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses } {}
 	
-	ItemDynamicBase(ActorBase* owner, const char display, const unsigned short displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses }, _owner{ owner } {}
+	ItemDynamicBase(ActorBase* owner, const char display, const color::setcolor& displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses }, _owner{ owner } {}
 	
 	bool attempt_use()
 	{
@@ -43,7 +43,7 @@ struct ItemDynamicHealth : ItemDynamicBase { private:
 	bool cond() override { return _owner != nullptr && _owner->getHealth() < _owner->getMaxHealth(); }
 
 public:
-	explicit ItemDynamicHealth(const int amountRestored) : ItemDynamicBase{ '*', Color::_b_red, "Health Potion", 1 }, _amount_restored{ amountRestored } {}
+	explicit ItemDynamicHealth(const int amountRestored) : ItemDynamicBase{ '*', color::setcolor(color::red, color::Layer::B), "Health Potion", 1 }, _amount_restored{ amountRestored } {}
 };
 
 struct ItemDynamicStamina : ItemDynamicBase { private:
@@ -57,7 +57,7 @@ struct ItemDynamicStamina : ItemDynamicBase { private:
 	bool cond() override { return _owner != nullptr && _owner->getStamina() < _owner->getMaxStamina(); }
 	
 public:
-	explicit ItemDynamicStamina(const int amountRestored) : ItemDynamicBase{ '*', Color::_b_green, "Stamina Potion", 1 }, _amount_restored{ amountRestored } {}
+	explicit ItemDynamicStamina(const int amountRestored) : ItemDynamicBase{ '*', color::setcolor(color::green, color::Layer::B), "Stamina Potion", 1 }, _amount_restored{ amountRestored } {}
 };
 
 struct ItemDynamicAoE : ItemStats { protected:
@@ -69,7 +69,7 @@ struct ItemDynamicAoE : ItemStats { protected:
 	virtual bool cond() = 0;
 
 public:
-	explicit ItemDynamicAoE(const int range, const char display, const unsigned short displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses }, _range { range } {}
+	explicit ItemDynamicAoE(const int range, const char display, const color::setcolor& displayColor, std::string name, const int max_uses) : ItemStats{ display, displayColor, std::move(name), max_uses }, _range { range } {}
 
 	bool attempt_use(const std::vector<NPC*>& targets)
 	{
@@ -93,7 +93,7 @@ struct ItemDynamicAoESmokeBomb : ItemDynamicAoE { private:
 	bool cond() override { return _owner != nullptr; }
 
 public:
-	explicit ItemDynamicAoESmokeBomb(const int range) : ItemDynamicAoE{ range, '+', Color::_b_white, "Smoke Bomb", 1 } {}
+	explicit ItemDynamicAoESmokeBomb(const int range) : ItemDynamicAoE{ range, '+', color::setcolor(color::white, color::Layer::B), "Smoke Bomb", 1 } {}
 
 	[[nodiscard]] int getRange() const { return _range; }
 };

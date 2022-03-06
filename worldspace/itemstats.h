@@ -4,18 +4,20 @@
  * @brief Contains the ItemStats struct, which contains common attributes shared by all item types.
  */
 #pragma once
+#include "faction.h"
+#include <sysarch.h>
+
+#include <TermAPI.hpp>
+
 #include <string>
 #include <vector>
-
-#include "faction.h"
-#include "sysapi.h"
 
 // Base item statistics
 struct ItemStats {
 protected:
 	// Display stats
 	char _char;						// A char to represent this item on the display
-	unsigned short _color;		// A windows API color to display this item's character with
+	color::setcolor _color;		// A windows API color to display this item's character with
 	// General stats
 	std::string _name;					// The name of this item
 	int _use_count;						// When this value reaches 0, the item should be deleted.
@@ -65,7 +67,7 @@ public:
 	 * @param name			- This item's name
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 */
-	ItemStats(const char display, const unsigned short displayColor, std::string name, const int maxUses) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses)
+	ItemStats(const char display, const color::setcolor& displayColor, std::string name, const int maxUses) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses)
 	{
 		initFactionLock();
 	}
@@ -78,7 +80,7 @@ public:
 	 * @param maxUses		- The number of times this item can be used before being removed.
 	 * @param canBeUsedBy	- Vector of factions allowed to use this item.
 	 */
-	ItemStats(const char display, const unsigned short displayColor, std::string name, const int maxUses, std::vector<FACTION> canBeUsedBy) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses), _faction_lock(std::move(canBeUsedBy)) {}
+	ItemStats(const char display, const color::setcolor& displayColor, std::string name, const int maxUses, std::vector<FACTION> canBeUsedBy) : _char(display), _color(displayColor), _name(std::move(name)), _use_count(maxUses), _faction_lock(std::move(canBeUsedBy)) {}
 
 #pragma region DEFAULT
 	// Default constructors/destructor/operators

@@ -7,10 +7,42 @@
 #include <utility>
 #include <TermAPI.hpp>
 
- /**
-  * rebuildCache()
-  * @brief Refreshes the cache from current gamespace data.
-  */
+#ifdef OS_WIN
+#include <Windows.h>
+#endif
+
+[[nodiscard]] bool initConsole(const Coord& window_origin, const Coord& size)
+{
+#ifdef OS_WIN
+	// Get a handle to the console window
+	auto* const cw{ GetConsoleWindow() };
+
+	// Lambda function to get the size of characters
+	const auto getCharSize(
+		[](const HDC& window) -> Coord {
+				TEXTMETRIC tx{};
+				GetTextMetrics(window, &tx);
+				return { tx.tmMaxCharWidth + 4, tx.tmHeight + 4 };
+		});
+	const auto chSize{ getCharSize(GetDC(cw)) };
+
+	printf(term::CursorVisible(false).c_str());
+
+	// return result of modifying the window & hiding the cursor
+	return MoveWindow(
+		cw, window_origin._x,							// Horizontal position of origin on display
+		window_origin._y,							// Vertical position of origin on display
+		(size._x * 2 + 4) * chSize._x / 2,	// Horizontal size of window
+		(size._y + 4) * chSize._y,			// Vertical size of window
+		TRUE										// Repaint (Redraws window content)
+	);
+#endif
+}
+
+/**
+ * rebuildCache()
+ * @brief Refreshes the cache from current gamespace data.
+ */
 void FrameBuffer::rebuildCache() noexcept
 {
 	//	try {
@@ -29,8 +61,8 @@ void FrameBuffer::rebuildCache() noexcept
 
 /**
  * initFrame(bool)
- * @brief Initializes the frame display. Throws std::exception if cell size is empty.
- * @throws std::exception("Cannot initialize an empty cell!") if the cell is empty.
+ * @brief Initializes the frame display. Throws make_exception if cell size is empty.
+ * @throws make_exception("Cannot initialize an empty cell!") if the cell is empty.
  * @param doCLS	 - (Default: true) When true, the screen buffer is overwritten with blank spaces before initializing the frame.
  */
 void FrameBuffer::initFrame(const bool doCLS)
@@ -38,13 +70,13 @@ void FrameBuffer::initFrame(const bool doCLS)
 	if (!_initialized) {
 		if (_game.getCellSize()._x > 0 && _game.getCellSize()._y > 0) {
 			if (doCLS)
-				sys::term::cls();			// Clear the screen before initializing
+				printf(term::clear.c_str());	// Clear the screen before initializing
 			_last = buildNextFrame(_origin);	// set the last frame
-			_last.draw();		// draw frame
-			_initialized = true;	// set init frame boolean
+			_last.draw();						// draw frame
+			_initialized = true;				// set init frame boolean
 		}
 		else
-			throw std::exception("Cannot initialize an empty cell!");
+			throw make_exception("Cannot initialize an empty cell!");
 	} // else do nothing
 }
 
@@ -122,42 +154,36 @@ void FrameBuffer::display()
 	if (_initialized) {
 		// flush the output buffer to prevent garbage characters from being displayed.
 		// Get the new frame
-		auto next = buildNextFrame(_origin);
+		auto next{ buildNextFrame(_origin) };
 		// iterate vertical axis (frame iterator targets cell coords, console iterator targets screen buffer coords)
 		for (long frameY{ 0 }, consoleY{ _origin._y }; frameY < static_cast<long>(next._frame.size()); frameY++, consoleY++) {
 			// iterate horizontal axis for each vertical index
 			for (long frameX{ 0 }, consoleX{ _origin._x }; frameX < static_cast<long>(next._frame.at(frameY).size()); frameX++, consoleX++) {
-				sys::term::colorReset();
+				printf(color::reset.c_str());
 				// check if the tile at this pos is known to the player
 				if (_game.getTile(frameX, frameY)->_isKnown) {
 					const auto entity{ checkPos(frameX, frameY) };
 					if (entity.has_value()) {
-						sys::term::cursorPos(consoleX * 2, consoleY);
-						sys::term::colorSet(entity.value().second);
-						printf("%c", entity.value().first);
+						printf("%s%s%c", term::setCursorPosition(consoleX * 2, consoleY), color::setcolor(entity.value().second).as_sequence().c_str(), entity.value().first);
 					}
 					// Check if the game wants a screen color flare
 					else if (flare != nullptr && flare->pattern(frameX, frameY)) {
 						// set the cursor position to target. (frameX is multiplied by 2 because every other column is blank space)
-						sys::term::cursorPos(consoleX * 2, consoleY);
+						printf(term::setCursorPosition(consoleX * 2, consoleY).c_str());
 						if (flare->time() % 2 == 0 && flare->time() != 1) {
-							sys::term::colorSet(flare->color());
-							printf("%c", next._frame.at(frameY).at(frameX));
-							sys::term::colorReset();
+							printf("%s%c%s", color::setcolor(flare->color()).as_sequence().c_str(), next._frame.at(frameY).at(frameX), color::reset.c_str());
 						}
 						else
 							printf("%c", next._frame.at(frameY).at(frameX));
 					}
 					// Selectively update each tile if this tile doesn't match the last frame.
 					else if (next._frame.at(frameY).at(frameX) != _last._frame.at(frameY).at(frameX)) {
-						sys::term::cursorPos(consoleX * 2, consoleY);
-						printf("%c", next._frame.at(frameY).at(frameX));
+						printf("%s%c", term::setCursorPosition(consoleX * 2, consoleY).c_str(), next._frame.at(frameY).at(frameX));
 					}
 				}
 				// Selectively update each unknown tile if this tile doesn't match the last frame.
 				else if (next._frame.at(frameY).at(frameX) != _last._frame.at(frameY).at(frameX)) {
-					sys::term::cursorPos(consoleX * 2, consoleY);
-					printf(" ");
+					printf("%s ", term::setCursorPosition(consoleX * 2, consoleY).c_str());
 				}
 			}
 		}

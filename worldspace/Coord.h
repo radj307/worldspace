@@ -61,17 +61,6 @@ struct Coord {
 
 static const Coord _NULL_COORD;
 
-
-namespace sys {
-	/** // Add an overload to the cursorPos function so Coord can be passed as parameter:
-	 * cursorPos(Coord)
-	 * @brief Sets the cursor's position to a given x/y coordinate, in relation to the origin point top left corner (0,0)
-	 * @param pos		- Target position, measured in characters of the screen buffer
-	 * @returns bool	- ( true = success ) ( false = failed )
-	 */
-	static bool cursorPos(const Coord& pos) { return sys::term::cursorPos(pos._x, pos._y); }
-}
-
 /** FUNCTOR **
  * struct checkDistance
  * @brief Returns the distance between 2 given points. This functor does not have a constructor.

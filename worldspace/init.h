@@ -6,7 +6,6 @@
  */
 #pragma once
 #include <INI.hpp>
- //#include <INI_Defaults.hpp>
 #include <ostream>
 #include <strconv.hpp>
 #include <TermAPI.hpp>
@@ -32,76 +31,76 @@ namespace game::_internal {
 	{
 		// VARIABLES & VALUES
 		//const section_map defMap{
-		file::SectionedKVFile::filemap defMap{
+		file::INI defMap(file::INI::INIContainer::Map{
 			{
 				"controls", {
 					{ "key_up", str::ctos(_CTRL._KEY_UP) },
-			{ "key_down", str::ctos(_CTRL._KEY_DOWN) },
-			{ "key_left", str::ctos(_CTRL._KEY_LEFT) },
-			{ "key_right", str::ctos(_CTRL._KEY_RIGHT) },
-			{ "key_pause", str::ctos(_CTRL._KEY_PAUSE) },
-			{ "key_quit", str::ctos(_CTRL._KEY_QUIT) },
-		}
+					{ "key_down", str::ctos(_CTRL._KEY_DOWN) },
+					{ "key_left", str::ctos(_CTRL._KEY_LEFT) },
+					{ "key_right", str::ctos(_CTRL._KEY_RIGHT) },
+					{ "key_pause", str::ctos(_CTRL._KEY_PAUSE) },
+					{ "key_quit", str::ctos(_CTRL._KEY_QUIT) },
+				}
 			},
-				{
-					"world", {
-						{ "sizeH", "30" },
-			{ "sizeV", "30" },
-			{ "showAllTiles", "false" },
-			{ "showAllWalls", "true" },
-			{ "fogOfWar", "true" },
-			{ "importFromFile", "" },
-			{ "trapDamage", "20" },
-			{ "trapDamageIsPercentage", "true" },
-		}
-				},
-				{
-					"actors", {
-						{ "attackCostStamina", "15" },
-			{ "attackBlockChance", "35.0" },
-			{ "attackMissChanceFull", "11.0" },
-			{ "attackMissChanceDrained", "35.0" },
-			{ "npcMoveChance", "6.0" },
-			{ "npcMoveChanceAggro", "6.0" },
-			{ "npcVisModAggro", "1" },
-			{ "multStatsByLevel", "false" },
-			{ "regen_time", "2" },
-			{ "regen_health", "5" },
-			{ "regen_stamina", "10" },
-			{ "levelKillThreshold", "2" },
-			{ "levelKillMult", "2" },
-			{ "levelRestorePercent", "50" },
-		}
-				},
-				{
-					"enemy", {
-						{ "count", "20" },
-			{ "aggroDistance", "3" },
-			{ "enable_boss", "true" },
-			{ "bossDelayedSpawn", "true" },
-		}
-				},
-				{
-					"neutral", {
-						{ "count", "12" },
-		}
-				},
-				{
-					"player", {
-						{ "name", "Player" },
-			{ "health", "" },
-			{ "stamina", "" },
-			{ "damage", "" },
-			{ "godmode", "false" },
-		}
-				},
-				{
-					"timing", {
-						{ "framerate", "75" },
-			{ "npc_cycle", "225" },
-		}
-				},
-		};/*,
+			{
+				"world", {
+					{ "sizeH", "30" },
+					{ "sizeV", "30" },
+					{ "showAllTiles", "false" },
+					{ "showAllWalls", "true" },
+					{ "fogOfWar", "true" },
+					{ "importFromFile", "" },
+					{ "trapDamage", "20" },
+					{ "trapDamageIsPercentage", "true" },
+				}
+			},
+			{
+				"actors", {
+					{ "attackCostStamina", "15" },
+					{ "attackBlockChance", "35.0" },
+					{ "attackMissChanceFull", "11.0" },
+					{ "attackMissChanceDrained", "35.0" },
+					{ "npcMoveChance", "6.0" },
+					{ "npcMoveChanceAggro", "6.0" },
+					{ "npcVisModAggro", "1" },
+					{ "multStatsByLevel", "false" },
+					{ "regen_time", "2" },
+					{ "regen_health", "5" },
+					{ "regen_stamina", "10" },
+					{ "levelKillThreshold", "2" },
+					{ "levelKillMult", "2" },
+					{ "levelRestorePercent", "50" },
+				}
+			},
+			{
+				"enemy", {
+					{ "count", "20" },
+					{ "aggroDistance", "3" },
+					{ "enable_boss", "true" },
+					{ "bossDelayedSpawn", "true" },
+				}
+			},
+			{
+				"neutral", {
+					{ "count", "12" },
+				}
+			},
+			{
+				"player", {
+					{ "name", "Player" },
+					{ "health", "" },
+					{ "stamina", "" },
+					{ "damage", "" },
+					{ "godmode", "false" },
+				}
+			},
+			{
+				"timing", {
+					{ "framerate", "75" },
+					{ "npc_cycle", "225" },
+				}
+			},
+		} );/*,
 		// VARIABLE COMMENTS
 		defCommentMap{
 			{
@@ -139,7 +138,7 @@ namespace game::_internal {
 			},
 		};*/
 		try { // Write to file & return result
-			return file::INI{ std::forward<file::SectionedKVFile::filemap>(defMap) }.write(filename);
+			return file::INI{ std::forward<decltype(defMap)>(defMap)}.write(filename);
 			//	return INI_Defaults{ defMap, defCommentMap }.write(filename);
 		} catch (...) { return false; }
 	}
@@ -152,11 +151,11 @@ namespace game::_internal {
 	 */
 	inline GameRules initRuleset(file::INI& cfg) noexcept
 	{
-		if (cfg.contains("world") && cfg.contains("actors") && cfg.contains("player") && cfg.contains("neutral") && cfg.contains("enemy")) { // if cfg is not empty
-			std::cout << sys::term::debug << "Using GameRules from INI" << std::endl;
+		if (cfg.check("world") && cfg.check("actors") && cfg.check("player") && cfg.check("neutral") && cfg.check("enemy")) { // if cfg is not empty
+			std::cout << term::debug << "Using GameRules from INI" << std::endl;
 			return GameRules(cfg);
 		}
-		std::cout << sys::term::debug << "Using GameRules from defaults" << std::endl;
+		std::cout << term::debug << "Using GameRules from defaults" << std::endl;
 		return{}; // else return default GameRules configuration
 	}
 
@@ -169,18 +168,18 @@ namespace game::_internal {
 	inline CONTROLS initControlSet(file::INI& cfg) noexcept
 	{
 		// Check if the INI contains a "controls" section.
-		if (cfg.contains("controls")) {
-			std::cout << sys::term::debug << "Using ControlSet from INI" << std::endl;
+		if (cfg.check("controls")) {
+			std::cout << term::debug << "Using ControlSet from INI" << std::endl;
 			return CONTROLS{ // Initialize controlset from INI
-				cfg.get<char>("controls", "key_up", str::stoc).value_or(_CTRL._KEY_UP),
-				cfg.get<char>("controls", "key_down", str::stoc).value_or(_CTRL._KEY_DOWN),
-				cfg.get<char>("controls", "key_left", str::stoc).value_or(_CTRL._KEY_LEFT),
-				cfg.get<char>("controls", "key_right", str::stoc).value_or(_CTRL._KEY_RIGHT),
-				cfg.get<char>("controls", "key_pause", str::stoc).value_or(_CTRL._KEY_PAUSE),
-				cfg.get<char>("controls", "key_quit", str::stoc).value_or(_CTRL._KEY_QUIT)
+				str::stoc(cfg.getvs("controls", "key_up").value_or(_CTRL._KEY_UP)),
+				str::stoc(cfg.getvs("controls", "key_down").value_or(_CTRL._KEY_DOWN)),
+				str::stoc(cfg.getvs("controls", "key_left").value_or(_CTRL._KEY_LEFT)),
+				str::stoc(cfg.getvs("controls", "key_right").value_or(_CTRL._KEY_RIGHT)),
+				str::stoc(cfg.getvs("controls", "key_pause").value_or(_CTRL._KEY_PAUSE)),
+				str::stoc(cfg.getvs("controls", "key_quit").value_or(_CTRL._KEY_QUIT))
 			};
 		}
-		std::cout << sys::term::debug << "Using ControlSet from defaults" << std::endl;
+		std::cout << term::debug << "Using ControlSet from defaults" << std::endl;
 		return _CTRL; // else return the default controlset
 	}
 
@@ -194,13 +193,13 @@ namespace game::_internal {
 	inline bool initTiming(file::INI& cfg) noexcept
 	{
 		try {
-			if (setFramerate(cfg.get<unsigned int>("timing", "framerate", str::stoui).value_or(60u)) && setNPCCycle(cfg.get<unsigned int>("timing", "npc_cycle", str::stoui).value_or(225u)))
-				std::cout << sys::term::debug << "Game timings were set successfully." << std::endl;
+			if (setFramerate(str::stoui(cfg.getvs("timing", "framerate").value_or(60u))) && setNPCCycle(str::stoui(cfg.getvs("timing", "npc_cycle").value_or(225u))))
+				std::cout << term::debug << "Game timings were set successfully." << std::endl;
 			return true;
 		} catch (...) {
 			setFramerate(60);
 			setNPCCycle(225);
-			std::cout << sys::term::warn << "Invalid 'INI -> [timing]' settings caused an exception, framerate & npc cycle times were set to default." << std::endl;
+			std::cout << term::warn << "Invalid 'INI -> [timing]' settings caused an exception, framerate & npc cycle times were set to default." << std::endl;
 			return false;
 		}
 	}

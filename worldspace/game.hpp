@@ -9,10 +9,11 @@
 #include "shared.h"
 #include "ThreadFunctions.h"
 
-#include <future>	// for capturing thread return values
 #include <INI.hpp>	// for INI parser
+#include <TermAPI.hpp>
+
+#include <future>	// for capturing thread return values
 #include <mutex>	// for mutexes & scoped locks
-#include <sys_legacy/sys.h>	// for system commands
 #include <thread>	// for threads
 
  /**
@@ -35,8 +36,8 @@ namespace game {
 		inline void print_game_over(memory& mem, const std::optional<Coord>& textPos = std::nullopt)
 		{
 			const auto pos{ textPos.has_value() ? sys::iCOORD(textPos.value()._x, textPos.value()._y) : sys::iCOORD{ sys::getScreenBufferCenter()._x - 9, 10 } };
-			sys::cls(true);
-			sys::cursorPos(pos._x, pos._y);
+			printf(term::clear.c_str());
+			printf(term::setCursorPosition(pos._x, pos._y).c_str());
 			switch (mem._kill_code.load()) {
 			case PLAYER_LOSE_CODE: // player lost the game
 				[&pos](const std::optional<std::string>& killer) {
