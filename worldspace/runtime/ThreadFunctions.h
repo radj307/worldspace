@@ -28,17 +28,15 @@ namespace game::_internal {
 	 * @param mem	- Shared Memory
 	 * @param game	- Reference to the associated gamespace, passed with std::ref()
 	 */
-	inline void thread_player(std::mutex& mutx, memory& mem, Gamespace& game)
+	inline void thread_player(std::mutex& mutx, memory& mem, Gamespace& game, Controls& controls)
 	{
 		try {
 			while (!mem._kill.load()) {
-				//	if (mem._exception.has_value())
-				//		return;
-				// getch waits until key press, no need to sleep this thread.
 				if (term::kbhit()) {
 					const auto key{ static_cast<char>(std::tolower(term::getch())) };
 					// if game is not paused
 					if (!mem._pause.load()) {
+#ifdef USE_LEGACY_CONTROLS
 						// switch player keypress
 						switch (key) {
 						case 'q': // player pressed the exit game key
@@ -54,6 +52,27 @@ namespace game::_internal {
 							game.actionPlayer(key);
 							break;
 						}
+#else
+						const auto& ctrl{ controls.fromKey(key) };
+						switch (ctrl) {
+						case Control::UP: [[fallthrough]];
+						case Control::DOWN: [[fallthrough]];
+						case Control::LEFT: [[fallthrough]];
+						case Control::RIGHT:
+							//std::scoped_lock<std::mutex> lock(mutx);
+							game.actionPlayer(ctrl);
+							break;
+						case Control::QUIT:
+							mem._kill_code.store(PLAYER_QUIT_CODE);
+							game._game_state._game_is_over.store(true);
+							mem._kill.store(true);
+							break;
+						case Control::PAUSE:
+							mem._pause.store(true);
+							break;
+						default:break;
+						}
+#endif
 					} // else check if player wants to unpause
 					else if (key == 'p')
 						mem.unpause_game();
@@ -80,7 +99,7 @@ namespace game::_internal {
 			while (!mem._kill.load()) {
 				std::this_thread::sleep_for(__NPC_CLOCK);
 				if (!mem._pause.load()) {
-					std::scoped_lock<std::mutex> game_lock(mutx);	// lock the mutex
+					std::scoped_lock<std::mutex> lock(mutx);	// lock the mutex
 					game.actionAllNPC();						// perform NPC actions
 				}
 				else std::this_thread::sleep_for(1s);
@@ -111,7 +130,7 @@ namespace game::_internal {
 				if (!mem._pause.load()) {
 					mem._pause_complete.store(false);
 					std::this_thread::sleep_for(__FRAMETIME);
-					std::scoped_lock<std::mutex> display_lock(mutx);
+					std::scoped_lock<std::mutex> lock(mutx);
 					try {
 						gameBuffer.display();
 					} catch (std::exception&) {}

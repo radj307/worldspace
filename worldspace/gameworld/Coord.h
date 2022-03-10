@@ -63,6 +63,15 @@ struct Coord {
 	{
 		return _y != o._y && _x != o._x;
 	}
+
+	Coord operator-(const Coord& o) const
+	{
+		return Coord{ _x - o._x, _y - o._y };
+	}
+	Coord operator+(const Coord& o) const
+	{
+		return Coord{ _x + o._x, _y + o._y };
+	}
 };
 
 static const Coord _NULL_COORD;

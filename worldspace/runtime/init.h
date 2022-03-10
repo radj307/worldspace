@@ -32,6 +32,7 @@ namespace game::_internal {
 		// VARIABLES & VALUES
 		//const section_map defMap{
 		file::INI defMap(file::INI::INIContainer::Map{
+#ifdef USE_LEGACY_CONTROLS
 			{
 				"controls", {
 					{ "key_up", str::ctos(_CTRL._KEY_UP) },
@@ -42,6 +43,7 @@ namespace game::_internal {
 					{ "key_quit", str::ctos(_CTRL._KEY_QUIT) },
 				}
 			},
+#endif
 			{
 				"world", {
 					{ "sizeH", "30" },
@@ -159,6 +161,7 @@ namespace game::_internal {
 		return{}; // else return default GameRules configuration
 	}
 
+#ifdef USE_LEGACY_CONTROLS
 	/**
 	 * initControlSet(INI&)
 	 * @brief Initialize the control set from INI file. If INI does not contain a controls section, the default controlset is used instead.
@@ -182,6 +185,7 @@ namespace game::_internal {
 		std::cout << term::debug << "Using ControlSet from defaults" << std::endl;
 		return _CTRL; // else return the default controlset
 	}
+#endif
 
 	/**
 	 * initTiming(INI&)

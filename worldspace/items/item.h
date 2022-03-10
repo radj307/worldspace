@@ -38,7 +38,13 @@ protected:
 	 * @param f		 - A faction
 	 * @returns bool - ( true = faction can use item ) ( false = faction cannot use item )
 	 */
-	bool canUse(const FACTION f) { for (auto it : _faction_lock) if (it == f) return true; return false; }
+	bool canUse(const FACTION f) const
+	{
+		for (auto it : _faction_lock)
+			if (it == f)
+				return true;
+		return false;
+	}
 
 public:
 
@@ -106,7 +112,7 @@ public:
 	 * @brief Get this item's display color.
 	 * @returns unsigned short
 	 */
-	[[nodiscard]] unsigned short getColor() const { return _color; }
+	[[nodiscard]] color::setcolor getColor() const { return _color; }
 };
 
 // Base static item

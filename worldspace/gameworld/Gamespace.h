@@ -282,9 +282,13 @@ class Gamespace final {
 	 * @brief Returns a random direction char
 	 * @returns char	- w/a/s/d
 	 */
-	[[nodiscard]] char getRandomDir()
+	[[nodiscard]] Dir getRandomDir()
 	{
+		return static_cast<Dir>(_rng.get(static_cast<int>(Dir::UP), static_cast<int>(Dir::LEFT)));
+
+#ifdef USE_LEGACY_CONTROLS
 		return _current_control_set->intToDir(_rng.get(0, 3));
+#endif
 	}
 	/**
 	 * canMove(Coord)
@@ -356,7 +360,7 @@ class Gamespace final {
 	 * @param dir				  - (w = up / s = down / a = left / d = right) all other characters are ignored.
 	 * @returns bool - ( true = moved successfully ) ( false = did not move )
 	 */
-	[[nodiscard]] bool move(ActorBase* actor, char dir)
+	[[nodiscard]] bool move(ActorBase* actor, const Dir& dir)
 	{
 		auto did_move{ false };
 		if (actor != nullptr) {
@@ -390,52 +394,56 @@ class Gamespace final {
 	[[nodiscard]] bool moveNPC(NPC* npc, bool noFear = false)
 	{
 		auto dir{ npc->getDirTo(noFear) };
-		const auto dirAsInt{ _current_control_set->dirToInt(dir) };
+
+		const auto& dirAsInt{ static_cast<int>(dir) };
 		// if NPC can move in their chosen direction, return result of move
 		if (checkMove(npc->getPosDir(dir), npc->faction()))
 			return move(&*npc, dir);
-		// else find a new direction
-		switch (_rng.get(0, 1)) { // randomly choose order
-		case 0: // check adjacent tiles clockwise
-			for (auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it += 2) {
-				// check if iterator is a valid direction int
-				if (it >= 0 && it <= 3) {
-					dir = _current_control_set->intToDir(it);
-				}
-				// check if iterator went below 0, and correct it
-				else if (it == -1) {
-					dir = _current_control_set->intToDir(3);
-				}
-				// check if iterator went above 3, and correct it
-				else if (it == 4) {
-					dir = _current_control_set->intToDir(0);
-				}
-				else continue; // undefined
-				if (checkMove(npc->getPosDir(dir), npc->faction()))
-					return move(&*npc, dir);
-			}
-			break;
-		case 1: // check adjacent tiles counter-clockwise
-			for (auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it -= 2) {
-				// check if iterator is a valid direction int
-				if (it >= 0 && it <= 3) {
-					dir = _current_control_set->intToDir(it);
-				}
-				// check if iterator went below 0, and correct it
-				else if (it == -1) {
-					dir = _current_control_set->intToDir(3);
-				}
-				// check if iterator went above 3, and correct it
-				else if (it == 4) {
-					dir = _current_control_set->intToDir(0);
-				}
-				else continue;
-				if (checkMove(npc->getPosDir(dir), npc->faction()))
-					return move(&*npc, dir);
-			}
-			break;
-		default:break;
-		}
+		return _rng.get(dirAsInt - 1, dirAsInt + 1) % static_cast<int>(Control::LEFT);
+
+
+		//// else find a new direction
+		//switch (_rng.get(0, 1)) { // randomly choose order
+		//case 0: // check adjacent tiles clockwise
+		//	for (auto it{ dirAsInt - 1 }; it <= dirAsInt + 1; it += 2) {
+		//		// check if iterator is a valid direction int
+		//		if (it >= 0 && it <= 3) {
+		//			dir = static_cast<Dir>(it);
+		//		}
+		//		// check if iterator went below 0, and correct it
+		//		else if (it == -1) {
+		//			dir = Dir::LEFT;
+		//		}
+		//		// check if iterator went above 3, and correct it
+		//		else if (it == 4) {
+		//			dir = Dir::UP;
+		//		}
+		//		else continue; // undefined
+		//		if (checkMove(npc->getPosDir(dir), npc->faction()))
+		//			return move(&*npc, dir);
+		//	}
+		//	break;
+		//case 1: // check adjacent tiles counter-clockwise
+		//	for (auto it{ dirAsInt + 1 }; it >= dirAsInt - 1; it -= 2) {
+		//		// check if iterator is a valid direction int
+		//		if (it >= 0 && it <= 3) {
+		//			dir = _current_control_set->intToDir(it);
+		//		}
+		//		// check if iterator went below 0, and correct it
+		//		else if (it == -1) {
+		//			dir = _current_control_set->intToDir(3);
+		//		}
+		//		// check if iterator went above 3, and correct it
+		//		else if (it == 4) {
+		//			dir = _current_control_set->intToDir(0);
+		//		}
+		//		else continue;
+		//		if (checkMove(npc->getPosDir(dir), npc->faction()))
+		//			return move(&*npc, dir);
+		//	}
+		//	break;
+		//default:break;
+		//}
 		// failed, return false
 		return false;
 	}
@@ -635,15 +643,13 @@ public:
 		apply_to_npc(&Gamespace::actionNPC);
 	}
 	/**
-	 * actionPlayer(char)
-	 * @brief Moves the player in a given direction, if possible.
-	 *
-	 * @param key	- 'w' for up, 's' for down, 'a' for left, 'd' for right. Anything else is ignored.
+	 * @brief		Moves the player in a given direction, if possible.
+	 * @param ctrl:	Input Control
 	 */
-	void actionPlayer(char key)
+	void actionPlayer(Control ctrl)
 	{
 		// if not dead and move was successful
-		if (!_player.isDead() && move(&_player, key)) {
+		if (!_player.isDead() && move(&_player, toDir(ctrl))) {
 			if (_ruleset._dark_mode) _world.modVis(false);
 			// player specific post-movement functions
 			_world.modVisCircle(true, _player.pos(), _player.getVis() + 2); // allow the player to see the area around them

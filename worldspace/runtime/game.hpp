@@ -76,7 +76,13 @@ namespace game {
 	 * @return true			- Game exited because it was over.
 	 * @return false		- An exception was thrown, or the Player quit the game.
 	 */
-	inline bool start(const std::vector<std::string>& INI_Files, const std::optional<CONTROLS>& controlset = std::nullopt, const std::optional<GameRules>& ruleset = std::nullopt)
+	inline bool start(const std::vector<std::string>& INI_Files, const std::optional<
+#ifdef USE_LEGACY_CONTROLS
+		CONTROLS
+#else
+		Controls
+#endif
+	>& controlset = std::nullopt, const std::optional<GameRules>& ruleset = std::nullopt)
 	{
 		// read from INI file
 		if (!file::exists("def.ini"))
@@ -89,10 +95,13 @@ namespace game {
 		try {
 			_internal::initTiming(cfg);                      ///< Initialize the clock timings
 		} catch (...) { return false; }
+#ifdef USE_LEGACY_CONTROLS
 		auto controls{ controlset.value_or(_internal::initControlSet(cfg)) }; ///< Initialize the controlset
-		auto rules{ ruleset.value_or(_internal::initRuleset(cfg)) };       ///< Initialize the ruleset
-
 		_current_control_set = &controls; ///< Set the current control set ptr
+#else
+		Controls controls{ cfg };
+#endif
+		auto rules{ ruleset.value_or(_internal::initRuleset(cfg)) };       ///< Initialize the ruleset
 
 		// instantiate shared memory
 		_internal::memory mem;
@@ -106,8 +115,8 @@ namespace game {
 		try { // Start the game threads
 			auto // Init asynchronous threads
 				display [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_display, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(rules)) },
-				enemy [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
-				player [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_player, std::ref(mutx), std::ref(mem), std::ref(thisGame)) };
+			//	enemy [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
+				player [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_player, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(controls)) };
 		} catch (std::exception& ex) {
 			std::cout << term::clear << term::error << "An unhandled thread exception occurred, but was caught by the thread manager: \"" << ex.what() << "\"" << std::endl;
 		}

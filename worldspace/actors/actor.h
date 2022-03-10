@@ -401,37 +401,45 @@ public:
 	 * moveU()
 	 * @brief Set this actor's position to the tile above.
 	 */
-	void moveU() { _pos._y--; }
+	void moveU() { --_pos._y; }
 	/**
 	 * moveD()
 	 * @brief Set this actor's position to the tile below.
 	 */
-	void moveD() { _pos._y++; }
+	void moveD() { ++_pos._y; }
 	/**
 	 * moveL()
 	 * @brief Set this actor's position to the tile to the left.
 	 */
-	void moveL() { _pos._x--; }
+	void moveL() { --_pos._x; }
 	/**
 	 * moveR()
 	 * @brief Set this actor's position to the tile to the right.
 	 */
-	void moveR() { _pos._x++; }
+	void moveR() { ++_pos._x; }
 	/**
 	 * moveDir()
 	 * @brief Set this actor's position to the tile in a given direction.
 	 * @param dir	- A direction char from the controlset
 	 */
-	void moveDir(const char dir)
+	void moveDir(const Dir& dir)
 	{
-		if (dir == _current_control_set->_KEY_UP)
+		switch (dir) {
+		case Dir::UP:
 			moveU();
-		else if (dir == _current_control_set->_KEY_RIGHT)
+			break;
+		case Dir::RIGHT:
 			moveR();
-		else if (dir == _current_control_set->_KEY_DOWN)
+			break;
+		case Dir::DOWN:
 			moveD();
-		else if (dir == _current_control_set->_KEY_LEFT)
+			break;
+		case Dir::LEFT:
 			moveL();
+			break;
+		default:
+			throw make_exception("Illegal direction: \'", static_cast<int>(dir), '\'');
+		}
 	}
 	/**
 	 * getPosU()
@@ -462,17 +470,20 @@ public:
 	 * @brief Returns the coordinate of the tile in the given direction, in relation to the position of this actor.
 	 * @returns Coord
 	 */
-	[[nodiscard]] Coord getPosDir(const char dir) const
+	[[nodiscard]] Coord getPosDir(const Dir& dir) const
 	{
-		if (dir == _current_control_set->_KEY_UP)
+		switch (dir) {
+		case Dir::UP:
 			return getPosU();
-		if (dir == _current_control_set->_KEY_RIGHT)
+		case Dir::RIGHT:
 			return getPosR();
-		if (dir == _current_control_set->_KEY_DOWN)
+		case Dir::DOWN:
 			return getPosD();
-		if (dir == _current_control_set->_KEY_LEFT)
+		case Dir::LEFT:
 			return getPosL();
-		return{ -1, -1 }; // undefined
+		default:
+			throw make_exception("Illegal direction: \'", static_cast<int>(dir), '\'');
+		}
 	}
 
 	/**
@@ -654,6 +665,39 @@ protected:
 			static_cast<float>(_MAX_STAMINA) / 6.0f;
 	}
 	rng::tRand _rng;
+
+	[[nodiscard]] static Dir getDir(const Coord& currentPos, const Coord& targetPos, const long& threshold = 3)
+	{
+		const auto& [x, y] { targetPos - currentPos };
+		const auto& selectYDir{ [&y]() {
+			return y < 0 ? Dir::DOWN : Dir::UP;
+		} };
+		const auto& selectXDir{ [&x]() {
+			return x < 0 ? Dir::LEFT : Dir::RIGHT;
+		} };
+
+		const bool&
+			nearlyAlignedX{ math::abs(x) <= threshold },
+			nearlyAlignedY{ math::abs(y) <= threshold };
+
+		if (!nearlyAlignedX && nearlyAlignedY)
+			return selectXDir();
+		else if (nearlyAlignedX && !nearlyAlignedY)
+			return selectYDir();
+		else if (math::abs(x) < math::abs(y))
+			return selectYDir();
+		else
+			return selectXDir();
+
+		return Dir::NONE;
+	}
+
+	[[nodiscard]] Dir getDir(const Coord& targetPos, const long& threshold = 3) const
+	{
+		return getDir(_pos, targetPos, threshold);
+	}
+
+#ifdef USE_LEGACY_CONTROLS
 	/**
 	 * getDir(Coord&, bool)
 	 * @brief Returns a direction char from a start point and end point. Called from getDirTo()
@@ -661,10 +705,10 @@ protected:
 	 * @param invert	- When true, returns a direction away from the target
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDir(const Coord& dist, const bool invert) const
+	[[nodiscard]] Dir getDir(const Coord& dist, const bool invert) const
 	{
 		/// NPC is aligned with target
-	#pragma region ALIGN_BLOCK
+#pragma region ALIGN_BLOCK
 		if (dist._x == 0)
 			return dist._y < 0 // Return Y-axis direction
 			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
@@ -675,10 +719,10 @@ protected:
 			return dist._x < 0 // Return X-axis direction
 			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
 			: invert ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
-	#pragma endregion ALIGN_BLOCK
+#pragma endregion ALIGN_BLOCK
 		/// NPC is nearly aligned with target
-	#pragma region NEAR_BLOCK
-		// if nearly aligned horizontally, move vertically
+#pragma region NEAR_BLOCK
+	// if nearly aligned horizontally, move vertically
 		if (abs(dist._x) == 1)
 			return dist._y < 0 // Return Y-axis direction
 			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
@@ -689,10 +733,10 @@ protected:
 			return dist._x < 0 // Return X-axis direction
 			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
 			: invert ? _current_control_set->_KEY_RIGHT : _current_control_set->_KEY_LEFT;
-	#pragma endregion NEAR_BLOCK
+#pragma endregion NEAR_BLOCK
 		/// NPC is not aligned with target
-	#pragma region NAV_BLOCK
-		// neither axis is aligned, return the axis with the larger distance val
+#pragma region NAV_BLOCK
+	// neither axis is aligned, return the axis with the larger distance val
 		if ((dist._x < 0 ? dist._x * -1 : dist._x) > (dist._y < 0 ? dist._y * -1 : dist._y))
 			return dist._x < 0 // Return X-axis direction
 			? invert ? _current_control_set->_KEY_LEFT : _current_control_set->_KEY_RIGHT
@@ -701,7 +745,7 @@ protected:
 		return dist._y < 0 // Return Y-axis direction
 			? invert ? _current_control_set->_KEY_UP : _current_control_set->_KEY_DOWN
 			: invert ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
-	#pragma endregion NAV_BLOCK
+#pragma endregion NAV_BLOCK
 
 		/** The following code block causes NPCs to dodge when attacked from the horizontal axis -- WIP **/
 
@@ -725,6 +769,7 @@ protected:
 		return dist._y < 0 ? _current_control_set->_KEY_DOWN : _current_control_set->_KEY_UP;
 		*/
 	}
+#endif
 
 public:
 #pragma region DEF
@@ -791,7 +836,13 @@ public:
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDirTo(const Coord& target, const bool noFear = false) const { return getDir({ _pos._x - target._x, _pos._y - target._y }, noFear ? false : afraid()); }
+	[[nodiscard]] Dir getDirTo(const Coord& target, const bool noFear = false) const
+	{
+		const auto& dir{ getDir(target) };
+		return (!noFear && afraid())
+			? invert(dir)
+			: dir;
+	}
 
 	/**
 	 * getDirTo(ActorBase*)
@@ -800,11 +851,11 @@ public:
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDirTo(ActorBase* target, const bool noFear = false) const
+	[[nodiscard]] Dir getDirTo(ActorBase* target, const bool noFear = false) const
 	{
 		if (target != nullptr)
-			return getDir({ _pos._x - target->pos()._x, _pos._y - target->pos()._y }, noFear ? false : afraid());
-		return ' ';
+			return getDirTo(target->pos());
+		return Dir::NONE;
 	}
 
 	/**
@@ -813,7 +864,10 @@ public:
 	 * @param noFear	- (Default: false) When true, NPC will never run away
 	 * @returns char	- w = up/s = down/a = left/d = right
 	 */
-	[[nodiscard]] char getDirTo(const bool noFear = false) const { return (_target != nullptr ? getDir({ _pos._x - _target->pos()._x, _pos._y - _target->pos()._y }, noFear ? false : afraid()) : ' '); }
+	[[nodiscard]] Dir getDirTo(const bool noFear = false) const
+	{
+		return getDirTo(_target, noFear);
+	}
 #pragma endregion DIRECTIONS
 #pragma region AGGRESSION
 	[[nodiscard]] bool isAggro() const { return _aggro > 0; } ///< @brief Check if this NPC is aggravated. @return true - NPC is aggravated. @return false - NPC is not aggravated.

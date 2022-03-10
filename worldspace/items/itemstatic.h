@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "actorbase.h"
+#include "../actors/actorbase.h"
 #include "itemstats.h"
 
 

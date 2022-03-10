@@ -4,7 +4,7 @@
  * @brief Contains the ItemStats struct, which contains common attributes shared by all item types.
  */
 #pragma once
-#include "faction.h"
+#include "../actors/faction.h"
 #include <sysarch.h>
 
 #include <TermAPI.hpp>
