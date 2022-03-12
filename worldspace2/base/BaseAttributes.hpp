@@ -11,6 +11,9 @@ struct DisplayableBase {
 	WINCONSTEXPR DisplayableBase(const char& display, const color::setcolor& color) : display{ display }, color{ color } {}
 	WINCONSTEXPR DisplayableBase(const char& display) : DisplayableBase(display, color::setcolor::white) {}
 
+	bool operator==(const DisplayableBase& o) const { return display == o.display && color == o.color; }
+	bool operator!=(const DisplayableBase& o) const { return display != o.display || color != o.color; }
+
 	friend std::ostream& operator<<(std::ostream& os, const DisplayableBase& obj)
 	{
 		return os << obj.color << obj.display << color::reset;

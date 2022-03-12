@@ -18,11 +18,15 @@ struct framebuilder_debug : framebuilder {
 	}
 };
 
+point displayPos{};
+
 struct framelinker_debug : framelinker {
-	std::optional<frame_elem> get(const position& x, const position& y) override
+	std::optional<DisplayableBase> get(const position& x, const position& y) override
 	{
-		if (RNG.get(0.0, 100.0) < 1.0)
-			return frame_elem{ '?', color::setcolor::red };
+		if (x == displayPos.x && y == displayPos.y)
+			return DisplayableBase{ '?', color::setcolor::green };
+		else if (RNG.get(0.0, 100.0) < 1.0)
+			return DisplayableBase{ '?', color::setcolor::red };
 		return std::nullopt;
 	}
 };

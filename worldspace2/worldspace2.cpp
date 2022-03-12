@@ -46,20 +46,20 @@ inline void thread_input(std::mutex& mtx, Controls& controls) noexcept
 						state = GameState::RUNNING;
 					break;
 				case Control::UP:
-					std::cout << static_cast<char>(key) << ' ';
+					displayPos.y--;
 					break;
 				case Control::DOWN:
-					std::cout << static_cast<char>(key) << ' ';
+					displayPos.y++;
 					break;
 				case Control::LEFT:
-					std::cout << static_cast<char>(key) << ' ';
+					displayPos.x--;
 					break;
 				case Control::RIGHT:
-					std::cout << static_cast<char>(key) << ' ';
+					displayPos.x++;
 					break;
 				case Control::QUIT:
 					state = GameState::STOPPING;
-					break;
+					return;
 				default:
 					break;
 				}
@@ -77,6 +77,7 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
 		for (auto& state{ Global.state }; valid_state(state); ) {
+			std::scoped_lock<std::mutex> lock(mtx);
 			switch (state) {
 			case GameState::INITIALIZING:
 				framebuf.initDisplay();
