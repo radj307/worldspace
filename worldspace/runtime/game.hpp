@@ -115,7 +115,7 @@ namespace game {
 		try { // Start the game threads
 			auto // Init asynchronous threads
 				display [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_display, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(rules)) },
-			//	enemy [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
+				enemy [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_npc, std::ref(mutx), std::ref(mem), std::ref(thisGame)) },
 				player [[maybe_unused]] { std::async(std::launch::async, &_internal::thread_player, std::ref(mutx), std::ref(mem), std::ref(thisGame), std::ref(controls)) };
 		} catch (std::exception& ex) {
 			std::cout << term::clear << term::error << "An unhandled thread exception occurred, but was caught by the thread manager: \"" << ex.what() << "\"" << std::endl;

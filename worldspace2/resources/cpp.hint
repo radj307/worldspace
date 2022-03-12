@@ -1,0 +1,4 @@
+
+#define CONSTEXPR
+#define WINCONSTEXPR
+#define INLINE

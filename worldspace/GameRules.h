@@ -52,7 +52,7 @@ public:
 
 	/// PLAYER
 	bool _player_godmode{ false };			///< @brief When true, Player cannot be attacked
-	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', color::green }; // Player template
+	ActorTemplate _player_template{ "Player", ActorStats(1, 120, 120, 45, 4), '$', color::setcolor::green }; // Player template
 
 	/// GENERIC NPC
 	std::vector<FACTION>
@@ -153,7 +153,7 @@ public:
 				cfg.getvs_cast<int>(section, "damage", str::stoi).value_or(target._stats.getMaxDamage()),
 				cfg.getvs_cast<int>(section, "visRange", str::stoi).value_or(target._stats.getVis())),
 				cfg.getvs_cast<char>(section, "char", str::stoc).value_or(target._char),
-				cfg.getvs(section, "color").value_or(""),
+				cfg.getvs(section, "color").value_or(target._color),
 				strToFactions(cfg.getvs(section, "hostileTo").value_or("")).value_or(target._hostile_to),
 				cfg.getvs_cast<int>(section, "maxAggro", str::stoi).value_or(target._max_aggression),
 				cfg.getvs_cast<float>(section, "spawnChance", str::stof).value_or(target._chance)

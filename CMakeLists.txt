@@ -14,4 +14,11 @@ project("worldspace" VERSION "${WORLDSPACE_VERSION}" LANGUAGES CXX)
 # add subdirectories
 
 add_subdirectory("307lib")
-add_subdirectory("worldspace")
+
+option(USE_LEGACY_WORLDSPACE "When enabled, the original worldspace project is built. It may not be fully functional." OFF)
+
+if (USE_LEGACY_WORLDSPACE)
+	add_subdirectory("worldspace")
+else()
+	add_subdirectory("worldspace2")
+endif()

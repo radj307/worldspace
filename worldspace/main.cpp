@@ -35,7 +35,6 @@ int main(const int argc, char* argv[])
 			if (!game::start(args.typegetv_all<opt::Parameter>())) {
 				throw make_exception("The game failed to start correctly!");
 			}
-
 		} while (restartGame());
 
 		std::cout << term::DisableAltScreenBuffer;

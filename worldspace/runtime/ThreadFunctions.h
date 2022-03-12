@@ -32,6 +32,8 @@ namespace game::_internal {
 	{
 		try {
 			while (!mem._kill.load()) {
+				if (mem._exception.has_value())
+					break;
 				if (term::kbhit()) {
 					const auto key{ static_cast<char>(std::tolower(term::getch())) };
 					// if game is not paused
@@ -104,7 +106,7 @@ namespace game::_internal {
 				}
 				else std::this_thread::sleep_for(1s);
 			}
-		} catch (const std::exception& ex) {
+		} catch (const std::exception ex) {
 			mem._exception = ex;
 			return;
 		}
@@ -125,8 +127,8 @@ namespace game::_internal {
 			FrameBuffer gameBuffer(game, Coord(1920 / 3, 1080 / 8));
 			// Loop until kill flag is true
 			for (auto tLastRegenCycle{ CLK::now() }; !mem._kill.load(); ) {
-			//	if (mem._exception.has_value())
-			//		return;
+				if (mem._exception.has_value())
+					break;
 				if (!mem._pause.load()) {
 					mem._pause_complete.store(false);
 					std::this_thread::sleep_for(__FRAMETIME);
