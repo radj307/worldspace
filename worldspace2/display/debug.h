@@ -1,9 +1,8 @@
 #pragma once
-#include "frame.hpp"
+#include "framebuilder.hpp"
+#include "framelinker.hpp"
 
 #include <xRand.hpp>
-
-rng::tRand RNG;
 
 struct framebuilder_debug : framebuilder {
 	frame_elem frameElem{ '_', color::setcolor::white };
@@ -12,20 +11,23 @@ struct framebuilder_debug : framebuilder {
 		frame f{ SizeX, SizeY };
 
 		for (position i{ 0ull }, end{ SizeX * SizeY }; i < end; ++i)
-			f.cont.emplace_back(frameElem);
+			f.emplace_back(frameElem);
 
 		return f;
 	}
 };
 
+// @brief	Debugging tool that is used by the framelinker_debug object to simulate a moving actor.
 point displayPos{};
 
 struct framelinker_debug : framelinker {
+	rng::tRand RNG;
+	bool show_noise{false};
 	std::optional<DisplayableBase> get(const position& x, const position& y) override
 	{
 		if (x == displayPos.x && y == displayPos.y)
 			return DisplayableBase{ '?', color::setcolor::green };
-		else if (RNG.get(0.0, 100.0) < 1.0)
+		else if (show_noise && RNG.get(0.0, 100.0) < 1.0)
 			return DisplayableBase{ '?', color::setcolor::red };
 		return std::nullopt;
 	}

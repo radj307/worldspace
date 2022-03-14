@@ -2,8 +2,12 @@
 #include "COLOR.h"
 #include "resources/version.h"
 #include "Controls.h"
-#include "display/frame.hpp"
-#include "display/debug.h"
+#include "display/framebuffer.hpp"
+#include "display/PauseMenu.hpp"
+#include "actors/Actors.h"
+#include "world/gamespace.hpp"
+#include "world/framebuilder_matrix.hpp"
+#include "world/framelinker_gamespace.hpp"
 
 #include <INI.hpp>
 #include <envpath.hpp>
@@ -32,7 +36,7 @@ inline std::ostream& help(std::ostream& os)
 		;
 }
 
-inline void thread_input(std::mutex& mtx, Controls& controls) noexcept
+inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) noexcept
 {
 	try {
 		for (auto& state{ Global.state }; valid_state(state); ) {
@@ -46,20 +50,20 @@ inline void thread_input(std::mutex& mtx, Controls& controls) noexcept
 						state = GameState::RUNNING;
 					break;
 				case Control::UP:
-					displayPos.y--;
+					game.movePlayer(point{ 0, -1 });
 					break;
 				case Control::DOWN:
-					displayPos.y++;
+					game.movePlayer(point{ 0, 1 });
 					break;
 				case Control::LEFT:
-					displayPos.x--;
+					game.movePlayer(point{ -1, 0 });
 					break;
 				case Control::RIGHT:
-					displayPos.x++;
+					game.movePlayer(point{ 1, 0 });
 					break;
 				case Control::QUIT:
 					state = GameState::STOPPING;
-					return;
+					break;
 				default:
 					break;
 				}
@@ -68,51 +72,80 @@ inline void thread_input(std::mutex& mtx, Controls& controls) noexcept
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = thread_exception("Input", ex);
+		return;
 	} catch (...) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = undefined_exception("Input");
+		return;
 	}
 }
 inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
+		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
 		for (auto& state{ Global.state }; valid_state(state); ) {
+			const auto& t_start{ std::chrono::high_resolution_clock::now() };
 			std::scoped_lock<std::mutex> lock(mtx);
 			switch (state) {
 			case GameState::INITIALIZING:
 				framebuf.initDisplay();
+				if (pauseMenu == nullptr) {
+					point pos{ static_cast<point>(term::getScreenBufferSize()) / 2 };
+					pos.y /= 1.5;
+					pauseMenu = std::make_unique<PauseMenu>(pos, color::setcolor::cyan);
+				}
 				Global.state = GameState::RUNNING;
 				break;
 			case GameState::PAUSED:
-				// TODO: Display the pause menu
+				if (framebuf.isInitialized())
+					framebuf.deinitDisplay(); // re-initialization is handled internally by the framebuffer
+				if (pauseMenu.get() != nullptr)
+					pauseMenu->display();
 				break;
 			case GameState::RUNNING:
 				framebuf.display();
 				break;
 			default:break;
 			}
-			std::this_thread::sleep_for(Global.frametime);
+			std::this_thread::sleep_until(t_start + Global.frametime);
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = thread_exception("Display", ex);
+		return;
 	} catch (...) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = undefined_exception("Display");
+		return;
 	}
 }
-inline void thread_ai(std::mutex& mtx) noexcept
+inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 {
 	try {
 		for (auto& state{ Global.state }; valid_state(state); ) {
+			const auto& t_start{ std::chrono::high_resolution_clock::now() };
+			switch (state) {
+			case GameState::RUNNING: {
+				std::scoped_lock<std::mutex> lock(mtx);
+				game.PerformActionAllNPCs();
+
+				if (game.player.isDead())
+					Global.state = GameState::OVER;
+				break;
+			}
+			default:break;
+			}
+			std::this_thread::sleep_until(t_start + Global.gametime);
 			// TODO: Implement AI processing
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = thread_exception("AI Control", ex);
+		return;
 	} catch (...) {
 		Global.state = GameState::EXCEPTION;
 		Global.exception = undefined_exception("AI Control");
+		return;
 	}
 }
 
@@ -153,24 +186,28 @@ int main(const int argc, char** argv)
 		// initialize controls & ini config
 		Controls controls;
 		INI ini{ Global.myPath };
-		point gridSize{ ini.getvs_cast<position>("game", "iGridSizeX", str::stoll).value_or(Global.DEFAULT_SIZE_X), ini.getvs_cast<position>("game", "iGridSizeY", str::stoll).value_or(Global.DEFAULT_SIZE_Y) };
 
-		framebuffer framebuf{ gridSize };
-		framebuf.setBuilder<framebuilder_debug>();
-		framebuf.setLinker<framelinker_debug>();
+		point gridSize{ ini.getvs_cast<position>("game", "iGridSizeX", str::stoll).value_or(Global.DEFAULT_SIZE_X), ini.getvs_cast<position>("game", "iGridSizeY", str::stoll).value_or(Global.DEFAULT_SIZE_Y) };
 
 		std::mutex mutex;
 
 		const auto& timeStart{ std::chrono::high_resolution_clock::now() };
 
+		gamespace game;
+
+		framebuffer framebuf{ gridSize };
+		framebuf.setBuilder<framebuilder_matrix>(game.grid);
+		framebuf.setLinker<framelinker_gamespace>(game);
+		framebuf.setPanel<statpanel>(&game.player);
+
 		auto
-			t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls)) },
+			t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls), std::ref(game)) },
 			t_display{ std::async(std::launch::async, thread_display, std::ref(mutex), std::ref(framebuf)) },
-			t_ai{ std::async(std::launch::async, thread_ai, std::ref(mutex)) };
+			t_game{ std::async(std::launch::async, thread_game, std::ref(mutex), std::ref(game)) };
 
 		t_input.wait();
 		t_display.wait();
-		t_ai.wait();
+		t_game.wait();
 
 		const auto& timeEnd{ std::chrono::high_resolution_clock::now() };
 

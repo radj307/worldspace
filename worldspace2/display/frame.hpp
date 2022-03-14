@@ -1,28 +1,52 @@
 #pragma once
 #include "../base/BaseAttributes.hpp"
 
+#include <setcolor.hpp>
 #include <make_exception.hpp>
-#include <TermAPI.hpp>
+#include <indentor.hpp>
 
+#include <vector>
+
+/**
+ * @struct	frame_elem
+ * @brief	Represents a single cell in a displayed frame.
+ *\n		The first element in the container is considered the "base" cell,
+ *\n		while the last element is considered the "winning override" cell.
+ */
 struct frame_elem : std::vector<DisplayableBase> {
-
+	/**
+	 * @brief			Constructor
+	 * @param display	The character to display for this cell.
+	 * @param color		The color to use when printing the display char.
+	 */
 	frame_elem(const char& display, const color::setcolor& color = color::setcolor::placeholder)
 	{
 		this->emplace_back(DisplayableBase{ display, color });
 	}
 
-	DisplayableBase base() const
+	/**
+	 * @brief	Retrieve the base displayable cell.
+	 * @returns	DisplayableBase
+	 * @throws	ex::except
+	 *			frame_elem::base() failed:  Cannot retrieve a displayable object from an empty cell!
+	 */
+	DisplayableBase base() const noexcept(false)
 	{
 		if (!empty())
 			return front();
-		throw make_exception("Cannot get base type; frame position size is \'", size(), "\'!");
+		throw make_exception("frame_elem::base() failed:  Cannot retrieve a displayable object from an empty cell!");
 	}
-
-	DisplayableBase over() const
+	/**
+	 * @brief	Retrieve the winning override displayable cell.
+	 *\n		This function may return the base cell if no overrides exist.
+	 * @returns	DisplayableBase
+	 * @throws	ex::except : frame_elem::base() failed:  Cannot retrieve a displayable object from an empty cell!
+	 */
+	DisplayableBase over() const noexcept(false)
 	{
 		if (!empty())
 			return back();
-		throw make_exception("Cannot get override type; frame position size is \'", size(), "\'!");
+		throw make_exception("frame_elem::over() failed:  Cannot retrieve a displayable object from an empty cell!");
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const frame_elem& e)
@@ -46,24 +70,48 @@ struct frame_elem : std::vector<DisplayableBase> {
 
 using frame_container = std::vector<frame_elem>;
 
+/**
+ * @brief			Convert a 1-dimensional matrix index to a 2-dimensional point.
+ * @param index :	The 1-dimensional index to convert.
+ * @param sizeX	:	The x-axis (horizontal) size of the grid.
+ * @returns			point
+ */
 inline static constexpr point from1D(const position& index, const position& sizeX)
 {
 	return{ index / sizeX, index % sizeX };
 }
+/**
+ * @brief			Convert a 2-dimensional matrix point to a 1-dimensional index.
+ * @param p :		A 2-dimensional point in the grid to convert.
+ * @param sizeX	:	The x-axis (horizontal) size of the grid.
+ * @returns			position
+ */
 inline static constexpr position to1D(const point& p, const position& sizeX)
 {
 	return static_cast<position>((static_cast<long long>(sizeX) * p.y) + p.x);
 }
+/**
+ * @brief			Convert a 2-dimensional matrix point to a 1-dimensional index.
+ * @param x :		The x-axis of the point to convert.
+ * @param y :		The y-axis of the point to convert.
+ * @param sizeX	:	The x-axis (horizontal) size of the grid.
+ * @returns			position
+ */
 inline static constexpr position to1D(const long long& x, const long long& y, const position& sizeX)
 {
 	return static_cast<position>((static_cast<long long>(sizeX) * y) + x);
 }
 
+/**
+ * @struct	frame
+ * @brief	Represents a grid of displayable cells, which is displayed once, then discarded.
+ */
 struct frame {
+private:
 	frame_container cont;
-	position SizeX, SizeY;
-	position Size;
+	position SizeX, SizeY, Size;
 
+public:
 	constexpr position to1D(const point& pos) const
 	{
 		return ::to1D(pos, SizeX);
@@ -113,7 +161,26 @@ struct frame {
 		);
 	}
 
-	WINCONSTEXPR frame() : frame(0ull, 0ull) {}
+	WINCONSTEXPR auto empty() const noexcept { return cont.empty(); }
+	WINCONSTEXPR auto size() const noexcept { return cont.size(); }
+	WINCONSTEXPR void reserve(const size_t& size)
+	{
+		cont.reserve(size);
+	}
+	WINCONSTEXPR void shrink_to_fit()
+	{
+		cont.shrink_to_fit();
+	}
+
+	frame_elem operator[](const size_t& index) const noexcept(false)
+	{
+		return cont.at(index);
+	}
+
+	auto emplace_back(auto&& elem)
+	{
+		return cont.emplace_back(std::forward<decltype(elem)>(elem));
+	}
 
 	frame_elem get(const position& x, const position& y) const
 	{
@@ -140,147 +207,5 @@ struct frame {
 	void set(const point& pos, const frame_elem& val)
 	{
 		cont.at(to1D(pos)) = val;
-	}
-};
-
-/**
- * @struct	framebuilder
- * @brief	The frame builder is responsible for building static frames.
- */
-struct framebuilder {
-	framebuilder() = default;
-	virtual ~framebuilder() = default;
-	/**
-	 * @brief			Pure virtual function that retrieves the next frame, given x and y axis constraints.
-	 * @param SizeX:	Width of the frame (x-axis).
-	 * @param SizeY:	Height of the frame (y-axis).
-	 * @returns			frame
-	 */
-	virtual frame getNext(const position&, const position&) = 0;
-
-	frame getNext(const point& p)
-	{
-		return getNext(p.x, p.y);
-	}
-};
-
-/**
- * @struct	framelinker
- * @brief	The frame linker is responsible for communicating between the game's grid positioning system
- *\n		 and the framebuffer in order to display things that aren't static tiles, such as:
- *\n		 - Actors.
- *\n		 - Items.
- *\n		 - Any other temporary gameworld object.
- */
-struct framelinker {
-	framelinker() = default;
-	virtual ~framelinker() = default;
-
-	/**
-	 * @brief		Get an override frame element for a specific position.
-	 *\n			This pure virtual function must be overloaded by all framelinker derivatives
-	 * @param x:	The x-axis position.
-	 * @param y:	The y-axis position.
-	 * @returns		std::optional<frame_elem>
-	 */
-	virtual std::optional<DisplayableBase> get(const position&, const position&) = 0;
-
-	std::optional<DisplayableBase> get(const point& p)
-	{
-		return get(p.x, p.y);
-	}
-};
-
-struct framebuffer {
-	position SizeX, SizeY, Size;
-	point scbOrigin{ 3, 1 };
-
-private:
-	framebuilder* builder{ nullptr };
-	framelinker* linker{ nullptr };
-public:
-	template<std::derived_from<framebuilder> Builder>
-	void setBuilder()
-	{
-		if (builder != nullptr)
-			delete builder;
-		builder = new Builder();
-	}
-	template<std::derived_from<framelinker> Linker>
-	void setLinker()
-	{
-		if (linker != nullptr)
-			delete linker;
-		linker = new Linker();
-	}
-
-	framebuffer(const point& size) : SizeX{ size.x }, SizeY{ size.y }, Size{ SizeX * SizeY } {}
-
-	~framebuffer()
-	{
-		if (builder != nullptr)
-			delete builder;
-		if (linker != nullptr)
-			delete linker;
-	}
-
-	std::pair<unsigned, unsigned> getPointOffset(const position& x_off, const position& y_off, const bool& double_x_axis = true) const
-	{
-		return{ static_cast<unsigned>(scbOrigin.x + (double_x_axis ? x_off * 2 : x_off)), static_cast<unsigned>(scbOrigin.y + y_off) };
-	}
-
-	frame current;
-
-	void initDisplay(frame&& incoming)
-	{
-		if (linker == nullptr)
-			throw make_exception("framebuffer::initDisplay(frame&&) failed:  No frame linker was set!");
-
-		std::cout << term::setScreenBufferSize(SizeX * 2 + scbOrigin.x * 2, SizeY + scbOrigin.y * 2 + 1) << term::CursorVisible(false);
-
-		for (position y{ 0ull }; y < SizeY; ++y) {
-			for (position x{ 0ull }; x < SizeX; ++x) {
-				const auto& linked{ linker->get(x, y) };
-				const auto& in{ incoming.get(x, y) };
-				std::cout << term::setCursorPosition(getPointOffset(x, y));
-				if (linked.has_value())
-					std::cout << linked.value();
-				else
-					std::cout << in;
-				std::cout << color::reset;
-			}
-		}
-		current = std::move(incoming);
-	}
-	void initDisplay()
-	{
-		if (builder == nullptr)
-			throw make_exception("framebuffer::display() failed:  No frame builder was set!");
-		initDisplay(builder->getNext(SizeX, SizeY));
-	}
-	void display(frame incoming)
-	{
-		if (linker == nullptr)
-			throw make_exception("framebuffer::initDisplay(frame&&) failed:  No frame linker was set!");
-		for (position y{ 0ull }; y < SizeY; ++y) {
-			for (position x{ 0ull }; x < SizeX; ++x) {
-				const auto& linked{ linker->get(x, y) };
-				auto& in{ incoming.getRef(x, y) };
-				if (linked.has_value())
-					in.emplace_back(linked.value());
-				const auto& out{ current.get(x, y) };
-				if (in != out) {
-					std::cout << term::setCursorPosition(getPointOffset(x, y)) << in << color::reset;
-				}
-			}
-		}
-
-		current = std::move(incoming);
-	}
-	void display() noexcept(false)
-	{
-		if (builder == nullptr)
-			throw make_exception("framebuffer::display() failed:  No frame builder was set!");
-		display(std::move(builder->getNext(SizeX, SizeY)));
 	}
 };

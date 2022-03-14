@@ -51,6 +51,7 @@ static struct {
 	std::optional<std::exception> exception;
 
 	std::chrono::milliseconds frametime{ 13 };
+	std::chrono::milliseconds gametime{ 200 };
 } Global;
 
 /**

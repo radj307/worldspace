@@ -1,26 +1,76 @@
 #pragma once
-#include "../base/ActorBase.hpp"
+#include "../base/BaseAttributes.hpp"
+#include "../actors/ActorBase.hpp"
+#include "../items/ItemBase.hpp"
+#include "../display/frame.hpp"
 
 struct tile : DisplayableBase {
-	virtual void effect(ActorBase*) const = 0;
+	/**
+	 * @brief				Provides an interface for modifying actors who step on this tile.
+	 *\n					This interface is called from gamespace::moveActor().
+	 * @param ActorBase*	A pointer to the actor who is currently located on this tile.
+	 */
+	virtual void effect(ActorBase*) = 0;
 
 	tile(const char& display, const color::setcolor& color) : DisplayableBase(display, color) {}
+	tile() : tile('\0', color::setcolor::white) {}
 	virtual ~tile() = default;
+
+	operator frame_elem() const
+	{
+		return{ display, color };
+	}
 };
 
 struct walltile : tile {
+	virtual void effect(ActorBase*) override {}
+
+	walltile(const char& display, const color::setcolor& color) : tile(display, color) {}
 	walltile() : tile('#', color::setcolor::white) {}
 };
 struct floortile : tile {
+	virtual void effect(ActorBase*) override {}
+
+	floortile(const char& display, const color::setcolor& color) : tile(display, color) {}
 	floortile() : tile('_', color::setcolor::white) {}
 };
 struct traptile : tile {
 	StatFloat damage;
+	bool armorPiercing;
 
-	void effect(ActorBase* actor) const override
+	virtual void effect(ActorBase* actor) override
+	{
+		actor->applyDamage(this->damage, this->armorPiercing);
+	}
+
+	traptile(const float& damage, const bool& armorPiercing) : tile('O', color::setcolor::cyan), damage{ damage }, armorPiercing{ armorPiercing } {}
+	traptile() : traptile(0.0f, false) {}
+};
+struct doortile : tile {
+	virtual void effect(ActorBase* actor) override
+	{
+		// TODO: Add level change handling (?)
+	}
+
+	// TODO: Add parameters & members for level change handling (?)
+	doortile() : tile('\xa7', color::setcolor{ ANSI::make_sequence(color::setcolor::black, color::setcolor{ color::white, color::Layer::B }) }) {}
+};
+struct containertile : tile {
+	std::vector<std::unique_ptr<ItemBase<float>>> items;
+
+	virtual void effect(ActorBase* actor) override
+	{
+	}
+
+	containertile(std::vector<std::unique_ptr<ItemBase<float>>>&& items) : tile('\xa4', color::setcolor{ color::green, color::Layer::B }), items{ std::move(items) } {}
+};
+
+template<std::derived_from<tile> DecayToType>
+struct decaytile : tile {
+	virtual void effect(ActorBase* actor) override
 	{
 
 	}
 
-	traptile(const float& damage) : tile('O', color::setcolor::cyan), damage{ damage } {}
+	decaytile(const char& display, const color::setcolor& color) : tile(display, color) {}
 };
