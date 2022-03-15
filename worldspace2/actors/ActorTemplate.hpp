@@ -14,7 +14,9 @@ private:
 	std::optional<unsigned> level;
 	std::optional<std::string> name;
 	std::optional<StatFloat> health, stamina, damage, defense, fear, aggression;
-	//std::optional<std::vector<std::unique_ptr<ItemBase<float>>>> items;
+	std::optional<unsigned> aggroDist;
+	std::optional<float> aggression_rate;
+	std::optional<StatBaseNoMax<float>> experience;
 public:
 	inline static const DisplayableBase
 		default_displayable{ '\0', color::setcolor{ ""s } };
@@ -31,6 +33,12 @@ public:
 		default_defense{ 10.0f },
 		default_fear{ 100.0f, 0.0f },
 		default_aggression{ 100.0f, 0.0f };
+	inline static const unsigned
+		default_aggroDist{ 1u };
+	inline static const float
+		default_aggression_rate{ 2.5f };
+	inline static const StatBaseNoMax<float>
+		default_experience{ 0.0f };
 
 	ActorTemplate(
 		const std::optional<DisplayableBase>& displayable,
@@ -42,8 +50,10 @@ public:
 		const std::optional<StatFloat>& damage = std::nullopt,
 		const std::optional<StatFloat>& defense = std::nullopt,
 		const std::optional<StatFloat>& fear = std::nullopt,
-		const std::optional<StatFloat>& aggression = std::nullopt//,
-	//	std::optional<std::vector<std::unique_ptr<ItemBase<float>>>>&& items = std::nullopt
+		const std::optional<StatFloat>& aggression = std::nullopt,
+		const std::optional<float>& aggression_rate = std::nullopt,
+		const std::optional<unsigned>& aggroDist = std::nullopt,
+		const std::optional<StatBaseNoMax<float>>& experience = std::nullopt
 	) : displayable{ displayable },
 		factionID{ factionID },
 		level{ level },
@@ -53,8 +63,9 @@ public:
 		damage{ damage },
 		defense{ defense },
 		fear{ fear },
-		aggression{ aggression }//,
-	//	items{ std::move(items) }
+		aggression{ aggression },
+		aggression_rate{ aggression_rate },
+		experience{ experience }
 	{
 	}
 
@@ -98,9 +109,16 @@ public:
 	{
 		return factionID.value_or(default_factionID);
 	}
-
-	/*bool hasItems() const noexcept
+	unsigned getAggroDist() const
 	{
-		return items.has_value();
-	}*/
+		return aggroDist.value_or(default_aggroDist);
+	}
+	float get_aggression_rate() const
+	{
+		return aggression_rate.value_or(default_aggression_rate);
+	}
+	StatBaseNoMax<float> getExperience() const
+	{
+		return experience.value_or(default_experience);
+	}
 };

@@ -22,7 +22,7 @@ struct ItemBase {
 
 	bool appliesToStat(const TargetStat& stat)
 	{
-		return (target & stat) != 0;
+		return static_cast<unsigned char>(target & stat) != static_cast<unsigned char>(0);
 	}
 };
 

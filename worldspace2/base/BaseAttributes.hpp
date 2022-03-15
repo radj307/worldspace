@@ -339,6 +339,9 @@ public:
 		return var::variadic_or(((_value & std::forward<Ts>(stats)._value) != 0)...);
 	}
 
+	operator unsigned char() const { return _value; }
+	explicit operator int() const { return static_cast<int>(_value); }
+
 	static const TargetStat NULL_STAT, HEALTH, STAMINA, DAMAGE, DEFENSE, FEAR, AGGRESSION;
 };
 

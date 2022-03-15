@@ -106,6 +106,42 @@ struct ActorBase : DisplayableBase, Positionable {
 			return{ 0ll, 0ll };
 		return pos.distanceTo(actor->pos);
 	}
+
+	template<std::derived_from<ItemBase<float>> Item, typename... Args>
+	void addItem(Args&&... args)
+	{
+		items.emplace_back(std::make_unique<Item>(std::forward<Args>(args)...));
+	}
+	void addItem(ItemBase<float>* item)
+	{
+		items.emplace_back(item->clone());
+	}
+	std::vector<std::unique_ptr<ItemBase<float>>>::iterator removeItem(const std::vector<std::unique_ptr<ItemBase<float>>>::const_iterator& iter)
+	{
+		return items.erase(iter, iter + 1);
+	}
+	bool removeItem(const std::string& name)
+	{
+		for (auto it{ items.begin() }; it != items.end(); ++it) {
+			if (it->get()->name == name) {
+				removeItem(it);
+				return true;
+			}
+		}
+		return false;
+	}
+	template<std::derived_from<ItemBase<float>> Item>
+	bool removeItemType()
+	{
+		const auto& itemType{ typeid(Item) };
+		for (auto it{ items.begin() }; it != items.end(); ++it) {
+			if (typeid(*it->get()) == itemType) {
+				removeItem(it);
+				return true;
+			}
+		}
+		return false;
+	}
 };
 
 /// @brief	Constraint that only allows types derived from ActorBase.
