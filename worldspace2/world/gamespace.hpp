@@ -130,7 +130,6 @@ static struct {
 
 inline static bool isWithinBounds(const point& pos)
 {
-
 	if (pos.within(GameConfig.minPos, GameConfig.maxPos))
 		return true;
 	return false;
@@ -141,6 +140,15 @@ struct gamespace {
 	matrix grid;
 	Player player;
 	std::vector<std::unique_ptr<NPC>> npcs;
+
+	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
+		const auto& cont{ getAllValidSpawnTiles<floortile>() };
+		return cont.at(rng.get(0, cont.size()));
+	}(), GameConfig.player_template }
+	{
+		generate<NPC>(GameConfig.generate_npc_count, GameConfig.npc_templates);
+		generate<NPC>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
+	}
 
 	template<std::derived_from<tile>... ValidSpawnTiles>
 	std::vector<point> getAllValidSpawnTiles()
@@ -181,7 +189,8 @@ struct gamespace {
 		}());
 	}
 
-	void generate_npcs(const size_t& npc_count, const size_t& enemy_count)
+	template<std::derived_from<ActorBase> T>
+	void generate(const size_t& count, const std::vector<ActorTemplate>& templates)
 	{
 		auto posCandidates{ getAllValidSpawnTiles() };
 		// Gets a random point from the list of valid candidates, and removes the returned point from the list.
@@ -192,24 +201,12 @@ struct gamespace {
 			posCandidates.erase(indexIt, indexIt);
 			return pos;
 		} };
+		npcs.reserve(npcs.size() + count);
 
-		npcs.reserve(npcs.size() + npc_count + enemy_count);
-
-		for (size_t i{ 0ull }; i < npc_count; ++i)
-			npcs.emplace_back(std::make_unique<NPC>(getRandomPos(), getRandomActorTemplate(GameConfig.npc_templates)));
-
-		for (size_t i{ 0ull }; i < enemy_count; ++i)
-			npcs.emplace_back(std::make_unique<Enemy>(getRandomPos(), getRandomActorTemplate(GameConfig.enemy_templates)));
+		for (size_t i{ 0ull }; i < count; ++i)
+			npcs.emplace_back(std::make_unique<T>(getRandomPos(), getRandomActorTemplate(templates)));
 
 		npcs.shrink_to_fit();
-	}
-
-	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
-		const auto& cont{ getAllValidSpawnTiles<floortile>() };
-		return cont.at(rng.get(0, cont.size()));
-	}(), GameConfig.player_template }
-	{
-		generate_npcs(GameConfig.generate_npc_count, GameConfig.generate_enemy_count);
 	}
 
 	ActorBase* getActorAt(const point& pos) const
@@ -226,7 +223,7 @@ struct gamespace {
 	}
 	ActorBase* getActorAt(const position& x, const position& y) const
 	{
-		if (auto& playerPos{ player.pos }; x == playerPos.x && y == playerPos.y)
+		if (const auto& playerPos{ player.pos }; x == playerPos.x && y == playerPos.y)
 			return (ActorBase*)&player;
 
 		for (const auto& it : npcs)
@@ -246,10 +243,13 @@ struct gamespace {
 		return grid.get(x, y);
 	}
 
-	bool attack(ActorBase* attacker, ActorBase* defender)
+	std::tuple<tile*, ActorBase*> getAt(const point& pos) const
 	{
-
-		return false;
+		return{ getTileAt(pos), getActorAt(pos) };
+	}
+	std::tuple<tile*, ActorBase*> getAt(const position& x, const position& y) const
+	{
+		return{ getTileAt(x, y), getActorAt(x, y) };
 	}
 
 	bool canMove(ActorBase* actor, const point& posDiff) noexcept(false)
@@ -311,6 +311,28 @@ struct gamespace {
 		return npcs.erase(it, it + 1);
 	}
 
+	bool PerformActionNPC(NPC* npc)
+	{
+		if (npc == nullptr)
+			throw make_exception("gamespace::PerformActionNPC() failed:  Received nullptr!");
+
+		if (auto* target{ npc->getTarget() }; target != nullptr) {
+
+		}
+
+		point dir{ 0, 0 };
+		switch (rng.get(0, 1)) {
+		case 0:
+			dir.x += rng.get(0, 1) == 1 ? 1 : -1;
+			break;
+		case 1:
+			dir.y += rng.get(0, 1) == 1 ? 1 : -1;
+			break;
+		}
+
+		moveActor(npc, dir);
+	}
+
 	/**
 	 * @brief	Performs an action for all npcs in the list.
 	 *\n		This function should be called by the game loop.
@@ -324,18 +346,7 @@ struct gamespace {
 					it = removeNPC(it);
 					continue; ///< required!
 				}
-
-				point dir{ 0, 0 };
-				switch (rng.get(0, 1)) {
-				case 0:
-					dir.x += rng.get(0, 1) == 1 ? 1 : -1;
-					break;
-				case 1:
-					dir.y += rng.get(0, 1) == 1 ? 1 : -1;
-					break;
-				}
-
-				moveActor(npc, dir);
+				else PerformActionNPC(npc);
 			}
 			else it = removeNPC(it);
 			if (it != npcs.end())
