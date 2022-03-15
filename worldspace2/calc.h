@@ -9,8 +9,6 @@
 #define DEBUG_SPECIAL_HANDLING
 
 static struct {
-	float BASE_EXPERIENCE{ 2.5f };
-
 	float REDUCE_DEFENDER_HEALTH_LOSS_DIV{ 1.0f };
 	float REDUCE_DEFENDER_STAMINA_LOSS_DIV{ 1.0f };
 	float REDUCE_ATTACKER_STAMINA_LOSS_DIV{ 1.0f };
@@ -42,14 +40,4 @@ inline float calc_damage(const float& indamage, const bool& armorpierce, const f
 inline float calc_levelmult(const unsigned& level)
 {
 	return CalculationSettings.LEVEL_MULT * std::pow(static_cast<float>(level), 2.0f) + CalculationSettings.LEVEL_OFFSET;
-}
-
-inline float calc_killExperience(const unsigned& attacker_lvl, const unsigned& defender_lvl)
-{
-	return static_cast<float>(std::pow(CalculationSettings.BASE_EXPERIENCE, defender_lvl) / static_cast<double>(attacker_lvl));
-}
-
-inline unsigned calc_levelUp(const unsigned& lvl, const float& xp)
-{
-	return static_cast<unsigned>(std::pow(CalculationSettings.BASE_EXPERIENCE, lvl) );
 }

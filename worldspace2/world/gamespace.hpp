@@ -1,6 +1,5 @@
 #pragma once
 #include "../actors/ActorBase.hpp"
-#include "../GameConfig.h"
 #include "matrix.hpp"
 
 #include <math.hpp>
@@ -9,120 +8,182 @@
 #include <optional>
 #include <map>
 
-inline static void setGridSize(const size& newGridSize)
-{
-	GameConfig.gridSize = newGridSize;
-	GameConfig.minPos = point{ 0, 0 } + static_cast<int>(GameConfig.generatorConfig.wall_always_on_edge);
-	GameConfig.maxPos = GameConfig.gridSize - GameConfig.minPos;
-}
+using size = point;
 
-inline static std::pair<point, point> getPlayableBounds()
-{
-	return std::make_pair(GameConfig.minPos + !!GameConfig.generatorConfig.wall_always_on_edge, GameConfig.maxPos - +!!GameConfig.generatorConfig.wall_always_on_edge);
-}
+static struct {
+	size gridSize{ 30, 30 };
+	GeneratorSettings generatorConfig{};
+
+	point minPos{ point{ 0, 0 } + static_cast<int>(generatorConfig.wall_always_on_edge) };
+	point maxPos{ gridSize - minPos };
+
+	static void setGridSize(const size& newGridSize)
+	{
+		GameConfig.gridSize = newGridSize;
+		GameConfig.minPos = point{ 0, 0 } + static_cast<int>(GameConfig.generatorConfig.wall_always_on_edge);
+		GameConfig.maxPos = GameConfig.gridSize - GameConfig.minPos;
+	}
+
+	std::array<Faction, 5> factions{
+		Faction{ NULL_FACTION_ID },
+		Faction{ 0, { 1 } },
+		Faction{ 1, { 0, 2 } },
+		Faction{ 2 },
+		Faction{ 3 }
+	};
+
+	Faction& getFactionFromID(const int& id)
+	{
+		for (int i{ 1 }; i < factions.size(); ++i)
+			if (auto& fac{ factions[i] }; fac == id)
+				return fac;
+		return factions[0];
+	}
+
+	Faction& playerFaction{ factions[1] };
+	Faction& enemyFaction{ factions[2] };
+	Faction& neutralFaction{ factions[3] };
+	Faction& passiveFaction{ factions[4] };
+
+	std::vector<ActorTemplate> npc_templates{
+		ActorTemplate{
+			DisplayableBase{ '*', color::setcolor::cyan },
+			passiveFaction.operator int(),
+			1u,
+			"Chicken"s,
+			StatFloat(30.0f),
+			StatFloat(50.0f),
+			StatFloat(15.0f),
+			StatFloat(0.0f),
+			StatFloat{ 10.0f, 0.0f },
+			StatFloat{ 0.0f, 0.0f }
+	},
+		ActorTemplate{
+			DisplayableBase{ '*', color::setcolor::cyan },
+			neutralFaction,
+			2,
+			"Ram",
+			80.0f,
+			150.0f,
+			20.0f,
+			5.0f,
+			StatFloat{ 40.0f, 0.0f },
+			StatFloat{ 0.0f, 0.0f }
+	}
+	};
+	std::vector<ActorTemplate> enemy_templates{
+		ActorTemplate{
+			DisplayableBase{ '?', color::setcolor::red },
+			enemyFaction,
+			1,
+			"Bandit"s,
+			100.0f,
+			80.0f,
+			10.0f,
+			2.5f,
+			StatFloat{ 50.0f, 0.0f },
+			StatFloat{ 100.0f, 0.0f }
+	},
+		ActorTemplate{
+			DisplayableBase{ '!', color::setcolor::magenta },
+			enemyFaction,
+			2,
+			"Marauder",
+			110.0f,
+			100.0f,
+			20.0f,
+			5.0f,
+			StatFloat{ 100.0f, 0.0f },
+			StatFloat{ 100.0f, 0.0f }
+	},
+		ActorTemplate{
+			DisplayableBase{ '%', color::setcolor{ color::rgb_to_sgr(1.0f, 0.2f, 0.01f) } },
+			enemyFaction,
+			3,
+			"Reaver",
+			120.0f,
+			190.0f,
+			19.6f,
+			22.2f,
+			StatFloat{ 100.0f, 0.0f },
+			StatFloat{ 100.0f, 0.0f }
+	}
+	};
+
+	ActorTemplate player_template{
+		DisplayableBase{ '$', color::setcolor::green },
+		playerFaction,
+		1,
+		"Player",
+		100.0f,
+		100.0f,
+		25.0f,
+		25.0f,
+		std::nullopt,
+		std::nullopt
+	};
+
+	size_t generate_npc_count{ 10ull };
+	size_t generate_enemy_count{ 20ull };
+	double npcDistribRate{ 1.0 }; ///< @brief	This is the value for (lambda) in an exponential distribution function. It is used to select actor templates less often when placed at high (relative) indexes in the ActorTemplate vectors above. The lower the value, the closer to a straight line. The higher the value, the more curved. See this image for a graphic: ( https://en.wikipedia.org/wiki/Exponential_distribution#/media/File:Exponential_cdf.svg ).
+} GameConfig;
 
 inline static bool isWithinBounds(const point& pos)
 {
-	return pos.within(getPlayableBounds());
+
+	if (pos.within(GameConfig.minPos, GameConfig.maxPos))
+		return true;
+	return false;
 }
 
-enum class CanMoveResult : unsigned char {
-	BLOCKED = 0,
-	BLOCKED_FRIEND = 1,
-	BLOCKED_ENEMY = 2,
-	OPEN = 3,
-};
-
-/**
- * @struct	gamespace
- * @brief	Game manager object containing all of the functions used at runtime to operate the game.
- *\n		This object maintains ownership over all game assets, and cleans them up at destruction time.
- */
 struct gamespace {
 	rng::Random rng;
 	matrix grid;
 	Player player;
 	std::vector<std::unique_ptr<NPC>> npcs;
 
-	/**
-	 * @brief	Default Constructor.
-	 *\n		This initializes the grid to the size specified by (GameConfig.gridSize).
-	 */
-	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
-		const auto& cont{ getAllValidSpawnTiles<floortile>(true) };
-		return cont.at(rng.get(0, cont.size()));
-	}(), GameConfig.player_template }
-	{
-		generate_npcs<NPC>(GameConfig.generate_npc_count, GameConfig.npc_templates);
-		generate_npcs<Enemy>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
-	}
-
-	/**
-	 * @brief						Retrieve a vector of every point in the grid that is considered empty, and is a valid spawn location for actors.
-	 * @tparam ValidSpawnTiles...	List of tile types that should be considered "valid". Only tiles whose type is included here will have their positions included in the list.
-	 * @returns						std::vector<point>
-	 */
 	template<std::derived_from<tile>... ValidSpawnTiles>
-	std::vector<point> getAllValidSpawnTiles(const bool& skipActorChecks = false)
+	std::vector<point> getAllValidSpawnTiles()
 	{
 		std::vector<point> vec;
 		vec.reserve(grid.Size);
+
 		size_t i{ 0ull };
 		for (const auto& it : grid) {
-			if (auto* tile{ it.get() }; var::variadic_or(typeid(*tile) == typeid(ValidSpawnTiles)...)) {
-				if (point pos{ grid.from1D(i) }; skipActorChecks || getActorAt(pos) == nullptr)
+			if (auto* tile{ it.get() }; var::variadic_or(typeid(*tile) == typeid(ValidSpawnTiles)...))
+				if (point pos{ grid.from1D(i) }; getActorAt(pos) == nullptr)
 					vec.emplace_back(std::move(pos));
-			}
 			++i;
 		}
+
 		vec.shrink_to_fit();
 		return vec;
 	}
-	/**
-	 * @brief	Retrieve a vector of every point in the grid that is an empty floortile type.
-	 * @returns	std::vector<point>
-	 */
-	std::vector<point> getAllValidSpawnTiles(const bool& skipActorChecks = false)
+	std::vector<point> getAllValidSpawnTiles()
 	{
-		return getAllValidSpawnTiles<floortile>(skipActorChecks);
+		return getAllValidSpawnTiles<floortile>();
 	}
 
 	/**
 	 * @brief			Select a random actor template from a given vector using the random number generator and exponential distribution.
 	 * @param templates	A vector of type (ActorTemplate), sorted so that the lowest
 	 */
-	ActorTemplate getRandomActorTemplate(const std::vector<ActorTemplate>& templates, std::exponential_distribution<double>& distribution)
+	ActorTemplate getRandomActorTemplate(const std::vector<ActorTemplate>& templates)
 	{
-		return templates.at([&distribution, &templates, this]() -> size_t {
-			const auto& out{ distribution(rng.getEngine()) };
+		std::exponential_distribution<> dist{ GameConfig.npcDistribRate };
+		return templates.at([&dist, &templates, this]() -> size_t {
+			const auto& out{ dist(rng.getEngine()) };
 			const double& sizef{ static_cast<double>(templates.size() - 1ull) };
-			const auto& min{ distribution.min() }, max{ 1.0 };
+			const auto& min{ dist.min() }, max{ 1.0 };
 			const auto& normalized{ std::round(math::normalize(std::fmod(out, max), std::make_pair(min, max), std::make_pair(0.0, sizef))) };
 			const auto& indexf{ static_cast<float>(normalized) };
 			return static_cast<size_t>(indexf);
 		}());
 	}
 
-	/**
-	 * @brief				Generate the specified number of NPC actors, by inserting them into the (npcs) vector.
-	 *\n					Uses exponential distribution to select actor templates.
-	 * @tparam ActorType	Any type derived from (NPC), this is the type that should be generated.
-	 * @param count			The total number of NPCs to generate.
-	 * @param templates		A vector of templates to serve as potential candidates.
-	 *\n					This should be sorted so that the most common types are located at low indexes.
-	 * @returns				size_t
-	 */
-	template<std::derived_from<NPC> ActorType>
-	size_t generate_npcs(const size_t& count, const std::vector<ActorTemplate>& templates)
+	void generate_npcs(const size_t& npc_count, const size_t& enemy_count)
 	{
-		if (count == 0ull || templates.empty())
-			return 0ull;
-
 		auto posCandidates{ getAllValidSpawnTiles() };
-
-		if (posCandidates.empty())
-			return 0ull;
-
 		// Gets a random point from the list of valid candidates, and removes the returned point from the list.
 		const auto& getRandomPos{ [&posCandidates, this]() -> point {
 			const auto& index{ rng.get(0ull, posCandidates.size() - 1ull) };
@@ -132,14 +193,23 @@ struct gamespace {
 			return pos;
 		} };
 
-		auto dist{ rng.exponential_distribution<double>(GameConfig.npcDistribRate) };
-		// reserve enough space
-		npcs.reserve(npcs.size() + count);
-		size_t i{ 0ull };
-		for (; i < count && !posCandidates.empty(); ++i)
-			npcs.emplace_back(std::make_unique<ActorType>(getRandomPos(), getRandomActorTemplate(templates, dist)));
+		npcs.reserve(npcs.size() + npc_count + enemy_count);
+
+		for (size_t i{ 0ull }; i < npc_count; ++i)
+			npcs.emplace_back(std::make_unique<NPC>(getRandomPos(), getRandomActorTemplate(GameConfig.npc_templates)));
+
+		for (size_t i{ 0ull }; i < enemy_count; ++i)
+			npcs.emplace_back(std::make_unique<Enemy>(getRandomPos(), getRandomActorTemplate(GameConfig.enemy_templates)));
+
 		npcs.shrink_to_fit();
-		return i;
+	}
+
+	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
+		const auto& cont{ getAllValidSpawnTiles<floortile>() };
+		return cont.at(rng.get(0, cont.size()));
+	}(), GameConfig.player_template }
+	{
+		generate_npcs(GameConfig.generate_npc_count, GameConfig.generate_enemy_count);
 	}
 
 	ActorBase* getActorAt(const point& pos) const
@@ -176,13 +246,13 @@ struct gamespace {
 		return grid.get(x, y);
 	}
 
-	template<typename... Ts>
-	bool validActorMoveTile(Ts&&... tiles) const
+	bool attack(ActorBase* attacker, ActorBase* defender)
 	{
-		return var::variadic_or(typeid(tiles) != typeid(walltile)...);
+
+		return false;
 	}
 
-	CanMoveResult canMoveTo(ActorBase* actor, const point& newPos) const noexcept(false)
+	bool canMove(ActorBase* actor, const point& posDiff) noexcept(false)
 	{
 		if (actor == nullptr)
 			throw make_exception("gamespace::canMove() failed:  Received nullptr instead of ActorBase*!");
@@ -229,15 +299,6 @@ struct gamespace {
 	void movePlayer(const position& x, const position& y) { moveActor(&player, x, y); }
 #	pragma endregion Movement
 
-	Faction& getFaction(const int& factionID) const
-	{
-		return GameConfig.getFactionFromID(factionID);
-	}
-	Faction& getFaction(const int& factionID)
-	{
-		return GameConfig.getFactionFromID(factionID);
-	}
-
 	/**
 	 * @brief		Remove an NPC from the list using a given iterator.
 	 *\n			If you're calling this from a for loop, make sure to set the given
@@ -256,8 +317,6 @@ struct gamespace {
 	 */
 	void PerformActionAllNPCs()
 	{
-		// get the player position
-		const auto& playerPos{ player.pos };
 		for (auto it{ npcs.begin() }; it != npcs.end(); ) {
 			if (auto* npc{ it->get() }; npc != nullptr) {
 				if (npc->isDead()) {

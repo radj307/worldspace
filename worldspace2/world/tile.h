@@ -60,12 +60,17 @@ struct containertile : tile {
 
 	virtual void effect(ActorBase* actor) override
 	{
-		if (items.empty())
-			return;
-		for (const auto& item : items)
-			actor->addItem(item.get());
-		items.clear();
 	}
 
 	containertile(std::vector<std::unique_ptr<ItemBase<float>>>&& items) : tile('\xa4', color::setcolor{ color::green, color::Layer::B }), items{ std::move(items) } {}
+};
+
+template<std::derived_from<tile> DecayToType>
+struct decaytile : tile {
+	virtual void effect(ActorBase* actor) override
+	{
+
+	}
+
+	decaytile(const char& display, const color::setcolor& color) : tile(display, color) {}
 };

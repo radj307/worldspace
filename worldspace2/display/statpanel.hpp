@@ -58,9 +58,9 @@ struct statpanel {
 
 		const auto& fst_line{ str::stringify(actor->name, "   level ", actor->level) };
 
-		std::cout << term::setCursorPosition(centerColumn - static_cast<position>(fst_line.size() / 2ull), ln++) << fst_line;
+		std::cout << term::setCursorPosition(centerColumn - static_cast<long long>(fst_line.size() / 2ull), ln++) << fst_line;
 
-		const point& statbar_origin{ centerColumn - static_cast<position>(hp.scale + sp.scale + separator.size()) / 2ll, ln++ };
+		const point& statbar_origin{ centerColumn - static_cast<long long>(hp.scale + sp.scale + separator.size()) / 2ll, ln++ };
 		std::cout << term::setCursorPosition(statbar_origin) << hp << separator << sp;
 	}
 };
