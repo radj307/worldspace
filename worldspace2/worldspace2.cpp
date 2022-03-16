@@ -195,10 +195,6 @@ int main(const int argc, char** argv)
 
 		gamespace game;
 
-		/// DEBUGGING ///
-		game.pathFind({ 0, 0 }, { 3, 3 });
-		/// DEBUGGING ///
-
 		framebuffer framebuf{ gridSize };
 		framebuf.setBuilder<framebuilder_matrix>(game.grid);
 		framebuf.setLinker<framelinker_gamespace>(game);

@@ -245,15 +245,32 @@ struct gamespace {
 
 	point pathFind(const point& start, const point& target) const
 	{
-		std::vector<pathNode> vec;
+		const auto& bounds{ getPlayableBounds() };
+		const auto& movable{ [&bounds, this](const point& p) {
+			if (p.within(bounds))
+				return tileAllowsMovement(getTileAt(p));
+			return false;
+		} };
 
-		const point min{ minimize(start, target) }, max{ maximize(start, target) };
+		const point& diff{ start.distanceTo(target) }, diffNormal{ diff.clamp() };
 
-		for (position y{ min.y }; y < max.y; ++y) {
-			for (position x{ min.x }; x < max.x; ++x) {
-				vec.emplace_back();
-			}
+		const auto& lrg{ diff.getLargestAxis() }, sml{ diff.getSmallestAxis() };
+		if (sml == 0) {
+			if (lrg == diff.x)
+				return point{ lrg, 0 }.clamp();
+			else
+				return point{ 0, lrg }.clamp();
 		}
+		else if (sml == diff.x)
+			return point{ sml, 0 }.clamp();
+		else
+			return point{ 0, sml }.clamp();
+
+		return { 0, 0 };
+	}
+	point pathFind(ActorBase* actor, const point& target) const
+	{
+		return pathFind(actor->pos, target);
 	}
 
 	bool PerformActionNPC(NPC* npc)
@@ -267,7 +284,7 @@ struct gamespace {
 					npc->setTarget(nullptr);
 				// else target is alive
 				else {
-					moveActor(npc, npc->pos.distanceTo(target->pos).zeroedLargestAxis().clamp());
+					moveActor(npc, pathFind(npc, target->pos));
 					return npc->isDead();
 				}
 			}
@@ -278,7 +295,7 @@ struct gamespace {
 		for (const auto& npos : nearby) {
 			if (auto* actor{ getActorAt(npos) }; actor != nullptr && myFaction.isHostileTo(actor->factionID)) {
 				npc->setTarget(actor);
-				moveActor(npc, npc->pos.distanceTo(actor->pos).zeroedLargestAxis().clamp());
+				moveActor(npc, pathFind(npc, actor->pos));
 				return npc->isDead();
 			}
 		}

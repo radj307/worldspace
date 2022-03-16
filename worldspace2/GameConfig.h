@@ -4,6 +4,8 @@
 #include "world/matrix.hpp"
 #include "actors/ActorTemplate.hpp"
 
+#include <typeinfo>
+
 static struct {
 	size gridSize{ 30, 30 };
 	GeneratorSettings generatorConfig{};
@@ -123,3 +125,14 @@ static struct {
 
 	float npcIdleMoveChance{ 33.0f }; ///< @brief	Percentage chance out of 100 that an NPC moves when it doesn't have a target, and there are no nearby hostiles.
 } GameConfig;
+
+template<std::derived_from<tile>... AllowTypes>
+inline bool tileAllowsMovement(tile* t)
+{
+	const auto& tType{ typeid(*t) };
+	return var::variadic_or(tType == typeid(AllowTypes)...);
+}
+inline bool tileAllowsMovement(tile* t)
+{
+	return tileAllowsMovement<floortile, traptile, doortile, containertile>(t);
+}

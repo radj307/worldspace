@@ -82,6 +82,19 @@ struct point : std::pair<position, position> {
 		else if constexpr (I == 1) return std::move(y);
 	}
 
+	// negation operators:
+
+	point operator-() const
+	{
+		return{ -x, -y };
+	}
+	point& operator-()
+	{
+		x = -x;
+		y = -y;
+		return *this;
+	}
+
 	// subtraction operators:
 
 	template<std::integral T> point operator-(const T& n) const
@@ -265,55 +278,40 @@ struct point : std::pair<position, position> {
 			yP = yNegative ? -1 : 1;
 		return{ xP, yP };
 	}
-	point zeroedLargestAxis(const bool& ifEqualZeroY = true) const
+	point zeroedLargestAxis() const
 	{
-		if (x == y) {
-			if (ifEqualZeroY)
-				return{ x, 0 };
-			return { 0, y };
-		}
 		return (x > y
 			? point{ 0, y }
 			: point{ x, 0 }
 		);
 	}
-	point zeroedSmallestAxis(const bool& ifEqualZeroY = true) const
+	point zeroedSmallestAxis() const
 	{
-		if (x == y) {
-			if (ifEqualZeroY)
-				return{ x, 0 };
-			return { 0, y };
-		}
-		return (x < y
+		return (x > y
 			? point{ 0, y }
 			: point{ x, 0 }
 		);
 	}
-	void zeroLargestAxis(const bool& ifEqualZeroY = true)
+	void zeroLargestAxis()
 	{
-		if (x == y) {
-			if (ifEqualZeroY)
-				y = 0;
-			else
-				x = 0;
-		}
 		if (x > y)
 			x = 0;
 		else
 			y = 0;
 	}
-	void zeroSmallestAxis(const bool& ifEqualZeroY = true)
+	void zeroSmallestAxis()
 	{
-		if (x == y) {
-			if (ifEqualZeroY)
-				y = 0;
-			else
-				x = 0;
-		}
 		if (x < y)
 			x = 0;
 		else
 			y = 0;
+	}
+	point& swap()
+	{
+		const auto& copyY{ y };
+		y = x;
+		x = copyY;
+		return *this;
 	}
 
 	/**
