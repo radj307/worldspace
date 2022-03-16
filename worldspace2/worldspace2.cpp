@@ -187,13 +187,17 @@ int main(const int argc, char** argv)
 		Controls controls;
 		INI ini{ Global.myPath };
 
-		point gridSize{ ini.getvs_cast<position>("game", "iGridSizeX", str::stoll).value_or(Global.DEFAULT_SIZE_X), ini.getvs_cast<position>("game", "iGridSizeY", str::stoll).value_or(Global.DEFAULT_SIZE_Y) };
+		point gridSize{ ini.getvs_cast<position>("game", "iGridSizeX", str::stoi).value_or(Global.DEFAULT_SIZE_X), ini.getvs_cast<position>("game", "iGridSizeY", str::stoi).value_or(Global.DEFAULT_SIZE_Y) };
 
 		std::mutex mutex;
 
 		const auto& timeStart{ std::chrono::high_resolution_clock::now() };
 
 		gamespace game;
+
+		/// DEBUGGING ///
+		game.pathFind({ 0, 0 }, { 3, 3 });
+		/// DEBUGGING ///
 
 		framebuffer framebuf{ gridSize };
 		framebuf.setBuilder<framebuilder_matrix>(game.grid);

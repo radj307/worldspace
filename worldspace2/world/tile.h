@@ -4,6 +4,8 @@
 #include "../items/ItemBase.hpp"
 #include "../display/frame.hpp"
 
+#include <memory>
+
 struct tile : DisplayableBase {
 	/**
 	 * @brief				Provides an interface for modifying actors who step on this tile.
@@ -14,6 +16,10 @@ struct tile : DisplayableBase {
 
 	tile(const char& display, const color::setcolor& color) : DisplayableBase(display, color) {}
 	tile() : tile('\0', color::setcolor::white) {}
+
+	tile(tile&& o) : tile(std::move(o.display), std::move(o.color)) {}
+	tile(const tile& o) : tile(o.display, o.color) {}
+
 	virtual ~tile() = default;
 
 	operator frame_elem() const
@@ -56,21 +62,12 @@ struct doortile : tile {
 	doortile() : tile('\xa7', color::setcolor{ ANSI::make_sequence(color::setcolor::black, color::setcolor{ color::white, color::Layer::B }) }) {}
 };
 struct containertile : tile {
-	std::vector<std::unique_ptr<ItemBase<float>>> items;
+	std::vector<ItemTemplate<float>> items;
 
 	virtual void effect(ActorBase* actor) override
 	{
 	}
 
-	containertile(std::vector<std::unique_ptr<ItemBase<float>>>&& items) : tile('\xa4', color::setcolor{ color::green, color::Layer::B }), items{ std::move(items) } {}
+	containertile(std::vector<ItemTemplate<float>>&& items) : tile('\xa4', color::setcolor{ color::green, color::Layer::B }), items{ std::move(items) } {}
 };
 
-template<std::derived_from<tile> DecayToType>
-struct decaytile : tile {
-	virtual void effect(ActorBase* actor) override
-	{
-
-	}
-
-	decaytile(const char& display, const color::setcolor& color) : tile(display, color) {}
-};

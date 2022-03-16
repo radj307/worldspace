@@ -14,6 +14,7 @@ private:
 	std::optional<unsigned> level;
 	std::optional<std::string> name;
 	std::optional<StatFloat> health, stamina, damage, defense, fear, aggression;
+	std::optional<StatUnsigned> aggressionRange;
 	//std::optional<std::vector<std::unique_ptr<ItemBase<float>>>> items;
 public:
 	inline static const DisplayableBase
@@ -31,6 +32,8 @@ public:
 		default_defense{ 10.0f },
 		default_fear{ 100.0f, 0.0f },
 		default_aggression{ 100.0f, 0.0f };
+	inline static const StatUnsigned
+		default_aggressionRange{ 3u };
 
 	ActorTemplate(
 		const std::optional<DisplayableBase>& displayable,
@@ -42,7 +45,8 @@ public:
 		const std::optional<StatFloat>& damage = std::nullopt,
 		const std::optional<StatFloat>& defense = std::nullopt,
 		const std::optional<StatFloat>& fear = std::nullopt,
-		const std::optional<StatFloat>& aggression = std::nullopt//,
+		const std::optional<StatFloat>& aggression = std::nullopt,
+		const std::optional<StatUnsigned>& aggressionRange = std::nullopt
 	//	std::optional<std::vector<std::unique_ptr<ItemBase<float>>>>&& items = std::nullopt
 	) : displayable{ displayable },
 		factionID{ factionID },
@@ -53,7 +57,8 @@ public:
 		damage{ damage },
 		defense{ defense },
 		fear{ fear },
-		aggression{ aggression }//,
+		aggression{ aggression },
+		aggressionRange{ aggressionRange }
 	//	items{ std::move(items) }
 	{
 	}
@@ -97,6 +102,10 @@ public:
 	int getFactionID() const
 	{
 		return factionID.value_or(default_factionID);
+	}
+	StatUnsigned getAggressionRange() const
+	{
+		return aggressionRange.value_or(default_aggressionRange);
 	}
 
 	/*bool hasItems() const noexcept

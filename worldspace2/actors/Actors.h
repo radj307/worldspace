@@ -13,15 +13,16 @@ struct Player : ActorBase {
 
 struct NPC : ActorBase {
 private:
-	ActorBase* target;
+	ActorBase* target{ nullptr };
 
 public:
 	StatFloat fear;
 	StatFloat aggression;
+	StatUnsigned aggressionRange;
 
-	NPC(const Faction& faction, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& health, const float& stamina, const float& damage, const float& defense, const float& fear, const float& aggression) : ActorBase(faction, level, name, position, display, color, health, stamina, damage, defense), fear{ fear, 0.0f }, aggression{ aggression, 0.0f } {}
+	NPC(const Faction& faction, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& health, const float& stamina, const float& damage, const float& defense, const float& fear, const float& aggression, const unsigned& aggressionRange) : ActorBase(faction, level, name, position, display, color, health, stamina, damage, defense), fear{ fear, 0.0f }, aggression{ aggression, 0.0f }, aggressionRange{ aggressionRange } {}
 
-	NPC(const point& startPos, const ActorTemplate& t) : ActorBase(startPos, t), fear{ t.getFear() }, aggression{ t.getAggression() } {}
+	NPC(const point& startPos, const ActorTemplate& t) : ActorBase(startPos, t), fear{ t.getFear() }, aggression{ t.getAggression() }, aggressionRange{ t.getAggressionRange() } {}
 
 	bool applyDamageFrom(ActorBase* actor) override
 	{
@@ -49,7 +50,7 @@ public:
 
 struct Enemy : NPC {
 
-	Enemy(const Faction& faction, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& health, const float& stamina, const float& damage, const float& defense, const float& fear, const float& aggression) : NPC(faction, level, name, position, display, color, health, stamina, damage, defense, fear, aggression) {}
+	Enemy(const Faction& faction, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& health, const float& stamina, const float& damage, const float& defense, const float& fear, const float& aggression, const unsigned& aggressionRange) : NPC(faction, level, name, position, display, color, health, stamina, damage, defense, fear, aggression, aggressionRange) {}
 	Enemy(const point& startPos, const ActorTemplate& t) : NPC(startPos, t) {}
 
 };

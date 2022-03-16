@@ -1,6 +1,7 @@
 #pragma once
 #include "../actors/ActorBase.hpp"
 #include "matrix.hpp"
+#include "../GameConfig.h"
 
 #include <math.hpp>
 #include <xRand.hpp>
@@ -9,131 +10,19 @@
 #include <map>
 
 using size = point;
-
-static struct {
-	size gridSize{ 30, 30 };
-	GeneratorSettings generatorConfig{};
-
-	point minPos{ point{ 0, 0 } + static_cast<int>(generatorConfig.wall_always_on_edge) };
-	point maxPos{ gridSize - minPos };
-
-	static void setGridSize(const size& newGridSize)
-	{
-		GameConfig.gridSize = newGridSize;
-		GameConfig.minPos = point{ 0, 0 } + static_cast<int>(GameConfig.generatorConfig.wall_always_on_edge);
-		GameConfig.maxPos = GameConfig.gridSize - GameConfig.minPos;
-	}
-
-	std::array<Faction, 5> factions{
-		Faction{ NULL_FACTION_ID },
-		Faction{ 0, { 1 } },
-		Faction{ 1, { 0, 2 } },
-		Faction{ 2 },
-		Faction{ 3 }
-	};
-
-	Faction& getFactionFromID(const int& id)
-	{
-		for (int i{ 1 }; i < factions.size(); ++i)
-			if (auto& fac{ factions[i] }; fac == id)
-				return fac;
-		return factions[0];
-	}
-
-	Faction& playerFaction{ factions[1] };
-	Faction& enemyFaction{ factions[2] };
-	Faction& neutralFaction{ factions[3] };
-	Faction& passiveFaction{ factions[4] };
-
-	std::vector<ActorTemplate> npc_templates{
-		ActorTemplate{
-			DisplayableBase{ '*', color::setcolor::cyan },
-			passiveFaction.operator int(),
-			1u,
-			"Chicken"s,
-			StatFloat(30.0f),
-			StatFloat(50.0f),
-			StatFloat(15.0f),
-			StatFloat(0.0f),
-			StatFloat{ 10.0f, 0.0f },
-			StatFloat{ 0.0f, 0.0f }
-	},
-		ActorTemplate{
-			DisplayableBase{ '*', color::setcolor::cyan },
-			neutralFaction,
-			2,
-			"Ram",
-			80.0f,
-			150.0f,
-			20.0f,
-			5.0f,
-			StatFloat{ 40.0f, 0.0f },
-			StatFloat{ 0.0f, 0.0f }
-	}
-	};
-	std::vector<ActorTemplate> enemy_templates{
-		ActorTemplate{
-			DisplayableBase{ '?', color::setcolor::red },
-			enemyFaction,
-			1,
-			"Bandit"s,
-			100.0f,
-			80.0f,
-			10.0f,
-			2.5f,
-			StatFloat{ 50.0f, 0.0f },
-			StatFloat{ 100.0f, 0.0f }
-	},
-		ActorTemplate{
-			DisplayableBase{ '!', color::setcolor::magenta },
-			enemyFaction,
-			2,
-			"Marauder",
-			110.0f,
-			100.0f,
-			20.0f,
-			5.0f,
-			StatFloat{ 100.0f, 0.0f },
-			StatFloat{ 100.0f, 0.0f }
-	},
-		ActorTemplate{
-			DisplayableBase{ '%', color::setcolor{ color::rgb_to_sgr(1.0f, 0.2f, 0.01f) } },
-			enemyFaction,
-			3,
-			"Reaver",
-			120.0f,
-			190.0f,
-			19.6f,
-			22.2f,
-			StatFloat{ 100.0f, 0.0f },
-			StatFloat{ 100.0f, 0.0f }
-	}
-	};
-
-	ActorTemplate player_template{
-		DisplayableBase{ '$', color::setcolor::green },
-		playerFaction,
-		1,
-		"Player",
-		100.0f,
-		100.0f,
-		25.0f,
-		25.0f,
-		std::nullopt,
-		std::nullopt
-	};
-
-	size_t generate_npc_count{ 10ull };
-	size_t generate_enemy_count{ 20ull };
-	double npcDistribRate{ 1.0 }; ///< @brief	This is the value for (lambda) in an exponential distribution function. It is used to select actor templates less often when placed at high (relative) indexes in the ActorTemplate vectors above. The lower the value, the closer to a straight line. The higher the value, the more curved. See this image for a graphic: ( https://en.wikipedia.org/wiki/Exponential_distribution#/media/File:Exponential_cdf.svg ).
-} GameConfig;
-
-inline static bool isWithinBounds(const point& pos)
+inline static std::pair<point, point> getPlayableBounds()
 {
-	if (pos.within(GameConfig.minPos, GameConfig.maxPos))
-		return true;
-	return false;
+	return{ GameConfig.minPos, GameConfig.maxPos };
 }
+
+struct pathNode {
+	point pos;
+	int weight;
+
+	pathNode(const point& p, const int& weight = 0) : pos{ p }, weight{ weight } {}
+
+
+};
 
 struct gamespace {
 	rng::Random rng;
@@ -142,7 +31,7 @@ struct gamespace {
 	std::vector<std::unique_ptr<NPC>> npcs;
 
 	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
-		const auto& cont{ getAllValidSpawnTiles<floortile>() };
+		const auto& cont{ getAllValidSpawnTiles<floortile>(false) };
 		return cont.at(rng.get(0, cont.size()));
 	}(), GameConfig.player_template }
 	{
@@ -151,25 +40,27 @@ struct gamespace {
 	}
 
 	template<std::derived_from<tile>... ValidSpawnTiles>
-	std::vector<point> getAllValidSpawnTiles()
+	std::vector<point> getAllValidSpawnTiles(const bool& checkForActors = true)
 	{
 		std::vector<point> vec;
 		vec.reserve(grid.Size);
 
 		size_t i{ 0ull };
 		for (const auto& it : grid) {
-			if (auto* tile{ it.get() }; var::variadic_or(typeid(*tile) == typeid(ValidSpawnTiles)...))
-				if (point pos{ grid.from1D(i) }; getActorAt(pos) == nullptr)
+			if (auto* tile{ it.get() }; var::variadic_or(typeid(*tile) == typeid(ValidSpawnTiles)...)) {
+				point pos{ grid.from1D(i) };
+				if (!checkForActors || getActorAt(pos) == nullptr)
 					vec.emplace_back(std::move(pos));
+			}
 			++i;
 		}
 
 		vec.shrink_to_fit();
 		return vec;
 	}
-	std::vector<point> getAllValidSpawnTiles()
+	std::vector<point> getAllValidSpawnTiles(const bool& checkForActors = true)
 	{
-		return getAllValidSpawnTiles<floortile>();
+		return getAllValidSpawnTiles<floortile>(checkForActors);
 	}
 
 	/**
@@ -252,12 +143,19 @@ struct gamespace {
 		return{ getTileAt(x, y), getActorAt(x, y) };
 	}
 
+	template<std::derived_from<tile>... Ts>
+	bool checkTileType(tile* t)
+	{
+		const auto& tType{ typeid(*t) };
+		return var::variadic_or(tType == typeid(Ts)...);
+	}
+
 	bool canMove(ActorBase* actor, const point& posDiff) noexcept(false)
 	{
 		if (actor == nullptr)
 			throw make_exception("gamespace::canMove() failed:  Received nullptr instead of ActorBase*!");
 		const auto& newPos{ actor->pos + posDiff };
-		if (!isWithinBounds(newPos)) // if the pos is out of bounds, return false early
+		if (!newPos.within(getPlayableBounds())) // if the pos is out of bounds, return false early
 			return false;
 		if (auto* tile{ getTileAt(newPos) }; tile != nullptr && typeid(*tile) != typeid(walltile)) {
 			// check for actors
@@ -274,30 +172,64 @@ struct gamespace {
 	}
 
 #	pragma region Movement
-	void moveActor(ActorBase* actor, const point& posDiff)
+	/**
+	 * @brief			Move an actor by the specified number of positions.
+	 * @param actor		The actor to move.
+	 * @param posDiff	A point to add to the actors current position.
+	 * @returns			bool
+	 *					true:	Successfully moved actor by the specified distance.
+	 *					false:	Failed to move the actor.
+	 */
+	bool moveActor(ActorBase* actor, const point& posDiff)
 	{
 		if (canMove(actor, posDiff)) {
 			actor->movePosBy(posDiff);
 			if (auto* tile{ getTileAt(actor->pos) }; tile != nullptr)
 				tile->effect(actor);
+			return true;
 		}
+		return false;
 	}
-	void moveActor(ActorBase* actor, point&& posDiff)
+	/**
+	 * @brief			Move an actor by the specified number of positions.
+	 * @param actor		The actor to move.
+	 * @param posDiff	A point to add to the actors current position.
+	 * @returns			bool
+	 *					true:	Successfully moved actor by the specified distance.
+	 *					false:	Failed to move the actor.
+	 */
+	bool moveActor(ActorBase* actor, point&& posDiff)
 	{
 		if (canMove(actor, std::forward<point>(posDiff))) {
 			actor->movePosBy(std::forward<point>(posDiff));
 			if (auto* tile{ getTileAt(actor->pos) }; tile != nullptr)
 				tile->effect(actor);
+			return true;
 		}
+		return false;
 	}
-	void moveActor(ActorBase* actor, const position& x, const position& y)
+	/**
+	 * @brief			Move an actor by the specified number of positions.
+	 * @param actor		The actor to move.
+	 * @param x			X-Axis Position Modifier
+	 * @param y			Y-Axis Position Modifier
+	 * @returns			bool
+	 *					true:	Successfully moved actor by the specified distance.
+	 *					false:	Failed to move the actor.
+	 */
+	bool moveActor(ActorBase* actor, const position& x, const position& y)
 	{
 		return moveActor(actor, std::move(point{ x, y }));
 	}
 
-	void movePlayer(const point& posDiff) { moveActor(&player, posDiff); }
-	void movePlayer(const position& x, const position& y) { moveActor(&player, x, y); }
+	bool movePlayer(const point& posDiff) { return moveActor(&player, posDiff); }
+	bool movePlayer(const position& x, const position& y) { return moveActor(&player, x, y); }
 #	pragma endregion Movement
+
+	Faction& getFaction(const int& factionID)
+	{
+		return GameConfig.getFactionFromID(factionID);
+	}
 
 	/**
 	 * @brief		Remove an NPC from the list using a given iterator.
@@ -311,26 +243,54 @@ struct gamespace {
 		return npcs.erase(it, it + 1);
 	}
 
+	point pathFind(const point& start, const point& target) const
+	{
+		std::vector<pathNode> vec;
+
+		const point min{ minimize(start, target) }, max{ maximize(start, target) };
+
+		for (position y{ min.y }; y < max.y; ++y) {
+			for (position x{ min.x }; x < max.x; ++x) {
+				vec.emplace_back();
+			}
+		}
+	}
+
 	bool PerformActionNPC(NPC* npc)
 	{
 		if (npc == nullptr)
 			throw make_exception("gamespace::PerformActionNPC() failed:  Received nullptr!");
 
-		if (auto* target{ npc->getTarget() }; target != nullptr) {
-
+		if (npc->hasTarget()) {
+			if (auto* target{ npc->getTarget() }; target != nullptr) {
+				if (target->isDead()) // unset dead target
+					npc->setTarget(nullptr);
+				// else target is alive
+				else {
+					moveActor(npc, npc->pos.distanceTo(target->pos).zeroedLargestAxis().clamp());
+					return npc->isDead();
+				}
+			}
 		}
-
-		point dir{ 0, 0 };
-		switch (rng.get(0, 1)) {
-		case 0:
-			dir.x += rng.get(0, 1) == 1 ? 1 : -1;
-			break;
-		case 1:
-			dir.y += rng.get(0, 1) == 1 ? 1 : -1;
-			break;
+		// check nearby positions for enemies
+		const auto& myFaction{ getFaction(npc->factionID) };
+		const auto& nearby{ npc->pos.getAllPointsWithinCircle(npc->aggressionRange, getPlayableBounds()) };
+		for (const auto& npos : nearby) {
+			if (auto* actor{ getActorAt(npos) }; actor != nullptr && myFaction.isHostileTo(actor->factionID)) {
+				npc->setTarget(actor);
+				moveActor(npc, npc->pos.distanceTo(actor->pos).zeroedLargestAxis().clamp());
+				return npc->isDead();
+			}
 		}
-
-		moveActor(npc, dir);
+		if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance) {
+			point dir{ 0, 0 };
+			if (rng.get(0, 1) == 1)
+				dir.x += rng.get(-1, 1);
+			else
+				dir.y += rng.get(-1, 1);
+			moveActor(npc, dir);
+		}
+		return npc->isDead();
 	}
 
 	/**
@@ -341,12 +301,11 @@ struct gamespace {
 	{
 		for (auto it{ npcs.begin() }; it != npcs.end(); ) {
 			if (auto* npc{ it->get() }; npc != nullptr) {
-				if (npc->isDead()) {
+				if (npc->isDead() || PerformActionNPC(npc)) {
 					it->reset();
 					it = removeNPC(it);
 					continue; ///< required!
 				}
-				else PerformActionNPC(npc);
 			}
 			else it = removeNPC(it);
 			if (it != npcs.end())
