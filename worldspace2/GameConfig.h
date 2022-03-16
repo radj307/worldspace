@@ -136,3 +136,7 @@ inline bool tileAllowsMovement(tile* t)
 {
 	return tileAllowsMovement<floortile, traptile, doortile, containertile>(t);
 }
+inline static std::pair<point, point> getPlayableBounds()
+{
+	return{ GameConfig.minPos, GameConfig.maxPos };
+}

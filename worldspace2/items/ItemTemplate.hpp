@@ -1,4 +1,6 @@
 #pragma once
+#include "../base/BaseAttributes.hpp"
+
 #include <string>
 #include <optional>
 

@@ -7,8 +7,8 @@
 #include "positionable_text.h"
 
 struct PauseMenu : positionable_text {
-	inline static std::vector<std::string> text{
-		"Game Paused"
+	inline static std::vector<std::vector<std::string>> text{
+		{ "Game Paused" }
 	};
 	color::setcolor color;
 

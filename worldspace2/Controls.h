@@ -60,6 +60,17 @@ struct Controls {
 		}
 	}
 
+	std::vector<char> getKeyBindsFor(const Control& ctrl) const
+	{
+		const auto& str{ bindings.at(ctrl) };
+		std::vector<char> vec;
+		vec.reserve(str.size());
+		for (const auto& ch : str)
+			vec.emplace_back(ch);
+		vec.shrink_to_fit();
+		return vec;
+	}
+
 	bool importINI(const file::INI& ini)
 	{
 		if (ini.check_header("controls")) {

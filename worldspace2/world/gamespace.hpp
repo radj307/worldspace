@@ -9,21 +9,6 @@
 #include <optional>
 #include <map>
 
-using size = point;
-inline static std::pair<point, point> getPlayableBounds()
-{
-	return{ GameConfig.minPos, GameConfig.maxPos };
-}
-
-struct pathNode {
-	point pos;
-	int weight;
-
-	pathNode(const point& p, const int& weight = 0) : pos{ p }, weight{ weight } {}
-
-
-};
-
 struct gamespace {
 	rng::Random rng;
 	matrix grid;
@@ -243,7 +228,7 @@ struct gamespace {
 		return npcs.erase(it, it + 1);
 	}
 
-	point pathFind(const point& start, const point& target) const
+	point pathFind(const point& start, const point& target)
 	{
 		const auto& bounds{ getPlayableBounds() };
 		const auto& movable{ [&bounds, this](const point& p) {
@@ -254,8 +239,8 @@ struct gamespace {
 
 		const point& diff{ start.distanceTo(target) }, diffNormal{ diff.clamp() };
 
-		const auto& lrg{ diff.getLargestAxis() }, sml{ diff.getSmallestAxis() };
-		if (sml == 0) {
+		if (const auto& sml{ diff.getSmallestAxis() }; sml == 0 || rng.get(0, 2) == 0) { // 33% chance of using small axis
+			const auto& lrg{ diff.getLargestAxis() };
 			if (lrg == diff.x)
 				return point{ lrg, 0 }.clamp();
 			else
@@ -268,7 +253,7 @@ struct gamespace {
 
 		return { 0, 0 };
 	}
-	point pathFind(ActorBase* actor, const point& target) const
+	point pathFind(ActorBase* actor, const point& target)
 	{
 		return pathFind(actor->pos, target);
 	}
@@ -278,23 +263,23 @@ struct gamespace {
 		if (npc == nullptr)
 			throw make_exception("gamespace::PerformActionNPC() failed:  Received nullptr!");
 
-		if (npc->hasTarget()) {
-			if (auto* target{ npc->getTarget() }; target != nullptr) {
-				if (target->isDead()) // unset dead target
-					npc->setTarget(nullptr);
-				// else target is alive
-				else {
-					moveActor(npc, pathFind(npc, target->pos));
-					return npc->isDead();
-				}
-			}
-		}
+		//if (npc->hasTarget()) {
+		//	if (auto* target{ npc->getTarget() }; target != nullptr) {
+		//		if (target->isDead()) // unset dead target
+		//			npc->setTarget(nullptr);
+		//		// else target is alive
+		//		else {
+		//			moveActor(npc, pathFind(npc, target->pos));
+		//			return npc->isDead();
+		//		}
+		//	}
+		//}
 		// check nearby positions for enemies
 		const auto& myFaction{ getFaction(npc->factionID) };
 		const auto& nearby{ npc->pos.getAllPointsWithinCircle(npc->aggressionRange, getPlayableBounds()) };
 		for (const auto& npos : nearby) {
 			if (auto* actor{ getActorAt(npos) }; actor != nullptr && myFaction.isHostileTo(actor->factionID)) {
-				npc->setTarget(actor);
+				//npc->setTarget(actor);
 				moveActor(npc, pathFind(npc, actor->pos));
 				return npc->isDead();
 			}

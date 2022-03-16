@@ -60,10 +60,6 @@ struct ActorBase : DisplayableBase, Positionable {
 			if (attacker != nullptr) {
 				attacker->stamina -= defense / CalculationSettings.REDUCE_ATTACKER_STAMINA_LOSS_DIV;
 			}
-			if (dmg > 0.0f) {
-				dmg -= stamina;
-				stamina -= dmg / CalculationSettings.REDUCE_DEFENDER_STAMINA_LOSS_DIV; // reduce stamina by the amount of entirely unblocked damage
-			}
 		}
 		if (dmg < 0.0f)
 			dmg = 0.0f;

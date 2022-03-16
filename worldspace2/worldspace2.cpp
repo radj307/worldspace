@@ -4,6 +4,7 @@
 #include "Controls.h"
 #include "display/framebuffer.hpp"
 #include "display/PauseMenu.hpp"
+#include "display/GameOverMenu.hpp"
 #include "actors/Actors.h"
 #include "world/gamespace.hpp"
 #include "world/framebuilder_matrix.hpp"
@@ -149,13 +150,44 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 	}
 }
 
+using namespace std::chrono_literals;
+
+inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& timeout = 6000ms)
+{
+	const auto& tStart{ std::chrono::high_resolution_clock::now() };
+
+	point pos{ static_cast<point>(term::getScreenBufferSize()) / 2 };
+	pos.y /= 1.5;
+
+	GameOverMenu menu{ pos, controls };
+	menu.display();
+
+	pos.y += menu.height() + 1ull;
+
+	for (auto elapsed{ std::chrono::high_resolution_clock::now() - tStart }; elapsed < timeout; elapsed = std::chrono::high_resolution_clock::now() - tStart) {
+		if (term::kbhit()) {
+			int key{ term::getch() };
+			switch (controls.fromKey(key)) {
+			case Control::RESTART:
+				std::cout << term::clear;
+				return true;
+			case Control::QUIT:
+				return false;
+			default:
+				break;
+			}
+		}
+		const auto& s{ str::stringify(std::chrono::duration_cast<std::chrono::milliseconds>(timeout - elapsed).count(), " ms...") };
+		std::cout << term::setCursorPosition(point{ pos.x - static_cast<int>(s.size()) / 2 - 4, pos.y }) << "    " << s << "    ";
+	}
+	return false;
+}
+
 int main(const int argc, char** argv)
 {
 	try {
 		// enable ANSI escape sequences
 		std::cout << term::EnableANSI;
-
-		const auto& scbSize{ term::getScreenBufferSize() };
 
 		// parse arguments, resolve path
 		opt::ParamsAPI2 args{ argc, argv };
@@ -180,8 +212,6 @@ int main(const int argc, char** argv)
 		// Swap to alternate screen buffer
 		std::cout << term::EnableAltScreenBuffer << term::CursorVisible(false);
 
-		// set the global state to initializing
-		Global.state = GameState::INITIALIZING;
 
 		// initialize controls & ini config
 		Controls controls;
@@ -193,21 +223,26 @@ int main(const int argc, char** argv)
 
 		const auto& timeStart{ std::chrono::high_resolution_clock::now() };
 
-		gamespace game;
+		do {
+			// set the global state to initializing
+			Global.state = GameState::INITIALIZING;
 
-		framebuffer framebuf{ gridSize };
-		framebuf.setBuilder<framebuilder_matrix>(game.grid);
-		framebuf.setLinker<framelinker_gamespace>(game);
-		framebuf.setPanel<statpanel>(&game.player);
+			gamespace game{};
 
-		auto
-			t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls), std::ref(game)) },
-			t_display{ std::async(std::launch::async, thread_display, std::ref(mutex), std::ref(framebuf)) },
-			t_game{ std::async(std::launch::async, thread_game, std::ref(mutex), std::ref(game)) };
+			framebuffer framebuf{ gridSize };
+			framebuf.setBuilder<framebuilder_matrix>(game.grid);
+			framebuf.setLinker<framelinker_gamespace>(game);
+			framebuf.setPanel<statpanel>(&game.player);
 
-		t_input.wait();
-		t_display.wait();
-		t_game.wait();
+			auto
+				t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls), std::ref(game)) },
+				t_display{ std::async(std::launch::async, thread_display, std::ref(mutex), std::ref(framebuf)) },
+				t_game{ std::async(std::launch::async, thread_game, std::ref(mutex), std::ref(game)) };
+
+			t_input.wait();
+			t_display.wait();
+			t_game.wait();
+		} while (Global.state != GameState::EXCEPTION && handleGameOver(controls));
 
 		const auto& timeEnd{ std::chrono::high_resolution_clock::now() };
 
