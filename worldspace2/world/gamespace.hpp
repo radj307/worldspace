@@ -165,7 +165,7 @@ struct gamespace {
 			if (const auto& other{ getActorAt(newPos) }; other != nullptr) {
 				// check if the actor is hostile towards the target
 				if (typeid(*actor) == typeid(Player) || GameConfig.getFactionFromID(actor->factionID).isHostileTo(other->factionID)) {
-					return other->applyDamageFrom(actor); // return true if other died
+					return other->applyDamageFrom(actor); // return true if other actor died
 				}
 				else return false;
 			}
@@ -231,8 +231,9 @@ struct gamespace {
 
 	bool fireProjectile(ActorBase* actor, const point& direction)
 	{
-		//if (actor->ammunitionCount-- > 0) {
 		const auto& origin{ actor->pos + direction };
+		if (getProjectileAt(origin) != nullptr)
+			return false;
 		// check if the projectile spawn location currently has an actor located there
 		if (auto* o{ getActorAt(origin) }; o != nullptr) {
 			const auto& fID{ actor->factionID };
@@ -241,11 +242,12 @@ struct gamespace {
 			// create a temporary projectile and attack the actor
 			Projectile tmp{ actor, origin, direction, actor->damage, true };
 			o->applyDamage(tmp.damage, tmp.piercing);
+			return true;
 		}
-		else
+		else {
 			projectiles.emplace_back(std::make_unique<Projectile>(actor, origin, direction, actor->damage * 2, true));
-		return true;
-		//}
+			return true;
+		}
 		return false;
 	}
 	bool playerFireProjectile(const point& direction)
@@ -361,6 +363,18 @@ struct gamespace {
 		return count;
 	}
 
+	point getRandomDir()
+	{
+		point dir{ rng.get(-1, 1), rng.get(-1, 1) };
+		if (dir.x != 0 && dir.y != 0) {
+			if (rng.get(0, 1) == 0)
+				dir.x = 0;
+			else
+				dir.y = 0;
+		}
+		return dir;
+	}
+
 	/**
 	 * @brief		Perform a turn for one NPC.
 	 * @param npc	Pointer to an NPC.
@@ -399,12 +413,7 @@ struct gamespace {
 		}
 		// npc still doesn't have a target
 		else if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance) {
-			point dir{ 0, 0 };
-			if (rng.get(0, 1) == 1)
-				dir.x += rng.get(-1, 1);
-			else
-				dir.y += rng.get(-1, 1);
-			moveActor(npc, dir);
+			moveActor(npc, getRandomDir());
 		}
 		return npc->isDead();
 	}

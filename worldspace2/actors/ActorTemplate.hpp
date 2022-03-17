@@ -10,7 +10,7 @@
 struct ActorTemplate {
 private:
 	std::optional<DisplayableBase> displayable;
-	std::optional<int> factionID;
+	std::optional<ID> factionID;
 	std::optional<unsigned> level;
 	std::optional<std::string> name;
 	std::optional<StatFloat> health, stamina, damage, defense, fear, aggression;
@@ -99,7 +99,7 @@ public:
 	{
 		return level.value_or(default_level);
 	}
-	int getFactionID() const
+	ID getFactionID() const
 	{
 		return factionID.value_or(default_factionID);
 	}
