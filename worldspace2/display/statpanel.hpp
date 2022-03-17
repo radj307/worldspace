@@ -2,6 +2,7 @@
 #include "../base/BaseAttributes.hpp"
 #include "../actors/ActorBase.hpp"
 #include "frame.hpp"
+#include "../display/positionable_text.h"
 
 #include <concepts>
 
@@ -13,7 +14,7 @@ struct statbar {
 	color::setcolor fillColor{ color::white, color::Layer::B };
 
 	statbar(StatBase<T>* stat, const color::setcolor& fillColor) : stat{ stat }, fillColor{ fillColor } {}
-	
+
 	friend std::ostream& operator<<(std::ostream& os, const statbar<T>& sb)
 	{
 		const int& scale{ sb.scale };
@@ -64,3 +65,30 @@ struct statpanel {
 		std::cout << term::setCursorPosition(statbar_origin) << hp << separator << sp;
 	}
 };
+
+template<typename StatType>
+struct positionable_statbar : positionable_text {
+	std::vector<std::vector<std::string>> text;
+	char left{ '(' }, right{ ')' }, fill{ '@' }, mod{ '@' }, empty{ ' ' };
+	color::setcolor fillColor, modColor;
+	int scale{ 10 };
+
+	StatBase<StatType>* stat{ nullptr };
+
+	positionable_statbar(StatBase<StatType>* stat, const point& csbTopMiddle, const color::setcolor& color) : positionable_text(csbTopMiddle, text), fillColor{ color }, modColor{}, stat{ stat } {}
+
+	std::string getFill() const
+	{
+		std::string buf;
+		if (stat != nullptr) {
+			buf.reserve(static_cast<size_t>(scale * 2));
+			const auto& scaled{ stat->toScale() };
+			for (int i{ 0 }; i < scale; ++i) {
+
+			}
+		}
+		buf.shrink_to_fit();
+		return buf;
+	}
+};
+

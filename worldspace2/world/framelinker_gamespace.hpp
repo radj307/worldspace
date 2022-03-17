@@ -9,6 +9,8 @@ struct framelinker_gamespace : framelinker {
 	{
 		if (auto* actor{ g.getActorAt(x, y) }; actor != nullptr && !actor->isDead())
 			return *actor;
+		else if (auto* proj{ g.getProjectileAt(x, y) }; proj != nullptr)
+			return *proj;
 		return std::nullopt;
 	}
 };
