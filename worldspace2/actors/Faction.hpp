@@ -3,56 +3,68 @@
 #include <vector>
 #include <algorithm>
 
-inline constexpr const int NULL_FACTION_ID{ -1 };
+using ID = short;
+
+inline constexpr const ID NULL_FACTION_ID{ -1 };
 
 struct Faction {
 protected:
-	const int myID;
+	const ID myID;
+	std::vector<ID> hostile;
+	const bool allowHostileToSelf;
 
-	std::vector<int> hostile;
-
-	auto find(const int& id)
+	std::vector<ID>::iterator find(const ID& id)
 	{
 		return std::find(hostile.begin(), hostile.end(), id);
 	}
 
-	auto contains(const int& id) const
+	bool contains(const ID& id) const
 	{
 		return std::any_of(hostile.begin(), hostile.end(), [&id](auto&& oid) {return id == oid; });
 	}
 
 public:
-	Faction(int&& id, std::vector<int>&& hostile_ids = {}) : myID{std::forward<int>(id)}, hostile{std::forward<std::vector<int>>(hostile_ids)} {}
-	Faction(const int& id, const std::vector<int>& hostile_ids = {}) : myID{id}, hostile{hostile_ids} {}
+	Faction(ID&& id, std::vector<ID>&& hostile_ids = {}, const bool& allowHostileToSelf = false) : myID{ std::forward<ID>(id) }, hostile{ std::forward<std::vector<ID>>(hostile_ids) }, allowHostileToSelf{ allowHostileToSelf } {}
+	Faction(const ID& id, const std::vector<ID>& hostile_ids = {}, const bool& allowHostileToSelf = false) : myID{ id }, hostile{ hostile_ids }, allowHostileToSelf{ allowHostileToSelf } {}
 
-	void setHostile(const int& id)
+	void addHostile(const ID& id)
 	{
-		if (id != myID && !std::any_of(hostile.begin(), hostile.end(), [&id](auto&& oid) {return id == oid; }))
+		if ((id != myID || allowHostileToSelf) && !std::any_of(hostile.begin(), hostile.end(), [&id](auto&& oid) {return id == oid; }))
 			hostile.emplace_back(id);
 	}
-	void unsetHostile(const int& id)
+	void removeHostile(const ID& id)
 	{
 		if (const auto& it{ find(id) }; it != hostile.end())
 			hostile.erase(it, it);
 	}
 
-	bool isHostileTo(const int& id) const
+	bool isHostileTo(const ID& id) const
 	{
 		return contains(id);
 	}
-	bool isNeutralTo(const int& id) const
-	{
-		return !contains(id);
-	}
 
-	bool operator==(const int& id) const
+	bool operator==(const ID& id) const
 	{
 		return myID == id;
 	}
-	bool operator!=(const int& id) const
+	bool operator!=(const ID& id) const
 	{
 		return myID != id;
 	}
 
-	operator int() const { return myID; }
+	bool isHostileToSelf() const
+	{
+		return isHostileTo(myID);
+	}
+	bool mayBeHostileToSelf() const
+	{
+		return allowHostileToSelf;
+	}
+
+	ID getID() const
+	{
+		return myID;
+	}
+
+	operator ID() const { return getID(); }
 };

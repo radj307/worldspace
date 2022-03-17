@@ -2,6 +2,7 @@
 #include "../actors/ActorBase.hpp"
 #include "matrix.hpp"
 #include "../GameConfig.h"
+#include "../actors/Projectile.hpp"
 
 #include <math.hpp>
 #include <xRand.hpp>
@@ -13,7 +14,12 @@ struct gamespace {
 	rng::Random rng;
 	matrix grid;
 	Player player;
-	std::vector<std::unique_ptr<NPC>> npcs;
+
+	using NPCContainer = std::vector<std::unique_ptr<NPC>>;
+	using ProjContainer = std::vector<std::unique_ptr<Projectile>>;
+
+	NPCContainer npcs;
+	ProjContainer projectiles;
 
 	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
 		const auto& cont{ getAllValidSpawnTiles<floortile>(false) };
@@ -85,6 +91,18 @@ struct gamespace {
 		npcs.shrink_to_fit();
 	}
 
+	Projectile* getProjectileAt(const point& pos) const
+	{
+		for (auto it{ projectiles.begin() }; it != projectiles.end(); ++it)
+			if (auto* proj{ it->get() }; proj->pos == pos)
+				return proj;
+		return nullptr;
+	}
+	Projectile* getProjectileAt(const position& x, const position& y) const
+	{
+		return getProjectileAt(point{ x, y });
+	}
+
 	ActorBase* getActorAt(const point& pos) const
 	{
 		if (pos == player.pos)
@@ -146,7 +164,7 @@ struct gamespace {
 			// check for actors
 			if (const auto& other{ getActorAt(newPos) }; other != nullptr) {
 				// check if the actor is hostile towards the target
-				if (GameConfig.getFactionFromID(actor->factionID).isHostileTo(other->factionID)) {
+				if (typeid(*actor) == typeid(Player) || GameConfig.getFactionFromID(actor->factionID).isHostileTo(other->factionID)) {
 					return other->applyDamageFrom(actor); // return true if other died
 				}
 				else return false;
@@ -211,6 +229,30 @@ struct gamespace {
 	bool movePlayer(const position& x, const position& y) { return moveActor(&player, x, y); }
 #	pragma endregion Movement
 
+	bool fireProjectile(ActorBase* actor, const point& direction)
+	{
+		//if (actor->ammunitionCount-- > 0) {
+		const auto& origin{ actor->pos + direction };
+		// check if the projectile spawn location currently has an actor located there
+		if (auto* o{ getActorAt(origin) }; o != nullptr) {
+			const auto& fID{ actor->factionID };
+			if (auto& oFaction{ getFaction(o->factionID) }; !oFaction.isHostileTo(fID))
+				oFaction.addHostile(fID);
+			// create a temporary projectile and attack the actor
+			Projectile tmp{ actor, origin, direction, actor->damage, true };
+			o->applyDamage(tmp.damage, tmp.piercing);
+		}
+		else
+			projectiles.emplace_back(std::make_unique<Projectile>(actor, origin, direction, actor->damage * 2, true));
+		return true;
+		//}
+		return false;
+	}
+	bool playerFireProjectile(const point& direction)
+	{
+		return fireProjectile((ActorBase*)&player, direction);
+	}
+
 	Faction& getFaction(const int& factionID)
 	{
 		return GameConfig.getFactionFromID(factionID);
@@ -221,11 +263,22 @@ struct gamespace {
 	 *\n			If you're calling this from a for loop, make sure to set the given
 	 *\n			iterator to the return value of this function to prevent a hanging pointer.
 	 * @param it	An iterator pointing to the target npc.
-	 * @returns		std::vector<std::unique_ptr<NPC>>::iterator
+	 * @returns		NPCContainer::iterator
 	 */
-	std::vector<std::unique_ptr<NPC>>::iterator removeNPC(const std::vector<std::unique_ptr<NPC>>::const_iterator& it)
+	NPCContainer::iterator removeNPC(const NPCContainer::const_iterator& it)
 	{
 		return npcs.erase(it, it + 1);
+	}
+	/**
+	 * @brief		Remove a projectile from the list using a given iterator.
+	 *\n			If you're calling this from a for loop, make sure to set the given
+	 *\n			iterator to the return value of this function to prevent a hanging pointer.
+	 * @param it	An iterator pointing to the target projectile.
+	 * @returns		ProjContainer::iterator
+	 */
+	ProjContainer::iterator removeProjectile(const ProjContainer::const_iterator& it)
+	{
+		return projectiles.erase(it, it + 1);
 	}
 
 	point pathFind(const point& start, const point& target)
@@ -258,33 +311,94 @@ struct gamespace {
 		return pathFind(actor->pos, target);
 	}
 
-	bool PerformActionNPC(NPC* npc)
+	ActorBase* findNearbyActor(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
+	{
+		const auto& nearbyPositions{ center.getAllPointsWithinCircle(radius, getPlayableBounds()) };
+		for (const auto& npos : nearbyPositions)
+			if (auto* actor{ getActorAt(npos) }; actor != nullptr)
+				if (pred(actor))
+					return actor;
+		return nullptr;
+	}
+
+	void applyToAll(const std::function<void(ActorBase*)>& function)
+	{
+		function((ActorBase*)&player);
+		for (const auto& it : npcs)
+			function(it.get());
+	}
+
+	void PerformPeriodicRegen()
+	{
+		applyToAll([](ActorBase* actor) {
+			actor->health += GameConfig.regenHealth;
+			actor->stamina += GameConfig.regenStamina;
+		});
+	}
+
+	/**
+	 * @brief	Count the number of actors that are of a specified type.
+	 * @returns	size_t
+	 */
+	template<std::derived_from<ActorBase>... Types>
+	size_t countNPCsWithType() const
+	{
+		size_t count{ 0ull };
+		for (const auto& it : npcs)
+			if (auto* npc{ it.get() }; npc != nullptr)
+				if (const auto& myType{ typeid(*npc) }; var::variadic_or(myType == typeid(Types)...))
+					++count;
+		return count;
+	}
+	template<std::same_as<ID>... Ids> requires var::at_least_one<Ids...>
+	size_t countNPCsWithFaction(Ids&&... ids) const
+	{
+		size_t count{ 0ull };
+		for (const auto& it : npcs)
+			if (auto* npc{ it.get() }; npc != nullptr)
+				if (const auto& myFaction{ npc->factionID }; var::variadic_or(myFaction == ids...))
+					++count;
+		return count;
+	}
+
+	/**
+	 * @brief		Perform a turn for one NPC.
+	 * @param npc	Pointer to an NPC.
+	 * @returns		bool
+	 */
+	bool PerformActionNPC(NPC* npc) noexcept(false)
 	{
 		if (npc == nullptr)
 			throw make_exception("gamespace::PerformActionNPC() failed:  Received nullptr!");
 
-		//if (npc->hasTarget()) {
-		//	if (auto* target{ npc->getTarget() }; target != nullptr) {
-		//		if (target->isDead()) // unset dead target
-		//			npc->setTarget(nullptr);
-		//		// else target is alive
-		//		else {
-		//			moveActor(npc, pathFind(npc, target->pos));
-		//			return npc->isDead();
-		//		}
-		//	}
-		//}
-		// check nearby positions for enemies
 		const auto& myFaction{ getFaction(npc->factionID) };
-		const auto& nearby{ npc->pos.getAllPointsWithinCircle(npc->aggressionRange, getPlayableBounds()) };
-		for (const auto& npos : nearby) {
-			if (auto* actor{ getActorAt(npos) }; actor != nullptr && myFaction.isHostileTo(actor->factionID)) {
-				//npc->setTarget(actor);
-				moveActor(npc, pathFind(npc, actor->pos));
-				return npc->isDead();
-			}
+
+		const auto& nearbyPredicate{ [&myFaction](ActorBase* o) {
+			return o != nullptr && myFaction.isHostileTo(o->factionID);
+		} };
+
+		// npc does not have a target
+		if (!npc->target.has_value()) {
+			auto* nearbyActor{ findNearbyActor(npc->aggressionRange, npc->pos, nearbyPredicate) };
+			if (nearbyActor != nullptr)
+				npc->target = nearbyActor->pos;
 		}
-		if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance) {
+		// npc has a target
+		if (npc->target.has_value()) {
+			const auto& targetPos{ npc->target.value() };
+			// if no one is located at the target position
+			if (npc->pos == targetPos) {
+				if (auto* nearbyActor{ findNearbyActor(npc->aggressionRange, npc->pos, nearbyPredicate) }; nearbyActor != nullptr) {
+					if (const auto& faction{ getFaction(npc->factionID) }; faction.isHostileTo(nearbyActor->factionID))
+						npc->target = nearbyActor->pos;
+				}
+				npc->target = std::nullopt;
+			}
+			else
+				moveActor(npc, pathFind(npc, targetPos));
+		}
+		// npc still doesn't have a target
+		else if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance) {
 			point dir{ 0, 0 };
 			if (rng.get(0, 1) == 1)
 				dir.x += rng.get(-1, 1);
@@ -299,8 +413,9 @@ struct gamespace {
 	 * @brief	Performs an action for all npcs in the list.
 	 *\n		This function should be called by the game loop.
 	 */
-	void PerformActionAllNPCs()
+	void PerformActionAllNPCs() noexcept(false)
 	{
+		// handle NPCs
 		for (auto it{ npcs.begin() }; it != npcs.end(); ) {
 			if (auto* npc{ it->get() }; npc != nullptr) {
 				if (npc->isDead() || PerformActionNPC(npc)) {
@@ -312,6 +427,39 @@ struct gamespace {
 			else it = removeNPC(it);
 			if (it != npcs.end())
 				++it;
+		}
+	}
+
+	/**
+	 * @brief	Processes all projectiles currently
+	 */
+	void ProcessProjectileActions() noexcept(false)
+	{
+		if (!projectiles.empty()) {
+			const auto& bounds{ getPlayableBounds() };
+
+			for (auto it{ projectiles.begin() }; it != projectiles.end();) {
+				if (auto* proj{ it->get() }; proj != nullptr) {
+					if (const auto& nextPos{ proj->nextPos() }; nextPos.within(bounds)) {
+						if (auto* tile{ getTileAt(nextPos) }; tile != nullptr) {
+							if (!tileAllowsMovement(tile))
+								it = removeProjectile(it);
+							else if (auto* actor{ getActorAt(nextPos) }; actor != nullptr) {
+								actor->applyDamage(proj->damage, proj->piercing);
+								it = removeProjectile(it);
+							}
+							else proj->move();
+							if (std::distance(it, projectiles.end()) > 0) {
+								++it;
+								continue;
+							}
+							else break;
+						}
+					}
+				}
+				if (!projectiles.empty())
+					it = removeProjectile(it);
+			}
 		}
 	}
 };

@@ -12,10 +12,7 @@ struct Player : ActorBase {
 };
 
 struct NPC : ActorBase {
-private:
-	ActorBase* target{ nullptr };
-
-public:
+	std::optional<point> target{ std::nullopt };
 	StatFloat fear;
 	StatFloat aggression;
 	StatUnsigned aggressionRange;
@@ -32,19 +29,6 @@ public:
 	bool isAfraid()
 	{
 		return fear > aggression;
-	}
-
-	bool hasTarget() const
-	{
-		return target != nullptr;
-	}
-	ActorBase* getTarget()
-	{
-		return target;
-	}
-	void setTarget(ActorBase* newTarget)
-	{
-		target = newTarget;
 	}
 };
 
