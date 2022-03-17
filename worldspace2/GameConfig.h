@@ -28,7 +28,7 @@ static struct {
 		Faction{ 3 }
 	};
 
-	Faction& getFactionFromID(const int& id)
+	Faction& getFactionFromID(const ID& id)
 	{
 		for (int i{ 1 }; i < factions.size(); ++i)
 			if (auto& fac{ factions[i] }; fac == id)
@@ -44,7 +44,7 @@ static struct {
 	std::vector<ActorTemplate> npc_templates{
 		ActorTemplate{
 			DisplayableBase{ '*', color::setcolor::cyan },
-			passiveFaction.operator int(),
+			passiveFaction.operator ID(),
 			1u,
 			"Chicken"s,
 			StatFloat(30.0f),
@@ -124,6 +124,9 @@ static struct {
 	double npcDistribRate{ 1.0 }; ///< @brief	This is the value for (lambda) in an exponential distribution function. It is used to select actor templates less often when placed at high (relative) indexes in the ActorTemplate vectors above. The lower the value, the closer to a straight line. The higher the value, the more curved. See this image for a graphic: ( https://en.wikipedia.org/wiki/Exponential_distribution#/media/File:Exponential_cdf.svg ).
 
 	float npcIdleMoveChance{ 33.0f }; ///< @brief	Percentage chance out of 100 that an NPC moves when it doesn't have a target, and there are no nearby hostiles.
+
+	float regenHealth{ 0.0f }; ///< @brief	The amount of health regenerated every time the periodic regen function is called
+	float regenStamina{ 5.0f }; ///< @brief	The amount of stamina regenerated every time the periodic regen function is called
 } GameConfig;
 
 template<std::derived_from<tile>... AllowTypes>

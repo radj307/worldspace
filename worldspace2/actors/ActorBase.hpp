@@ -3,13 +3,14 @@
 #include "../calc.h"
 #include "../items/ItemBase.hpp"
 #include "ActorTemplate.hpp"
+#include "Faction.hpp"
 
 #include <var.hpp>
 
 #include <typeinfo>
 
 struct ActorBase : DisplayableBase, Positionable {
-	int factionID;
+	ID factionID;
 	unsigned level;
 	std::string name;
 	StatFloat health;
@@ -29,7 +30,7 @@ struct ActorBase : DisplayableBase, Positionable {
 	 * @param maxDM		My maximum and default damage.
 	 * @param maxDF		My maximum and default defense.
 	 */
-	ActorBase(const int& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, std::vector<std::unique_ptr<ItemBase<float>>> items = {}) : DisplayableBase(display, color), factionID{ factionID }, level{ level }, name{ name }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) } {}
+	ActorBase(const ID& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, std::vector<std::unique_ptr<ItemBase<float>>> items = {}) : DisplayableBase(display, color), factionID{ factionID }, level{ level }, name{ name }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) } {}
 
 	ActorBase(const point& startPos, const ActorTemplate& t) :
 		DisplayableBase(t.getDisplayableBase()),
