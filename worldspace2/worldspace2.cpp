@@ -37,13 +37,98 @@ inline std::ostream& help(std::ostream& os)
 		;
 }
 
+using CLK = std::chrono::high_resolution_clock;
+using DUR = std::chrono::duration<long double>;
+using TIMEP = std::chrono::time_point<CLK, DUR>;
+
+#if defined(_DEBUG)
+#define ENABLE_DIAGNOSTICS
+
+template<typename T, typename Key = TIMEP>
+struct diag_recorder {
+	std::vector<std::pair<Key, T>> history;
+
+	diag_recorder() = default;
+
+	diag_recorder(std::vector<T>&& history) : history{ std::move(history) } {}
+	diag_recorder(const std::vector<T>& history) : history{ history } {}
+
+	WINCONSTEXPR auto begin() const { return history.begin(); }
+	WINCONSTEXPR auto end() const { return history.end(); }
+
+	WINCONSTEXPR auto emplace_back(T&& snapshot) requires std::same_as<Key, TIMEP>
+	{
+		return history.emplace_back(std::make_pair(CLK::now(), std::forward<T>(snapshot)));
+	}
+	WINCONSTEXPR auto emplace_back(const T& snapshot) requires std::same_as<Key, TIMEP>
+	{
+		return history.emplace_back(std::make_pair(CLK::now(), snapshot));
+	}
+
+	WINCONSTEXPR auto emplace_back(Key&& key, T&& value)
+	{
+		return history.emplace_back(std::make_pair(std::forward<Key>(key), std::forward<T>(value)));
+	}
+	WINCONSTEXPR auto emplace_back(const Key& key, const T& value)
+	{
+		return history.emplace_back(std::make_pair(key, value));
+	}
+
+	WINCONSTEXPR bool empty() const { return history.empty(); }
+	WINCONSTEXPR size_t size() const { return history.size(); }
+	WINCONSTEXPR void reserve(const size_t& newSize) { history.reserve(newSize); }
+	WINCONSTEXPR size_t capacity() const { return history.capacity(); }
+};
+
+using time_recorder = diag_recorder<DUR, TIMEP>;
+
+static struct {
+	size_t reserve_size{ 1024ull };
+
+	time_recorder thread_display{};
+	time_recorder thread_input{};
+
+	void increase_reserve()
+	{
+		thread_display.reserve(thread_input.capacity() + reserve_size);
+		thread_input.reserve(thread_input.capacity() + reserve_size);
+	}
+} diagnostics;
+#endif
+
 inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) noexcept
 {
 	try {
+		static const point UP{ 0, -1 }, DOWN{ 0, 1 }, LEFT{ -1, 0 }, RIGHT{ 1, 0 };
 		for (auto& state{ Global.state }; valid_state(state); ) {
+#			ifdef ENABLE_DIAGNOSTICS
+			auto tStart{ CLK::now() };
+#			endif
 			if (term::kbhit()) {
 				int key{ term::getch() };
 				switch (controls.fromKey(key)) {
+				case Control::SEQUENCE: {
+					if (term::kbhit()) {
+						key = term::getch();
+						switch (controls.fromKey(key)) {
+						case Control::FIRE_UP:
+							game.playerFireProjectile(UP);
+							break;
+						case Control::FIRE_DOWN:
+							game.playerFireProjectile(DOWN);
+							break;
+						case Control::FIRE_LEFT:
+							game.playerFireProjectile(LEFT);
+							break;
+						case Control::FIRE_RIGHT:
+							game.playerFireProjectile(RIGHT);
+							break;
+						default:
+							break;
+						}
+					}
+					break;
+				}
 				case Control::PAUSE:
 					if (state != GameState::PAUSED)
 						state = GameState::PAUSED;
@@ -51,16 +136,16 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 						state = GameState::RUNNING;
 					break;
 				case Control::UP:
-					game.movePlayer(point{ 0, -1 });
+					game.movePlayer(UP);
 					break;
 				case Control::DOWN:
-					game.movePlayer(point{ 0, 1 });
+					game.movePlayer(DOWN);
 					break;
 				case Control::LEFT:
-					game.movePlayer(point{ -1, 0 });
+					game.movePlayer(LEFT);
 					break;
 				case Control::RIGHT:
-					game.movePlayer(point{ 1, 0 });
+					game.movePlayer(RIGHT);
 					break;
 				case Control::QUIT:
 					state = GameState::STOPPING;
@@ -68,6 +153,9 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 				default:
 					break;
 				}
+#				ifdef ENABLE_DIAGNOSTICS
+				diagnostics.thread_input.emplace_back(CLK::now() - tStart);
+#				endif
 			}
 		}
 	} catch (const std::exception& ex) {
@@ -85,10 +173,11 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 	try {
 		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
 		for (auto& state{ Global.state }; valid_state(state); ) {
-			const auto& t_start{ std::chrono::high_resolution_clock::now() };
-			std::scoped_lock<std::mutex> lock(mtx);
+			const auto& t_start{ CLK::now() };
 			switch (state) {
 			case GameState::INITIALIZING:
+			{ // critical section
+				std::scoped_lock<std::mutex> lock(mtx);
 				framebuf.initDisplay();
 				if (pauseMenu == nullptr) {
 					point pos{ static_cast<point>(term::getScreenBufferSize()) / 2 };
@@ -97,18 +186,29 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 				}
 				Global.state = GameState::RUNNING;
 				break;
+			} // critical section
 			case GameState::PAUSED:
+			{ // critical section
+				std::scoped_lock<std::mutex> lock(mtx);
 				if (framebuf.isInitialized())
 					framebuf.deinitDisplay(); // re-initialization is handled internally by the framebuffer
 				if (pauseMenu.get() != nullptr)
 					pauseMenu->display();
 				break;
+			} // critical section
 			case GameState::RUNNING:
+			{ // critical section
+				std::scoped_lock<std::mutex> lock(mtx);
 				framebuf.display();
 				break;
+			} // critical section
 			default:break;
 			}
-			std::this_thread::sleep_until(t_start + Global.frametime);
+			const auto& timeend{ t_start + Global.frametime };
+			std::this_thread::sleep_until(timeend);
+#			ifdef ENABLE_DIAGNOSTICS
+			diagnostics.thread_display.emplace_back(CLK::now() - t_start);
+#			endif
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -122,37 +222,77 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 }
 inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 {
+	using CLK = std::chrono::high_resolution_clock;
 	try {
 		for (auto& state{ Global.state }; valid_state(state); ) {
-			const auto& t_start{ std::chrono::high_resolution_clock::now() };
+			const auto& t_start{ CLK::now() };
 			switch (state) {
-			case GameState::RUNNING: {
+			case GameState::RUNNING:
+			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
-				game.PerformActionAllNPCs();
+				//game.PerformActionAllNPCs();
 
 				if (game.player.isDead())
 					Global.state = GameState::OVER;
+
+				game.PerformPeriodicRegen();
 				break;
-			}
+			} // critical section
 			default:break;
 			}
-			std::this_thread::sleep_until(t_start + Global.gametime);
-			// TODO: Implement AI processing
+			std::this_thread::sleep_until(t_start + Global.regentime);
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
-		Global.exception = thread_exception("AI Control", ex);
+		Global.exception = thread_exception("Main Game Thread", ex);
 		return;
 	} catch (...) {
 		Global.state = GameState::EXCEPTION;
-		Global.exception = undefined_exception("AI Control");
+		Global.exception = undefined_exception("Main Game Thread");
 		return;
 	}
 }
 
-using namespace std::chrono_literals;
+inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
+{
+	try {
+		using CLK = std::chrono::high_resolution_clock;
+		for (auto& state{ Global.state }; valid_state(state);) {
+			const auto tBeginCycle{ CLK::now() };
 
-inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& timeout = 6000ms)
+			switch (state) {
+			case GameState::RUNNING:
+			{ // critical section
+				std::scoped_lock<std::mutex> lock(mtx);
+				game.ProcessProjectileActions();
+				game.PerformActionAllNPCs();
+				break;
+			} // critical section
+			default:break;
+			}
+
+			std::this_thread::sleep_until(tBeginCycle + Global.gametime);
+		}
+	} catch (const std::exception& ex) {
+		Global.state = GameState::EXCEPTION;
+		Global.exception = thread_exception("AI Processing Thread", ex);
+		return;
+	} catch (...) {
+		Global.state = GameState::EXCEPTION;
+		Global.exception = undefined_exception("AI Processing Thread");
+		return;
+	}
+}
+
+/**
+ * @brief
+ * @param controls
+ * @param timeout
+ * @returns				bool
+ *						true:	Restart key pressed.
+ *						false:	Quit key pressed, or timeout reached.
+ */
+inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& timeout)
 {
 	const auto& tStart{ std::chrono::high_resolution_clock::now() };
 
@@ -164,7 +304,18 @@ inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& 
 
 	pos.y += menu.height() + 1ull;
 
-	for (auto elapsed{ std::chrono::high_resolution_clock::now() - tStart }; elapsed < timeout; elapsed = std::chrono::high_resolution_clock::now() - tStart) {
+	const auto& timeColorSegment{ timeout / 3 };
+	const auto& selectColor{ [&timeColorSegment](const std::chrono::nanoseconds& elapsed) {
+		if (elapsed > timeColorSegment * 2)
+			return color::setcolor::red;
+		else if (elapsed > timeColorSegment)
+			return color::setcolor{ color::orange };
+		else
+			return color::setcolor::green;
+	} };
+
+	const std::string s_app{ " ms remaining..." };
+	for (auto elapsed{ std::chrono::high_resolution_clock::now() - tStart }; elapsed <= timeout; elapsed = std::chrono::high_resolution_clock::now() - tStart) {
 		if (term::kbhit()) {
 			int key{ term::getch() };
 			switch (controls.fromKey(key)) {
@@ -177,8 +328,8 @@ inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& 
 				break;
 			}
 		}
-		const auto& s{ str::stringify(std::chrono::duration_cast<std::chrono::milliseconds>(timeout - elapsed).count(), " ms...") };
-		std::cout << term::setCursorPosition(point{ pos.x - static_cast<int>(s.size()) / 2 - 4, pos.y }) << "    " << s << "    ";
+		const auto& s{ str::stringify(std::chrono::duration_cast<std::chrono::milliseconds>(timeout - elapsed).count()) };
+		std::cout << term::setCursorPosition(point{ pos.x - (static_cast<int>(s.size()) / 2) - (static_cast<int>(s_app.size() / 2)), pos.y }) << ' ' << selectColor(elapsed) << s << color::reset << s_app << ' ';
 	}
 	return false;
 }
@@ -224,7 +375,6 @@ int main(const int argc, char** argv)
 		const auto& timeStart{ std::chrono::high_resolution_clock::now() };
 
 		do {
-			// set the global state to initializing
 			Global.state = GameState::INITIALIZING;
 
 			gamespace game{};
@@ -237,12 +387,13 @@ int main(const int argc, char** argv)
 			auto
 				t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls), std::ref(game)) },
 				t_display{ std::async(std::launch::async, thread_display, std::ref(mutex), std::ref(framebuf)) },
-				t_game{ std::async(std::launch::async, thread_game, std::ref(mutex), std::ref(game)) };
+				t_game{ std::async(std::launch::async, thread_game, std::ref(mutex), std::ref(game)) },
+				t_npc{ std::async(std::launch::async, thread_npc, std::ref(mutex), std::ref(game)) };
 
 			t_input.wait();
 			t_display.wait();
 			t_game.wait();
-		} while (Global.state != GameState::EXCEPTION && handleGameOver(controls));
+		} while (Global.state != GameState::EXCEPTION && handleGameOver(controls, Global.restartTimeout));
 
 		const auto& timeEnd{ std::chrono::high_resolution_clock::now() };
 
