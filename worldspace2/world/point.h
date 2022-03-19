@@ -3,6 +3,7 @@
 #include <math.hpp>
 
 #include <utility>
+#include <array>
 
 /// @brief	A 1-Dimensional position on a line.
 using position = int;
@@ -387,6 +388,43 @@ struct point : std::pair<position, position> {
 	{
 		const auto& [min, max] { bounds };
 		return getAllPointsWithinCircle(radius, min, max, include_center);
+	}
+
+	point north() const
+	{
+		return{ x, y - 1 };
+	}
+	point east() const
+	{
+		return{ x + 1, y };
+	}
+	point south() const
+	{
+		return{ x, y + 1 };
+	}
+	point west() const
+	{
+		return{ x - 1, y };
+	}
+	point northeast() const
+	{
+		return{ x + 1, y - 1 };
+	}
+	point northwest() const
+	{
+		return{ x - 1, y - 1 };
+	}
+	point southeast() const
+	{
+		return{ x + 1, y + 1 };
+	}
+	point southwest() const
+	{
+		return{ x - 1, y + 1 };
+	}
+	std::array<point, 4> cardinal() const
+	{
+		return{ north(), east(), south(), west() };
 	}
 };
 

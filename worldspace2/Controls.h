@@ -115,7 +115,7 @@ struct Controls {
 				const auto val{ ini.getvs_cast<KeyBind>("controls", keyName, [](std::string&& s)->KeyBind {return KeyBind{ std::move(s) }; }) };
 				if (val.has_value())
 					bindings.insert_or_assign(ctrl, val.value());
-				} };
+			} };
 			loadKey("key_up", Control::UP);
 			loadKey("key_down", Control::DOWN);
 			loadKey("key_left", Control::LEFT);
@@ -124,18 +124,18 @@ struct Controls {
 			loadKey("key_restart", Control::RESTART);
 			loadKey("key_quit", Control::QUIT);
 			return true;
-			}
-			return false;
 		}
-		file::INI& exportINI(file::INI& ini) const
-		{
-			ini.set("controls", "key_up", bindings.at(Control::UP).keyCodes);
-			ini.set("controls", "key_down", bindings.at(Control::DOWN).keyCodes);
-			ini.set("controls", "key_left", bindings.at(Control::LEFT).keyCodes);
-			ini.set("controls", "key_right", bindings.at(Control::RIGHT).keyCodes);
-			ini.set("controls", "key_pause", bindings.at(Control::PAUSE).keyCodes);
-			ini.set("controls", "key_restart", bindings.at(Control::RESTART).keyCodes);
-			ini.set("controls", "key_quit", bindings.at(Control::QUIT).keyCodes);
-			return ini;
-		}
-	};
+		return false;
+	}
+	file::INI& exportINI(file::INI& ini) const
+	{
+		ini.set("controls", "key_up", bindings.at(Control::UP).keyCodes);
+		ini.set("controls", "key_down", bindings.at(Control::DOWN).keyCodes);
+		ini.set("controls", "key_left", bindings.at(Control::LEFT).keyCodes);
+		ini.set("controls", "key_right", bindings.at(Control::RIGHT).keyCodes);
+		ini.set("controls", "key_pause", bindings.at(Control::PAUSE).keyCodes);
+		ini.set("controls", "key_restart", bindings.at(Control::RESTART).keyCodes);
+		ini.set("controls", "key_quit", bindings.at(Control::QUIT).keyCodes);
+		return ini;
+	}
+};

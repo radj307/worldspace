@@ -39,11 +39,36 @@ struct statbar {
 
 inline static constexpr const int STATPANEL_HEIGHT{ 2 }, STATPANEL_PADDING{ 2 };
 
+template<typename StatType>
+struct positionable_statbar : positionable_text {
+	std::vector<std::vector<std::string>> text;
+	char left{ '(' }, right{ ')' }, fill{ '@' }, mod{ '@' }, empty{ ' ' };
+	color::setcolor fillColor, modColor;
+	int scale{ 10 };
+
+	StatBase<StatType>* stat{ nullptr };
+
+	positionable_statbar(StatBase<StatType>* stat, const point& csbTopMiddle, const color::setcolor& color) : positionable_text(csbTopMiddle, text), fillColor{ color }, modColor{}, stat{ stat } {}
+
+	std::string getBar() const
+	{
+		const auto& scaled{ stat->toScale(scale) };
+		const auto& withMod{ stat->toScaleWithModifier(scale) };
+		return str::stringify(left, fillColor, std::string(scaled, fill), color::reset, modColor, std::string(withMod - scaled, mod), color::reset, std::string(withMod - scaled, empty), color::reset, right);
+	}
+
+	operator StatBase<StatType>* () const { return stat; }
+
+	friend std::ostream& operator<<(std::ostream& os, const positionable_statbar<StatType>& psb)
+	{
+		return os << psb.getBar();
+	}
+};
+
 struct statpanel {
 	position originRow;
 	ActorBase* actor;
 	statbar<float> hp, sp;
-	std::string separator{ "   " };
 
 	statpanel(const position& originRow, ActorBase* actor) : originRow{ originRow }, actor{ actor }, hp{ &actor->health, color::setcolor::red }, sp{ &actor->stamina, color::setcolor::green } {}
 
@@ -57,38 +82,13 @@ struct statpanel {
 
 		position ln{ originRow };
 
-		const auto& fst_line{ str::stringify(actor->name, "   level ", actor->level) };
+		std::cout << term::setCursorPosition(centerColumn - actor->name.size() - 2, ln) << actor->name;
+		std::cout << term::setCursorPosition(centerColumn + 5, ln) << "Level " << actor->level;
 
-		std::cout << term::setCursorPosition(centerColumn - static_cast<position>(fst_line.size() / 2ull), ln++) << fst_line;
+		++ln;
 
-		const point& statbar_origin{ centerColumn - static_cast<position>(hp.scale + sp.scale + separator.size()) / 2ll, ln++ };
-		std::cout << term::setCursorPosition(statbar_origin) << hp << separator << sp;
-	}
-};
-
-template<typename StatType>
-struct positionable_statbar : positionable_text {
-	std::vector<std::vector<std::string>> text;
-	char left{ '(' }, right{ ')' }, fill{ '@' }, mod{ '@' }, empty{ ' ' };
-	color::setcolor fillColor, modColor;
-	int scale{ 10 };
-
-	StatBase<StatType>* stat{ nullptr };
-
-	positionable_statbar(StatBase<StatType>* stat, const point& csbTopMiddle, const color::setcolor& color) : positionable_text(csbTopMiddle, text), fillColor{ color }, modColor{}, stat{ stat } {}
-
-	std::string getFill() const
-	{
-		std::string buf;
-		if (stat != nullptr) {
-			buf.reserve(static_cast<size_t>(scale * 2));
-			const auto& scaled{ stat->toScale() };
-			for (int i{ 0 }; i < scale; ++i) {
-
-			}
-		}
-		buf.shrink_to_fit();
-		return buf;
+		const point& statbar_origin{ centerColumn - static_cast<position>(hp.scale + sp.scale + 3) / 2ll, ln++ };
+		std::cout << term::setCursorPosition(statbar_origin) << hp << "   " << sp;
 	}
 };
 

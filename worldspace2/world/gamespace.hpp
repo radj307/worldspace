@@ -13,6 +13,7 @@
 struct gamespace {
 	rng::Random rng;
 	matrix grid;
+	std::vector<matrix> levels;
 	Player player;
 
 	using NPCContainer = std::vector<std::unique_ptr<NPC>>;
@@ -27,7 +28,9 @@ struct gamespace {
 	}(), GameConfig.player_template }
 	{
 		generate<NPC>(GameConfig.generate_npc_count, GameConfig.npc_templates);
-		generate<NPC>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
+		generate<Enemy>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
+
+		levels.emplace_back(matrix(rng, GameConfig.gridSize));
 	}
 
 	template<std::derived_from<tile>... ValidSpawnTiles>
@@ -312,14 +315,38 @@ struct gamespace {
 	{
 		return pathFind(actor->pos, target);
 	}
-
-	ActorBase* findNearbyActor(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
+	/**
+	 * @brief			Retrieve a list of actors within a circle of a given point, sorted by how close they are to the center.
+	 * @param radius	The radius of the search circle.
+	 * @param center	The center point of the search circle.
+	 * @param pred		A predicate function used to filter out actors with unwanted attributes.
+	 * @returns			std::vector<ActorBase*>
+	 */
+	std::vector<ActorBase*> findNearbyActors(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
 	{
 		const auto& nearbyPositions{ center.getAllPointsWithinCircle(radius, getPlayableBounds()) };
+		std::vector<ActorBase*> vec;
+		vec.reserve(nearbyPositions.size());
 		for (const auto& npos : nearbyPositions)
 			if (auto* actor{ getActorAt(npos) }; actor != nullptr)
 				if (pred(actor))
-					return actor;
+					vec.emplace_back(actor);
+		vec.shrink_to_fit();
+		std::sort(vec.begin(), vec.end(), [&center](ActorBase* left, ActorBase* right) {
+			return left->pos.directDistanceTo(center) < right->pos.directDistanceTo(center);
+		});
+		return vec;
+	}
+	std::vector<ActorBase*> findNearbyActors(const unsigned& radius, const point& center)
+	{
+		return findNearbyActors(radius, center, [](ActorBase*) -> bool { return true; });
+	}
+
+	ActorBase* findNearbyActor(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
+	{
+		const auto& nearby{ findNearbyActors(radius, center, pred) };
+		if (!nearby.empty())
+			return nearby.front();
 		return nullptr;
 	}
 
@@ -387,34 +414,34 @@ struct gamespace {
 
 		const auto& myFaction{ getFaction(npc->factionID) };
 
-		const auto& nearbyPredicate{ [&myFaction](ActorBase* o) {
-			return o != nullptr && myFaction.isHostileTo(o->factionID);
+		const auto& findNearbyTarget{ [&npc, &myFaction, this]() {
+			auto* nearby{ findNearbyActor(npc->aggressionRange, npc->pos, [&myFaction](ActorBase* actor) {
+				return myFaction.isHostileTo(actor->factionID);
+			}) };
+			if (nearby != nullptr)
+				npc->target = nearby->pos;
 		} };
 
-		// npc does not have a target
-		if (!npc->target.has_value()) {
-			auto* nearbyActor{ findNearbyActor(npc->aggressionRange, npc->pos, nearbyPredicate) };
-			if (nearbyActor != nullptr)
-				npc->target = nearbyActor->pos;
+		// NPC has a target set
+		if (npc->target.has_value()) {
+			const point targetPos{ npc->target.value() };
+
+			// target isn't valid, search nearby for a valid target
+			if (auto* target{ getActorAt(targetPos) }; target == nullptr || !myFaction.isHostileTo(target->factionID))
+				findNearbyTarget();
 		}
-		// npc has a target
+		else findNearbyTarget();
+
+		// npc found a target
 		if (npc->target.has_value()) {
 			const auto& targetPos{ npc->target.value() };
-			// if no one is located at the target position
-			if (npc->pos == targetPos) {
-				if (auto* nearbyActor{ findNearbyActor(npc->aggressionRange, npc->pos, nearbyPredicate) }; nearbyActor != nullptr) {
-					if (const auto& faction{ getFaction(npc->factionID) }; faction.isHostileTo(nearbyActor->factionID))
-						npc->target = nearbyActor->pos;
-				}
-				npc->target = std::nullopt;
-			}
-			else
-				moveActor(npc, pathFind(npc, targetPos));
+			moveActor(npc, pathFind(npc, npc->isAfraid() ? -targetPos : targetPos));
 		}
+
 		// npc still doesn't have a target
-		else if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance) {
+		else if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance)
 			moveActor(npc, getRandomDir());
-		}
+
 		return npc->isDead();
 	}
 

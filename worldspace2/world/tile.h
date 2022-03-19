@@ -55,11 +55,16 @@ struct traptile : tile {
 struct doortile : tile {
 	virtual void effect(ActorBase* actor) override
 	{
-		// TODO: Add level change handling (?)
+		if (actor == nullptr)
+			throw make_exception("doortile::effect() failed:  Received null pointer!");
+		if (typeid(*actor) == typeid(Player)) {
+			// TODO: Add level change handling (?)
+		}
 	}
 
 	// TODO: Add parameters & members for level change handling (?)
 	doortile() : tile('\xa7', color::setcolor{ ANSI::make_sequence(color::setcolor::black, color::setcolor{ color::white, color::Layer::B }) }) {}
+
 };
 struct containertile : tile {
 	std::vector<ItemTemplate<float>> items;

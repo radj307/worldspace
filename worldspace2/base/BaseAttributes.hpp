@@ -294,9 +294,9 @@ public:
 	template<typename T>
 	constexpr TargetStat(T&& value) : _value{ static_cast<unsigned char>(value) } {}
 	constexpr TargetStat(const TargetStat& o) : _value{ o._value } {}
-	constexpr TargetStat(TargetStat&& o) : _value{ std::move(o._value) } {}
+	constexpr TargetStat(TargetStat&& o) noexcept : _value{ std::move(o._value) } {}
 
-	TargetStat& operator=(TargetStat&& o)
+	TargetStat& operator=(TargetStat&& o) noexcept
 	{
 		_value = std::move(o._value);
 		return *this;
