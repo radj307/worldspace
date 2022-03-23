@@ -47,7 +47,7 @@ set_property(TARGET worldspace PROPERTY CXX_STANDARD 20)
 set_property(TARGET worldspace PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET worldspace PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (MSVC)
-	target_compile_options(worldspace PUBLIC "/Zc:__cplusplus")
+	target_compile_options(worldspace PUBLIC "/Zc:__cplusplus" "/Zc:preprocessor")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang: Use -pthread compiler option
 	target_compile_options(worldspace PUBLIC "-pthread")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU") # gcc: Use -pthread linker option
