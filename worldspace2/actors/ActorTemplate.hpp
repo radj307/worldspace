@@ -8,14 +8,15 @@
 #include <string>
 
 struct ActorTemplate {
-private:
+protected:
 	std::optional<DisplayableBase> displayable;
 	std::optional<ID> factionID;
 	std::optional<unsigned> level;
 	std::optional<std::string> name;
 	std::optional<StatFloat> health, stamina, damage, defense, fear, aggression;
 	std::optional<StatUnsigned> aggressionRange;
-	//std::optional<std::vector<std::unique_ptr<ItemBase<float>>>> items;
+	std::optional<std::vector<ItemTemplate<float>>> items;
+
 public:
 	inline static const DisplayableBase
 		default_displayable{ '\0', color::setcolor{ ""s } };
@@ -34,6 +35,8 @@ public:
 		default_aggression{ 100.0f, 0.0f };
 	inline static const StatUnsigned
 		default_aggressionRange{ 3u };
+	inline static const std::vector<ItemTemplate<float>>
+		default_items{};
 
 	ActorTemplate(
 		const std::optional<DisplayableBase>& displayable,
@@ -46,8 +49,8 @@ public:
 		const std::optional<StatFloat>& defense = std::nullopt,
 		const std::optional<StatFloat>& fear = std::nullopt,
 		const std::optional<StatFloat>& aggression = std::nullopt,
-		const std::optional<StatUnsigned>& aggressionRange = std::nullopt
-	//	std::optional<std::vector<std::unique_ptr<ItemBase<float>>>>&& items = std::nullopt
+		const std::optional<StatUnsigned>& aggressionRange = std::nullopt,
+		const std::optional<std::vector<ItemTemplate<float>>>& items = std::nullopt
 	) : displayable{ displayable },
 		factionID{ factionID },
 		level{ level },
@@ -58,8 +61,8 @@ public:
 		defense{ defense },
 		fear{ fear },
 		aggression{ aggression },
-		aggressionRange{ aggressionRange }
-	//	items{ std::move(items) }
+		aggressionRange{ aggressionRange },
+		items{ items }
 	{
 	}
 
@@ -107,9 +110,16 @@ public:
 	{
 		return aggressionRange.value_or(default_aggressionRange);
 	}
-
-	/*bool hasItems() const noexcept
+	std::vector<ItemTemplate<float>> getItems() const
 	{
-		return items.has_value();
-	}*/
+		return items.value_or(default_items);
+	}
+
+
+	// setters
+
+	void setName(const std::optional<std::string>& newName)
+	{
+		name = newName;
+	}
 };

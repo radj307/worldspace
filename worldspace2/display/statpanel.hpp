@@ -70,24 +70,45 @@ struct statpanel {
 	ActorBase* actor;
 	statbar<float> hp, sp;
 
-	statpanel(const position& originRow, ActorBase* actor) : originRow{ originRow }, actor{ actor }, hp{ &actor->health, color::setcolor::red }, sp{ &actor->stamina, color::setcolor::green } {}
+	position centerCol{ -1 }, nameCol{ -1 }, levelCol{ -1 };
+
+	statpanel(const position& originRow, ActorBase* actor) :
+		originRow{ originRow },
+		actor{ actor },
+		hp{ &actor->health, color::setcolor::red },
+		sp{ &actor->stamina, color::setcolor::green }
+	{}
+
+	void initPositions()
+	{
+		centerCol = static_cast<point>(term::getScreenBufferSize()).x / 2 - 2;
+		nameCol = (centerCol - 1) - hp.scale / 2 - 1;
+		levelCol = (centerCol + 2) + sp.scale / 2 + 1;
+	}
 
 	void display() noexcept(false)
 	{
 		if (actor == nullptr || hp == nullptr || sp == nullptr)
 			throw make_exception("statpanel::display() failed:  Stat pointers are null!");
 
-		const point csbSize{ term::getScreenBufferSize() };
-		const position centerColumn{ (csbSize.x / 2) - 2 };
-
 		position ln{ originRow };
+		
+		std::cout << term::setCursorPosition(nameCol - actor->name.size() / 2, ln) << actor->name;
+		const auto& lvlstr{ "Level " + std::to_string(actor->level)};
+		std::cout << term::setCursorPosition(levelCol - lvlstr.size() / 2, ln) << lvlstr;
 
-		std::cout << term::setCursorPosition(centerColumn - actor->name.size() - 2, ln) << actor->name;
-		std::cout << term::setCursorPosition(centerColumn + 5, ln) << "Level " << actor->level;
+		//const point csbSize{ term::getScreenBufferSize() };
+		//const position centerColumn{ (csbSize.x / 2) - 2 };
+
+
+		//const auto& nameColumn{ (centerColumn - 1) - hp.scale / 2 };
+
+		//std::cout << term::setCursorPosition(nameColumn - actor->name.size() - 2, ln) << actor->name;
+		//std::cout << term::setCursorPosition(centerColumn + 5, ln) << "Level " << actor->level;
 
 		++ln;
 
-		const point& statbar_origin{ centerColumn - static_cast<position>(hp.scale + sp.scale + 3) / 2ll, ln++ };
+		const point& statbar_origin{ centerCol - static_cast<position>(hp.scale + sp.scale + 3) / 2ll, ln++ };
 		std::cout << term::setCursorPosition(statbar_origin) << hp << "   " << sp;
 	}
 };

@@ -114,7 +114,7 @@ static struct {
 		100.0f,
 		100.0f,
 		25.0f,
-		25.0f,
+		15.0f,
 		std::nullopt,
 		std::nullopt
 	};
@@ -139,7 +139,11 @@ inline bool tileAllowsMovement(tile* t)
 {
 	return tileAllowsMovement<floortile, traptile, doortile, containertile>(t);
 }
-inline static std::pair<point, point> getPlayableBounds()
+
+/// @brief	Represents a rectangle with a minimum & maximum point.
+using bounds = std::pair<size, size>;
+
+inline static bounds getPlayableBounds()
 {
 	return{ GameConfig.minPos, GameConfig.maxPos };
 }

@@ -41,69 +41,11 @@ using CLK = std::chrono::high_resolution_clock;
 using DUR = std::chrono::duration<long double>;
 using TIMEP = std::chrono::time_point<CLK, DUR>;
 
-#if defined(_DEBUG)
-#define ENABLE_DIAGNOSTICS
-
-template<typename T, typename Key = TIMEP>
-struct diag_recorder {
-	std::vector<std::pair<Key, T>> history;
-
-	diag_recorder() = default;
-
-	diag_recorder(std::vector<T>&& history) : history{ std::move(history) } {}
-	diag_recorder(const std::vector<T>& history) : history{ history } {}
-
-	WINCONSTEXPR auto begin() const { return history.begin(); }
-	WINCONSTEXPR auto end() const { return history.end(); }
-
-	WINCONSTEXPR auto emplace_back(T&& snapshot) requires std::same_as<Key, TIMEP>
-	{
-		return history.emplace_back(std::make_pair(CLK::now(), std::forward<T>(snapshot)));
-	}
-	WINCONSTEXPR auto emplace_back(const T& snapshot) requires std::same_as<Key, TIMEP>
-	{
-		return history.emplace_back(std::make_pair(CLK::now(), snapshot));
-	}
-
-	WINCONSTEXPR auto emplace_back(Key&& key, T&& value)
-	{
-		return history.emplace_back(std::make_pair(std::forward<Key>(key), std::forward<T>(value)));
-	}
-	WINCONSTEXPR auto emplace_back(const Key& key, const T& value)
-	{
-		return history.emplace_back(std::make_pair(key, value));
-	}
-
-	WINCONSTEXPR bool empty() const { return history.empty(); }
-	WINCONSTEXPR size_t size() const { return history.size(); }
-	WINCONSTEXPR void reserve(const size_t& newSize) { history.reserve(newSize); }
-	WINCONSTEXPR size_t capacity() const { return history.capacity(); }
-};
-
-using time_recorder = diag_recorder<DUR, TIMEP>;
-
-static struct {
-	size_t reserve_size{ 1024ull };
-
-	time_recorder thread_display{};
-	time_recorder thread_input{};
-
-	void increase_reserve()
-	{
-		thread_display.reserve(thread_input.capacity() + reserve_size);
-		thread_input.reserve(thread_input.capacity() + reserve_size);
-	}
-} diagnostics;
-#endif
-
 inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) noexcept
 {
 	try {
 		static const point UP{ 0, -1 }, DOWN{ 0, 1 }, LEFT{ -1, 0 }, RIGHT{ 1, 0 };
 		for (auto& state{ Global.state }; valid_state(state); ) {
-#			ifdef ENABLE_DIAGNOSTICS
-			auto tStart{ CLK::now() };
-#			endif
 			if (term::kbhit()) {
 				int key{ term::getch() };
 				switch (controls.fromKey(key)) {
@@ -153,9 +95,6 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 				default:
 					break;
 				}
-#				ifdef ENABLE_DIAGNOSTICS
-				diagnostics.thread_input.emplace_back(CLK::now() - tStart);
-#				endif
 			}
 		}
 	} catch (const std::exception& ex) {
@@ -171,6 +110,10 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
+		const std::string& frametime_str{ "Frametime: " };
+		point frametime_pos{ 5, 0 };
+		std::cout << term::setCursorPosition(frametime_pos) << frametime_str;
+		frametime_pos.x += frametime_str.size();
 		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
 		for (auto& state{ Global.state }; valid_state(state); ) {
 			const auto& t_start{ CLK::now() };
@@ -204,11 +147,15 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 			} // critical section
 			default:break;
 			}
-			const auto& timeend{ t_start + Global.frametime };
-			std::this_thread::sleep_until(timeend);
-#			ifdef ENABLE_DIAGNOSTICS
-			diagnostics.thread_display.emplace_back(CLK::now() - t_start);
-#			endif
+			const auto& t_end{ CLK::now() };
+			std::chrono::duration<double, std::milli> elapsed{ t_end - t_start };
+			std::cout
+				<< term::setCursorPosition(frametime_pos)
+				<< elapsed.count()
+				<< " ms      "
+				;
+			if (const auto& timeend{ t_start + Global.frametime }; t_end < timeend)
+				std::this_thread::sleep_until(timeend);
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -252,7 +199,6 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 		return;
 	}
 }
-
 inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
 {
 	try {
@@ -336,6 +282,9 @@ inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& 
 
 int main(const int argc, char** argv)
 {
+	Container<int> intcont{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	Container<float> floatcont(0.5f);
+
 	try {
 		// enable ANSI escape sequences
 		std::cout << term::EnableANSI;
@@ -360,6 +309,8 @@ int main(const int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
+		GameConfig.player_template.setName("radj");
+
 		// Swap to alternate screen buffer
 		std::cout << term::EnableAltScreenBuffer << term::CursorVisible(false);
 
@@ -383,6 +334,7 @@ int main(const int argc, char** argv)
 			framebuf.setBuilder<framebuilder_matrix>(game.grid);
 			framebuf.setLinker<framelinker_gamespace>(game);
 			framebuf.setPanel<statpanel>(&game.player);
+			framebuf.initDisplay();
 
 			auto
 				t_input{ std::async(std::launch::async, thread_input, std::ref(mutex), std::ref(controls), std::ref(game)) },

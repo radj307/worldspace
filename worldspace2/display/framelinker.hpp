@@ -16,6 +16,15 @@ struct framelinker {
 	virtual ~framelinker() = default;
 
 	/**
+	 * @brief	This is an optional function that is called before each display cycle.
+	 */
+	virtual void preFrame() {}
+	/**
+	 * @brief	This is an optional function that is called after each display cycle.
+	 */
+	virtual void postFrame() {}
+
+	/**
 	 * @brief		Get an override frame element for a specific position.
 	 *\n			This pure virtual function must be overloaded by all framelinker derivatives
 	 * @param x:	The x-axis position.

@@ -9,12 +9,73 @@
 
 #include <optional>
 #include <map>
+#include <queue>
+
+struct flare {
+	int framesRemaining;
+
+	constexpr flare(const int& frameLength = 0) : framesRemaining{ frameLength } {}
+	virtual ~flare() = default;
+
+	constexpr bool isOver() const { return framesRemaining <= 0; }
+
+	virtual std::optional<color::setcolor> getFlareAt(const position&, const position&) const = 0;
+	std::optional<color::setcolor> getFlareAt(const point& p) const { return getFlareAt(p.x, p.y); }
+};
+
+struct edgeflare : flare {
+	color::setcolor color;
+	bounds size;
+	edgeflare(const int& length, color::setcolor&& color, bounds&& gridSize) : flare(length), color{ std::move(color) }, size{ std::move(gridSize) } {}
+	edgeflare(const int& length, const color::setcolor& color, const bounds& gridSize) : flare(length), color{ color }, size{ gridSize } {}
+	edgeflare(const int& length, const color::setcolor& color, const point& gridMax) : flare(length), color{ color }, size{ point{ 0, 0 }, gridMax } {}
+	virtual std::optional<color::setcolor> getFlareAt(const position& x, const position& y) const override
+	{
+		const auto& [min, max] {size};
+		return (x == min.x || x == max.x - 1 || y == min.y || y == max.y - 1) ? color : static_cast<std::optional<color::setcolor>>(std::nullopt);
+	}
+};
+
+template<size_t I, typename T, size_t Count = 0ull, typename... Ts>
+size_t get_index_of(size_t& count)
+{
+	if constexpr (std::same_as<T, decltype(std::get<I>(std::declval<std::tuple<Ts...>>()))>) {
+		if (count >= Count)
+			return count;
+		else ++count;
+		if constexpr (I + 1 < sizeof...(Ts))
+			return get_index_of<I + 1, T, Count, Ts...>(count);
+	}
+	return count;
+}
+
+
+template<typename T>
+struct Container;
+
+template<>
+struct Container<int> {
+	std::vector<int> vec;
+
+	Container(std::vector<int>&& vec) : vec{ std::move(vec) } {}
+	template<var::same_or_convertible<int>... Ts>
+	Container(Ts&&... integers) : vec{ static_cast<int>(std::forward<Ts>(integers))... } {}
+};
+
+template<>
+struct Container<float> {
+	float value;
+	Container(float&& value) : value{ std::move(value) } {}
+	Container(const float& value) : value{ value } {}
+};
+
 
 struct gamespace {
 	rng::Random rng;
 	matrix grid;
-	std::vector<matrix> levels;
+	bounds boundaries;
 	Player player;
+	std::queue<std::unique_ptr<flare>> flares;
 
 	using NPCContainer = std::vector<std::unique_ptr<NPC>>;
 	using ProjContainer = std::vector<std::unique_ptr<Projectile>>;
@@ -22,7 +83,7 @@ struct gamespace {
 	NPCContainer npcs;
 	ProjContainer projectiles;
 
-	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, player{ [this]() {
+	gamespace() : grid{ rng, GameConfig.gridSize, GameConfig.generatorConfig }, boundaries{ getPlayableBounds() }, player{ [this]() {
 		const auto& cont{ getAllValidSpawnTiles<floortile>(false) };
 		return cont.at(rng.get(0, cont.size()));
 	}(), GameConfig.player_template }
@@ -30,7 +91,13 @@ struct gamespace {
 		generate<NPC>(GameConfig.generate_npc_count, GameConfig.npc_templates);
 		generate<Enemy>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
 
-		levels.emplace_back(matrix(rng, GameConfig.gridSize));
+		addFlare<edgeflare>(6, color::setcolor{ color::green, color::Layer::B }, GameConfig.gridSize);
+	}
+
+	template<std::derived_from<flare> T, typename... Args>
+	void addFlare(Args&&... args)
+	{
+		flares.push(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
 	template<std::derived_from<tile>... ValidSpawnTiles>
@@ -161,7 +228,7 @@ struct gamespace {
 		if (actor == nullptr)
 			throw make_exception("gamespace::canMove() failed:  Received nullptr instead of ActorBase*!");
 		const auto& newPos{ actor->pos + posDiff };
-		if (!newPos.within(getPlayableBounds())) // if the pos is out of bounds, return false early
+		if (!newPos.within(boundaries)) // if the pos is out of bounds, return false early
 			return false;
 		if (auto* tile{ getTileAt(newPos) }; tile != nullptr && typeid(*tile) != typeid(walltile)) {
 			// check for actors
@@ -272,6 +339,8 @@ struct gamespace {
 	 */
 	NPCContainer::iterator removeNPC(const NPCContainer::const_iterator& it)
 	{
+		if (npcs.empty())
+			throw make_exception("gamespace::removeNPC() failed:  Cannot remove elements from an empty list!");
 		return npcs.erase(it, it + 1);
 	}
 	/**
@@ -283,14 +352,15 @@ struct gamespace {
 	 */
 	ProjContainer::iterator removeProjectile(const ProjContainer::const_iterator& it)
 	{
+		if (projectiles.empty())
+			throw make_exception("gamespace::removeProjectile() failed:  Cannot remove elements from an empty list!");
 		return projectiles.erase(it, it + 1);
 	}
 
 	point pathFind(const point& start, const point& target)
 	{
-		const auto& bounds{ getPlayableBounds() };
-		const auto& movable{ [&bounds, this](const point& p) {
-			if (p.within(bounds))
+		const auto& movable{ [this](const point& p) {
+			if (p.within(boundaries))
 				return tileAllowsMovement(getTileAt(p));
 			return false;
 		} };
@@ -315,44 +385,12 @@ struct gamespace {
 	{
 		return pathFind(actor->pos, target);
 	}
-	/**
-	 * @brief			Retrieve a list of actors within a circle of a given point, sorted by how close they are to the center.
-	 * @param radius	The radius of the search circle.
-	 * @param center	The center point of the search circle.
-	 * @param pred		A predicate function used to filter out actors with unwanted attributes.
-	 * @returns			std::vector<ActorBase*>
-	 */
-	std::vector<ActorBase*> findNearbyActors(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
-	{
-		const auto& nearbyPositions{ center.getAllPointsWithinCircle(radius, getPlayableBounds()) };
-		std::vector<ActorBase*> vec;
-		vec.reserve(nearbyPositions.size());
-		for (const auto& npos : nearbyPositions)
-			if (auto* actor{ getActorAt(npos) }; actor != nullptr)
-				if (pred(actor))
-					vec.emplace_back(actor);
-		vec.shrink_to_fit();
-		std::sort(vec.begin(), vec.end(), [&center](ActorBase* left, ActorBase* right) {
-			return left->pos.directDistanceTo(center) < right->pos.directDistanceTo(center);
-		});
-		return vec;
-	}
-	std::vector<ActorBase*> findNearbyActors(const unsigned& radius, const point& center)
-	{
-		return findNearbyActors(radius, center, [](ActorBase*) -> bool { return true; });
-	}
-
-	ActorBase* findNearbyActor(const unsigned& radius, const point& center, const std::function<bool(ActorBase*)>& pred)
-	{
-		const auto& nearby{ findNearbyActors(radius, center, pred) };
-		if (!nearby.empty())
-			return nearby.front();
-		return nullptr;
-	}
 
 	void applyToAll(const std::function<void(ActorBase*)>& function)
 	{
+		// apply to player
 		function((ActorBase*)&player);
+		// apply to npcs
 		for (const auto& it : npcs)
 			function(it.get());
 	}
@@ -415,11 +453,11 @@ struct gamespace {
 		const auto& myFaction{ getFaction(npc->factionID) };
 
 		const auto& findNearbyTarget{ [&npc, &myFaction, this]() {
-			auto* nearby{ findNearbyActor(npc->aggressionRange, npc->pos, [&myFaction](ActorBase* actor) {
-				return myFaction.isHostileTo(actor->factionID);
-			}) };
-			if (nearby != nullptr)
-				npc->target = nearby->pos;
+			//auto* nearby{ findNearbyActor(npc->aggressionRange, npc->pos, [&myFaction](ActorBase* actor) {
+//				return myFaction.isHostileTo(actor->factionID);
+			//}) };
+//			if (nearby != nullptr)
+//				npc->target = nearby->pos;
 		} };
 
 		// NPC has a target set
@@ -472,11 +510,9 @@ struct gamespace {
 	void ProcessProjectileActions() noexcept(false)
 	{
 		if (!projectiles.empty()) {
-			const auto& bounds{ getPlayableBounds() };
-
-			for (auto it{ projectiles.begin() }; it != projectiles.end();) {
+			for (auto it{ projectiles.begin() }; it < projectiles.end();) {
 				if (auto* proj{ it->get() }; proj != nullptr) {
-					if (const auto& nextPos{ proj->nextPos() }; nextPos.within(bounds)) {
+					if (const auto& nextPos{ proj->nextPos() }; nextPos.within(boundaries)) {
 						if (auto* tile{ getTileAt(nextPos) }; tile != nullptr) {
 							if (!tileAllowsMovement(tile))
 								it = removeProjectile(it);

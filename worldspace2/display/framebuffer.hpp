@@ -98,6 +98,7 @@ public:
 
 	/**
 	 * @brief			Initializes the screen buffer size, hides the cursor, and prints the first frame.
+	 *\n				This differs from the display() function in that it always prints all tiles, and it prints additional escape sequences.
 	 * @param incoming	First frame instance.
 	 */
 	void initDisplay(frame&& incoming)
@@ -111,18 +112,29 @@ public:
 
 		std::cout << term::setScreenBufferSize((SizeX * 2 + csbOrigin.x * 2), (SizeY + (csbOrigin.y * 2) + STATPANEL_HEIGHT + (STATPANEL_PADDING * 2 - 1)));
 
+		if (panel != nullptr)
+			panel->initPositions();
+
+		linker->preFrame();
+
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
 				const auto& linked{ linker->get(x, y) };
 				const auto& in{ incoming.get(x, y) };
 				std::cout << term::setCursorPosition(getPointOffset(x, y));
-				if (linked.has_value())
-					std::cout << linked.value();
+				if (linked.has_value()) {
+					const auto& lval{ linked.value() };
+					if (lval.display == '\0')
+						std::cout << lval.color << in.over().display;
+					else std::cout << lval;
+				}
 				else
 					std::cout << in;
 				std::cout << color::reset;
 			}
 		}
+
+		linker->postFrame();
 
 		current = std::move(incoming);
 
@@ -157,6 +169,8 @@ public:
 			return;
 		}
 
+		linker->preFrame();
+
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
 				const auto& out{ current.getRef(x, y) }; // outgoing frame pos
@@ -167,6 +181,8 @@ public:
 					std::cout << term::setCursorPosition(getPointOffset(x, y)) << in << color::reset;
 			}
 		}
+
+		linker->postFrame();
 
 		current = std::move(incoming);
 

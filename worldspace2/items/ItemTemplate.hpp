@@ -4,7 +4,7 @@
 #include <string>
 #include <optional>
 
-template<typename T>
+template<typename T = float>
 struct ItemTemplate {
 	inline static constexpr const T ZERO{ static_cast<T>(0) };
 protected:
