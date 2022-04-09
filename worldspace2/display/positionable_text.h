@@ -30,7 +30,7 @@ struct positionable_text : Positioned {
 		os << term::SaveCursor;
 
 		const auto& longest{ txt.getLongestLine() };
-		point pos{ txt.pos };
+		point pos{ txt.getPos() };
 
 		const auto& getpos{ [&pos](const size_t& line_len) -> point {
 			point copy{ pos };

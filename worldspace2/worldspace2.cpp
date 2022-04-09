@@ -177,8 +177,6 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
 
-				game.ProcessProjectileActions();
-
 				if (game.player.isDead())
 					Global.state = GameState::OVER;
 
@@ -210,6 +208,7 @@ inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
 			case GameState::RUNNING:
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
+				game.ProcessProjectileActions();
 				game.PerformActionAllNPCs();
 				break;
 			} // critical section

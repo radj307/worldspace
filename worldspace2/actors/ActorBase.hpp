@@ -50,6 +50,9 @@ public:
 	StatFloat stamina;
 	StatFloat damage;
 	StatFloat defense;
+
+	/// @brief	This determines the visibility range of this actor.
+	StatUnsigned visRange;
 	std::vector<std::unique_ptr<ItemBase<float>>> items;
 
 	/**
@@ -63,8 +66,8 @@ public:
 	 * @param maxDM		My maximum and default damage.
 	 * @param maxDF		My maximum and default defense.
 	 */
-	ActorBase(const ID& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, std::vector<std::unique_ptr<ItemBase<float>>> items = {})
-		: DisplayableBase(display, color), factionID{ factionID }, level{ level }, name{ name }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) } {}
+	ActorBase(const ID& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, const unsigned& visRange, std::vector<std::unique_ptr<ItemBase<float>>> items = {})
+		: DisplayableBase(display, color), factionID{ factionID }, level{ level }, name{ name }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) }, visRange{ visRange } {}
 
 	ActorBase(const point& startPos, const ActorTemplate& t) :
 		DisplayableBase(t.getDisplayableBase()),
@@ -75,7 +78,8 @@ public:
 		health{ t.getHealth() },
 		stamina{ t.getStamina() },
 		damage{ t.getDamage() },
-		defense{ t.getDefense() }
+		defense{ t.getDefense() },
+		visRange{ t.getVisRange() }
 	{
 	}
 
@@ -83,11 +87,8 @@ public:
 	{
 		if (!isTargetingMe.empty()) {
 			// iterate through all actors who have me as a target, and unset their target.
-			for (auto it{ isTargetingMe.begin() }; it != isTargetingMe.end();) {
+			for (auto it{ isTargetingMe.begin() }; it != isTargetingMe.end(); ++it)
 				(*it)->unsetTarget(false);
-				if (it != isTargetingMe.end())
-					++it;
-			}
 		}
 	}
 
@@ -104,7 +105,7 @@ public:
 	std::optional<point> getTargetPos() const
 	{
 		if (myTarget != nullptr)
-			return myTarget->pos;
+			return myTarget->getPos();
 		return std::nullopt;
 	}
 
@@ -193,7 +194,7 @@ public:
 	 */
 	[[nodiscard]] point distanceTo(const point& p) const
 	{
-		return pos.distanceTo(p);
+		return getPos().distanceTo(p);
 	}
 	/**
 	 * @brief		Get the distance from this actor's position to another actor's position by subtracting this actor's position from the other actor's position.
@@ -204,7 +205,7 @@ public:
 	{
 		if (actor == nullptr)
 			return{ 0ll, 0ll };
-		return pos.distanceTo(actor->pos);
+		return getPos().distanceTo(actor->getPos());
 	}
 };
 

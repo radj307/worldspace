@@ -164,8 +164,9 @@ struct gamespace {
 
 	Projectile* getProjectileAt(const point& pos) const
 	{
+		// TODO: read access violation is occurring in this function
 		for (auto it{ projectiles.begin() }; it != projectiles.end(); ++it)
-			if (auto* proj{ it->get() }; proj->pos == pos)
+			if (auto* proj{ it->get() }; proj->getPos() == pos) //< HERE (proj->pos == pos)
 				return proj;
 		return nullptr;
 	}
@@ -176,24 +177,24 @@ struct gamespace {
 
 	ActorBase* getActorAt(const point& pos) const
 	{
-		if (pos == player.pos)
+		if (pos == player.getPos())
 			return (ActorBase*)&player;
 
 		for (const auto& it : npcs)
 			if (it.get() != nullptr)
-				if (it->pos == pos)
+				if (it->getPos() == pos)
 					return (ActorBase*)it.get();
 
 		return nullptr;
 	}
 	ActorBase* getActorAt(const position& x, const position& y) const
 	{
-		if (const auto& playerPos{ player.pos }; x == playerPos.x && y == playerPos.y)
+		if (const auto& playerPos{ player.getPos() }; x == playerPos.x && y == playerPos.y)
 			return (ActorBase*)&player;
 
 		for (const auto& it : npcs)
 			if (it.get() != nullptr)
-				if (const auto& pos{ it->pos }; pos.x == x && pos.y == y)
+				if (const auto& pos{ it->getPos() }; pos.x == x && pos.y == y)
 					return (ActorBase*)it.get();
 
 		return nullptr;
@@ -228,7 +229,7 @@ struct gamespace {
 	{
 		if (actor == nullptr)
 			throw make_exception("gamespace::canMove() failed:  Received nullptr instead of ActorBase*!");
-		const auto& newPos{ actor->pos + posDiff };
+		const auto& newPos{ actor->getPos() + posDiff };
 		if (!newPos.within(boundaries)) // if the pos is out of bounds, return false early
 			return false;
 		if (auto* tile{ getTileAt(newPos) }; tile != nullptr && typeid(*tile) != typeid(walltile)) {
@@ -258,7 +259,7 @@ struct gamespace {
 	{
 		if (canMove(actor, posDiff)) {
 			actor->movePosBy(posDiff);
-			if (auto* tile{ getTileAt(actor->pos) }; tile != nullptr)
+			if (auto* tile{ getTileAt(actor->getPos()) }; tile != nullptr)
 				tile->effect(actor);
 			return true;
 		}
@@ -276,7 +277,7 @@ struct gamespace {
 	{
 		if (canMove(actor, std::forward<point>(posDiff))) {
 			actor->movePosBy(std::forward<point>(posDiff));
-			if (auto* tile{ getTileAt(actor->pos) }; tile != nullptr)
+			if (auto* tile{ getTileAt(actor->getPos()) }; tile != nullptr)
 				tile->effect(actor);
 			return true;
 		}
@@ -309,7 +310,7 @@ struct gamespace {
 	 */
 	bool fireProjectile(ActorBase* actor, const point& direction)
 	{
-		const point& myPos{ actor->pos }, & origin{ myPos + direction };
+		const point& myPos{ actor->getPos() }, & origin{ myPos + direction };
 
 		// don't spawn the projectile if one already exists at the origin
 		if (getProjectileAt(origin) != nullptr)
@@ -319,7 +320,7 @@ struct gamespace {
 			// check if the origin point is a valid movable tile
 			if (tileAllowsMovement(tile)) {
 				// Create a projectile
-				Projectile proj{ actor, origin, direction, actor->damage, true };
+				Projectile proj{ actor->factionID, origin, direction, actor->damage, true };
 
 				// check if there is an actor at the origin tile
 				if (auto* actorAtPos{ getActorAt(origin) }; actorAtPos != nullptr) {
@@ -362,6 +363,12 @@ struct gamespace {
 	 */
 	Faction& getFaction(const int& factionID) { return GameConfig.getFactionFromID(factionID); }
 
+	/**
+	 * @brief			Returns a clamped point with 1 axis of directional instructions for that if requested repeatedly and moved by each cycle, will eventually lead an actor to the given target position.
+	 * @param start		Starting Position
+	 * @param target	Target Position
+	 * @returns			point
+	 */
 	point pathFind(const point& start, const point& target)
 	{
 		const auto& movable{ [this](const point& p) {
@@ -388,7 +395,7 @@ struct gamespace {
 	}
 	point pathFind(ActorBase* actor, const point& target)
 	{
-		return pathFind(actor->pos, target);
+		return pathFind(actor->getPos(), target);
 	}
 
 	void applyToAll(const std::function<void(ActorBase*)>& function)
@@ -491,22 +498,27 @@ struct gamespace {
 		// NPC has a target set:
 		if (auto* tgt{ npc->getTarget() }; tgt != nullptr) {
 			if (isValidFaction(tgt->factionID) && !tgt->isDead()) {
-				if (tgt->pos.withinCircle(npc->aggressionRange, npc->pos))
+				const auto& tgtPos{ tgt->getPos() };
+				if (tgtPos.withinCircle(npc->visRange, npc->getPos()))
 					npc->aggression += 10.0f;
-				else npc->aggression -= 15.0f;
+				else npc->aggression -= 9.5f;
 				if (npc->aggression <= 0.0f)
 					npc->unsetTarget();
-				else moveActor(npc, pathFind(npc, npc->isAfraid() ? -tgt->pos : tgt->pos));
+				else {
+					const auto navPos{ pathFind(npc, tgtPos) };
+					moveActor(npc, npc->isAfraid() ? -navPos : navPos);
+				}
+				//else moveActor(npc, pathFind(npc, npc->isAfraid() ? -tgt->getPos() : tgt->getPos()));
 				return;
 			}
 			else npc->unsetTarget();
 		}
 
-		if (auto* tgt{ findNearbyActor(npc->pos, npc->aggressionRange, [&myFaction](ActorBase* actor) -> bool {
+		if (auto* tgt{ findNearbyActor(npc->getPos(), npc->visRange, [&myFaction](ActorBase* actor) -> bool {
 			return myFaction.isHostileTo(actor->factionID);
 			}) }; tgt != nullptr) {
 			npc->setTarget(tgt);
-			moveActor(npc, pathFind(npc, tgt->pos));
+			moveActor(npc, pathFind(npc, tgt->getPos()));
 			return;
 		}
 
@@ -538,26 +550,32 @@ struct gamespace {
 	 */
 	void ProcessProjectileActions() noexcept(false)
 	{
+		if (projectiles.empty())
+			return;
 		for (auto it{ projectiles.begin() }; it != projectiles.end(); ++it) {
-			if (auto* proj{ it->get() }; proj != nullptr) {
+			if (auto* proj{ it->get() }; proj == nullptr)
+				it = projectiles.erase(it); // delete null projectiles
+			else {
 				const point nextPos{ proj->nextPos() };
-				if (auto* nextTile{ getTileAt(nextPos) }; nextTile != nullptr && tileAllowsMovement(nextTile)) {
-					// check if there is an unlucky winner of a bullet to the face in the next position
-					if (auto* actorAtPos{ getActorAt(nextPos) }; actorAtPos != nullptr) {
-						actorAtPos->applyDamage(proj->damage, proj->piercing);
-						// fallthrough & erase this projectile
-					}
-					else { // increment this projectiles position & continue
-						proj->moveToNextPos();
-						continue;
-					}
-				} // else tile is null, or doesn't allow movement
-			} // else projectile is null
 
-			// fallthrough deletes this projectile if continue wasn't called.
-			it = projectiles.erase(it);
+				// validate the next tile
+				if (auto* nextTile{ getTileAt(nextPos) }; nextTile == nullptr || !tileAllowsMovement(nextTile))
+					it = projectiles.erase(it); // we hit an immovable tile
+				else if (auto* actorAtPos{ getActorAt(nextPos) }; actorAtPos == nullptr)
+					proj->moveToNextPos(); // we didn't hit anything, move to the next tile
+				else { // we hit an actor
+					// apply damage to the actor who got shot, and if they didn't die then make their faction hostile
+					if (!actorAtPos->applyDamage(proj->damage, proj->piercing)) {
+						// check if the projectile was fired close enough that we know who fired it
+						if (proj->getDistanceTravelled() <= actorAtPos->visRange) // if the projectile was fired from within sight, make the actor hostile to the person who shot them
+							getFaction(actorAtPos->factionID).addHostile(proj->factionID);
+					}
 
-			if (it == projectiles.end()) break;
+					// delete the projectile since we struck an actor
+					it = projectiles.erase(it);
+				}
+			}
+			if (it == projectiles.end()) break; // this has to be here in case we deleted the last projectile, in which case the iterator is at `projectiles.end()` & we're about to call `++it` inter-loop
 		}
 	}
 };

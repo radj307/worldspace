@@ -27,8 +27,9 @@ struct DisplayableBase {
  * @brief	Immutable position attribute.
  */
 struct Positioned {
+private:
 	point pos;
-
+public:
 	Positioned() = default;
 	Positioned(point&& p) : pos{ std::move(p) } {}
 	Positioned(const point& p) : pos{ p } {}
@@ -53,8 +54,9 @@ struct Positioned {
  * @brief	Mutable position attribute.
  */
 struct Positionable {
+private:
 	point pos;
-
+public:
 	Positionable() = default;
 	Positionable(point&& p) : pos{ std::move(p) } {}
 	Positionable(const point& p) : pos{ p } {}

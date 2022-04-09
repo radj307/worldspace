@@ -46,36 +46,31 @@ public:
 
 struct Projectile : DisplayableBase, Positionable {
 protected:
-	ActorBase* owner{ nullptr };
 	unsigned distance{ 0u };
 
 public:
+	ID factionID;
 	point direction;
 	StatFloat damage;
 	bool piercing;
 
-	Projectile(ActorBase* owner, const point& origin, const point& direction, const ProjectileTemplate& t) :
+	Projectile(ID ownerFactionID, const point& origin, const point& direction, const ProjectileTemplate& t) :
 		DisplayableBase(t.getDisplayableBase()),
 		Positionable(origin),
-		owner{ owner },
+		factionID{ ownerFactionID },
 		direction{ direction },
 		damage{ t.getDamage() },
 		piercing{ t.getPiercing() }
 	{}
 
-	Projectile(ActorBase* owner, const point& origin, const point& direction, const float& damage, const bool& piercing = true, const char& display = '*', const color::setcolor& color = color::setcolor{ color::rgb_to_sgr(1.0, 0.5, 0.0) }) :
+	Projectile(ID ownerFactionID, const point& origin, const point& direction, const float& damage, const bool& piercing = true, const char& display = '*', const color::setcolor& color = color::setcolor{ color::rgb_to_sgr(1.0, 0.5, 0.0) }) :
 		DisplayableBase(display, color),
 		Positionable(origin),
-		owner{ owner },
+		factionID{ ownerFactionID },
 		direction{ direction },
 		damage{ damage },
 		piercing{ piercing }
 	{}
-
-	ActorBase* getOwner()
-	{
-		return owner;
-	}
 
 	unsigned getDistanceTravelled() const
 	{
@@ -84,12 +79,12 @@ public:
 
 	point nextPos() const
 	{
-		return pos + direction;
+		return getPos() + direction;
 	}
 
 	void moveToNextPos()
 	{
-		pos += direction;
+		setPos(getPos() + direction);
 		++distance;
 	}
 };

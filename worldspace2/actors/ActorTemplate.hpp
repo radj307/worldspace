@@ -14,7 +14,7 @@ protected:
 	std::optional<unsigned> level;
 	std::optional<std::string> name;
 	std::optional<StatFloat> health, stamina, damage, defense, fear, aggression;
-	std::optional<StatUnsigned> aggressionRange;
+	std::optional<StatUnsigned> visRange;
 	std::optional<std::vector<ItemTemplate<float>>> items;
 
 public:
@@ -34,7 +34,7 @@ public:
 		default_fear{ 100.0f, 0.0f },
 		default_aggression{ 100.0f, 0.0f };
 	inline static const StatUnsigned
-		default_aggressionRange{ 3u };
+		default_visRange{ 3u };
 	inline static const std::vector<ItemTemplate<float>>
 		default_items{};
 
@@ -49,7 +49,7 @@ public:
 		const std::optional<StatFloat>& defense = std::nullopt,
 		const std::optional<StatFloat>& fear = std::nullopt,
 		const std::optional<StatFloat>& aggression = std::nullopt,
-		const std::optional<StatUnsigned>& aggressionRange = std::nullopt,
+		const std::optional<StatUnsigned>& visRange = std::nullopt,
 		const std::optional<std::vector<ItemTemplate<float>>>& items = std::nullopt
 	) : displayable{ displayable },
 		factionID{ factionID },
@@ -61,7 +61,7 @@ public:
 		defense{ defense },
 		fear{ fear },
 		aggression{ aggression },
-		aggressionRange{ aggressionRange },
+		visRange{ visRange },
 		items{ items }
 	{
 	}
@@ -106,9 +106,9 @@ public:
 	{
 		return factionID.value_or(default_factionID);
 	}
-	StatUnsigned getAggressionRange() const
+	StatUnsigned getVisRange() const
 	{
-		return aggressionRange.value_or(default_aggressionRange);
+		return visRange.value_or(default_visRange);
 	}
 	std::vector<ItemTemplate<float>> getItems() const
 	{
