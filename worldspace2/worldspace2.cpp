@@ -52,6 +52,7 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 				case Control::SEQUENCE: {
 					if (term::kbhit()) {
 						key = term::getch();
+						std::scoped_lock<std::mutex> lock(mtx);
 						switch (controls.fromKey(key)) {
 						case Control::FIRE_UP:
 							game.playerFireProjectile(UP);

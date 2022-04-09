@@ -85,7 +85,7 @@ public:
 
 	~ActorBase()
 	{
-		if (!isTargetingMe.empty()) {
+		if (Global.state == GameState::RUNNING && !isTargetingMe.empty()) {
 			// iterate through all actors who have me as a target, and unset their target.
 			for (auto it{ isTargetingMe.begin() }; it != isTargetingMe.end(); ++it)
 				(*it)->unsetTarget(false);
