@@ -9,6 +9,7 @@
 
 #include <optional>
 #include <map>
+#include <set>
 #include <queue>
 
 struct flare {
@@ -234,7 +235,7 @@ struct gamespace {
 			// check for actors
 			if (const auto& other{ getActorAt(newPos) }; other != nullptr) {
 				// check if the actor is hostile towards the target
-				if (typeid(*actor) == typeid(Player) || GameConfig.getFactionFromID(actor->factionID).isHostileTo(other->factionID)) {
+				if (typeid(*actor) == typeid(Player) || getFaction(actor->factionID).isHostileTo(other->factionID)) {
 					return other->applyDamageFrom(actor); // return true if other actor died
 				}
 				else return false;
@@ -299,63 +300,67 @@ struct gamespace {
 	bool movePlayer(const position& x, const position& y) { return moveActor(&player, x, y); }
 #	pragma endregion Movement
 
+	/**
+	 * @brief				Make the specified actor fire a projectile in a given direction.
+	 * @param actor			The owner of the projectile.
+	 * @param direction		The direction of travel of the spawned projectile.
+	 * @returns				bool
+	 *						True when a projectile was successfully fired, even if it wasn't added to the projectiles list because there was an actor at the origin.
+	 */
 	bool fireProjectile(ActorBase* actor, const point& direction)
 	{
-		const auto& origin{ actor->pos + direction };
+		const point& myPos{ actor->pos }, & origin{ myPos + direction };
+
+		// don't spawn the projectile if one already exists at the origin
 		if (getProjectileAt(origin) != nullptr)
 			return false;
-		// check if the projectile spawn location currently has an actor located there
-		if (auto* o{ getActorAt(origin) }; o != nullptr) {
-			const auto& fID{ actor->factionID };
-			if (auto& oFaction{ getFaction(o->factionID) }; !oFaction.isHostileTo(fID))
-				oFaction.addHostile(fID);
-			// create a temporary projectile and attack the actor
-			Projectile tmp{ actor, origin, direction, actor->damage, true };
-			o->applyDamage(tmp.damage, tmp.piercing);
-			return true;
+
+		if (auto* tile{ getTileAt(origin) }; tile != nullptr) { // throw an exception if the getTileAt function failed & didn't throw one itself.
+			// check if the origin point is a valid movable tile
+			if (tileAllowsMovement(tile)) {
+				// Create a projectile
+				Projectile proj{ actor, origin, direction, actor->damage, true };
+
+				// check if there is an actor at the origin tile
+				if (auto* actorAtPos{ getActorAt(origin) }; actorAtPos != nullptr) {
+					auto& myFaction{ getFaction(actor->factionID) };
+
+					// if the unlucky winner of a bullet to the face isn't already hostile, make them hostile
+					if (auto& theirFaction{ getFaction(actorAtPos->factionID) }; !theirFaction.isHostileTo(myFaction))
+						theirFaction.addHostile(myFaction);
+
+					// apply the projectile's damage directly to the unlucky winner
+					actorAtPos->applyDamage(proj.damage, proj.piercing);
+
+					// don't add the projectile to the 'in-flight' list because it already hit someone
+					return true;
+				}
+				// else there is not an actor at the origin tile, add the projectile to the 'in-flight' list.
+				projectiles.emplace_back(std::make_unique<Projectile>(std::move(proj)));
+				return true;
+			} // else origin isn't a movable tile, don't spawn the projectile
+			return false;
 		}
-		else {
-			projectiles.emplace_back(std::make_unique<Projectile>(actor, origin, direction, actor->damage * 2, true));
-			return true;
-		}
-		return false;
+		else throw make_exception("fireProjectile() failed:  Out-of-range origin position ( ", origin.x, ", ", origin.y, " )!");
 	}
+	/**
+	 * @brief				Make the player fire a projectile in a given direction.
+	 * @param direction		The direction of travel of the spawned projectile.
+	 * @returns				bool
+	 *						True when a projectile was successfully fired, even if it wasn't added to the projectiles list because there was an actor at the origin.
+	 */
 	bool playerFireProjectile(const point& direction)
 	{
 		return fireProjectile((ActorBase*)&player, direction);
 	}
 
-	Faction& getFaction(const int& factionID)
-	{
-		return GameConfig.getFactionFromID(factionID);
-	}
-
 	/**
-	 * @brief		Remove an NPC from the list using a given iterator.
-	 *\n			If you're calling this from a for loop, make sure to set the given
-	 *\n			iterator to the return value of this function to prevent a hanging pointer.
-	 * @param it	An iterator pointing to the target npc.
-	 * @returns		NPCContainer::iterator
+	 * @brief			Retrieve the faction object associated with a given faction ID number.
+	 *\n				This calls `GameConfig.getFactionFromID()`, which should not be directly called anywhere else within the gamespace object.
+	 * @param factionID	The ID number of a faction.
+	 * @returns			Faction
 	 */
-	NPCContainer::iterator removeNPC(const NPCContainer::const_iterator& it)
-	{
-		if (npcs.empty())
-			throw make_exception("gamespace::removeNPC() failed:  Cannot remove elements from an empty list!");
-		return npcs.erase(it, it + 1);
-	}
-	/**
-	 * @brief		Remove a projectile from the list using a given iterator.
-	 *\n			If you're calling this from a for loop, make sure to set the given
-	 *\n			iterator to the return value of this function to prevent a hanging pointer.
-	 * @param it	An iterator pointing to the target projectile.
-	 * @returns		ProjContainer::iterator
-	 */
-	ProjContainer::iterator removeProjectile(const ProjContainer::const_iterator& it)
-	{
-		if (projectiles.empty())
-			throw make_exception("gamespace::removeProjectile() failed:  Cannot remove elements from an empty list!");
-		return projectiles.erase(it, it + 1);
-	}
+	Faction& getFaction(const int& factionID) { return GameConfig.getFactionFromID(factionID); }
 
 	point pathFind(const point& start, const point& target)
 	{
@@ -379,7 +384,7 @@ struct gamespace {
 		else
 			return point{ 0, sml }.clamp();
 
-		return { 0, 0 };
+		return diffNormal;
 	}
 	point pathFind(ActorBase* actor, const point& target)
 	{
@@ -440,47 +445,74 @@ struct gamespace {
 		return dir;
 	}
 
+	ActorBase* findNearbyActor(const point& pos, const position& radius, const std::function<bool(ActorBase*)>& pred, const bool& include_pos = false)
+	{
+		const auto& checkPos{ [&pred, this](const point& p) {
+			auto* atPos{ getActorAt(p) };
+			return (atPos != nullptr && !atPos->isDead()) ? atPos : nullptr;
+		} };
+
+		if (include_pos)
+			if (auto* atPos{ checkPos(pos) }; atPos != nullptr)
+				return atPos;
+
+		for (position i{ 1 }; i <= radius; ++i) {
+			for (position startY{ pos.y - i }, endY{ pos.y + i }, y{ startY }; y <= endY; ++y) {
+				const position& startX{ pos.x - i }, endX{ pos.x + i };
+				if (y == startY || y == endY) { // top/bottom row, iterate through all columns
+					for (position x{ startX }; x <= endX; ++x) {
+						if (const point& here{ x, y }; here != pos && here.within(boundaries) && here.withinCircle(radius, pos)) {
+							if (auto* atPos{ getActorAt(here) }; atPos != nullptr && pred(atPos))
+								return atPos;
+						}
+					}
+				} // middle row, check only the first and last column (since all interior cells have already been checked)
+				else if (auto* atPos{ checkPos(point(startX, y)) }; atPos != nullptr)
+					return atPos;
+				else if (atPos = checkPos(point(endX, y)); atPos != nullptr)
+					return atPos;
+			}
+		}
+
+		return nullptr;
+	}
+
 	/**
 	 * @brief		Perform a turn for one NPC.
 	 * @param npc	Pointer to an NPC.
-	 * @returns		bool
 	 */
-	bool PerformActionNPC(NPC* npc) noexcept(false)
+	void PerformActionNPC(NPC* npc) noexcept(false)
 	{
 		if (npc == nullptr)
 			throw make_exception("gamespace::PerformActionNPC() failed:  Received nullptr!");
 
 		const auto& myFaction{ getFaction(npc->factionID) };
 
-		const auto& findNearbyTarget{ [&npc, &myFaction, this]() {
-			//auto* nearby{ findNearbyActor(npc->aggressionRange, npc->pos, [&myFaction](ActorBase* actor) {
-//				return myFaction.isHostileTo(actor->factionID);
-			//}) };
-//			if (nearby != nullptr)
-//				npc->target = nearby->pos;
-		} };
-
-		// NPC has a target set
-		if (npc->target.has_value()) {
-			const point targetPos{ npc->target.value() };
-
-			// target isn't valid, search nearby for a valid target
-			if (auto* target{ getActorAt(targetPos) }; target == nullptr || !myFaction.isHostileTo(target->factionID))
-				findNearbyTarget();
+		// NPC has a target set:
+		if (auto* tgt{ npc->getTarget() }; tgt != nullptr) {
+			if (isValidFaction(tgt->factionID) && !tgt->isDead()) {
+				if (tgt->pos.withinCircle(npc->aggressionRange, npc->pos))
+					npc->aggression += 10.0f;
+				else npc->aggression -= 15.0f;
+				if (npc->aggression <= 0.0f)
+					npc->unsetTarget();
+				else moveActor(npc, pathFind(npc, npc->isAfraid() ? -tgt->pos : tgt->pos));
+				return;
+			}
+			else npc->unsetTarget();
 		}
-		else findNearbyTarget();
 
-		// npc found a target
-		if (npc->target.has_value()) {
-			const auto& targetPos{ npc->target.value() };
-			moveActor(npc, pathFind(npc, npc->isAfraid() ? -targetPos : targetPos));
+		if (auto* tgt{ findNearbyActor(npc->pos, npc->aggressionRange, [&myFaction](ActorBase* actor) -> bool {
+			return myFaction.isHostileTo(actor->factionID);
+			}) }; tgt != nullptr) {
+			npc->setTarget(tgt);
+			moveActor(npc, pathFind(npc, tgt->pos));
+			return;
 		}
 
 		// npc still doesn't have a target
-		else if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance)
+		if (rng.get(0.0f, 100.0f) <= GameConfig.npcIdleMoveChance)
 			moveActor(npc, getRandomDir());
-
-		return npc->isDead();
 	}
 
 	/**
@@ -489,18 +521,15 @@ struct gamespace {
 	 */
 	void PerformActionAllNPCs() noexcept(false)
 	{
-		// handle NPCs
-		for (auto it{ npcs.begin() }; it != npcs.end(); ) {
-			if (auto* npc{ it->get() }; npc != nullptr) {
-				if (npc->isDead() || PerformActionNPC(npc)) {
-					it->reset();
-					it = removeNPC(it);
-					continue; ///< required!
-				}
+		if (npcs.empty())
+			return;
+		for (auto it{ npcs.begin() }; it != npcs.end(); ++it) {
+			auto* npc{ it->get() };
+			if (npc == nullptr || npc->isDead()) {
+				it = npcs.erase(it);
+				if (it == npcs.end()) break;
 			}
-			else it = removeNPC(it);
-			if (it != npcs.end())
-				++it;
+			else PerformActionNPC(npc);
 		}
 	}
 
@@ -509,29 +538,26 @@ struct gamespace {
 	 */
 	void ProcessProjectileActions() noexcept(false)
 	{
-		if (!projectiles.empty()) {
-			for (auto it{ projectiles.begin() }; it < projectiles.end();) {
-				if (auto* proj{ it->get() }; proj != nullptr) {
-					if (const auto& nextPos{ proj->nextPos() }; nextPos.within(boundaries)) {
-						if (auto* tile{ getTileAt(nextPos) }; tile != nullptr) {
-							if (!tileAllowsMovement(tile))
-								it = removeProjectile(it);
-							else if (auto* actor{ getActorAt(nextPos) }; actor != nullptr) {
-								actor->applyDamage(proj->damage, proj->piercing);
-								it = removeProjectile(it);
-							}
-							else proj->move();
-							if (std::distance(it, projectiles.end()) > 0) {
-								++it;
-								continue;
-							}
-							else break;
-						}
+		for (auto it{ projectiles.begin() }; it != projectiles.end(); ++it) {
+			if (auto* proj{ it->get() }; proj != nullptr) {
+				const point nextPos{ proj->nextPos() };
+				if (auto* nextTile{ getTileAt(nextPos) }; nextTile != nullptr && tileAllowsMovement(nextTile)) {
+					// check if there is an unlucky winner of a bullet to the face in the next position
+					if (auto* actorAtPos{ getActorAt(nextPos) }; actorAtPos != nullptr) {
+						actorAtPos->applyDamage(proj->damage, proj->piercing);
+						// fallthrough & erase this projectile
 					}
-				}
-				if (!projectiles.empty())
-					it = removeProjectile(it);
-			}
+					else { // increment this projectiles position & continue
+						proj->moveToNextPos();
+						continue;
+					}
+				} // else tile is null, or doesn't allow movement
+			} // else projectile is null
+
+			// fallthrough deletes this projectile if continue wasn't called.
+			it = projectiles.erase(it);
+
+			if (it == projectiles.end()) break;
 		}
 	}
 };

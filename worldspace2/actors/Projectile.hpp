@@ -77,12 +77,6 @@ public:
 		return owner;
 	}
 
-	void move()
-	{
-		++distance;
-		pos += direction;
-	}
-
 	unsigned getDistanceTravelled() const
 	{
 		return distance;
@@ -91,5 +85,11 @@ public:
 	point nextPos() const
 	{
 		return pos + direction;
+	}
+
+	void moveToNextPos()
+	{
+		pos += direction;
+		++distance;
 	}
 };

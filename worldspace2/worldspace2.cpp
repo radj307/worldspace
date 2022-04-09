@@ -154,8 +154,7 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 				<< elapsed.count()
 				<< " ms      "
 				;
-			if (const auto& timeend{ t_start + Global.frametime }; t_end < timeend)
-				std::this_thread::sleep_until(timeend);
+			std::this_thread::sleep_until(t_end);
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -177,7 +176,8 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 			case GameState::RUNNING:
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
-				//game.PerformActionAllNPCs();
+
+				game.ProcessProjectileActions();
 
 				if (game.player.isDead())
 					Global.state = GameState::OVER;
@@ -210,7 +210,6 @@ inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
 			case GameState::RUNNING:
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
-				game.ProcessProjectileActions();
 				game.PerformActionAllNPCs();
 				break;
 			} // critical section
@@ -240,6 +239,12 @@ inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
  */
 inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& timeout)
 {
+	if (Global.state == GameState::EXCEPTION) {
+		if (Global.exception.has_value())
+			throw Global.exception.value();
+		else throw make_exception("An unknown exception occurred!");
+	}
+
 	const auto& tStart{ std::chrono::high_resolution_clock::now() };
 
 	point pos{ static_cast<point>(term::getScreenBufferSize()) / 2 };
@@ -280,11 +285,24 @@ inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& 
 	return false;
 }
 
+#ifdef OS_WIN
+#include <Windows.h>
+LONG SEH_Handler(_EXCEPTION_POINTERS* exInfo)
+{
+	const auto& ex{ exInfo->ExceptionRecord };
+
+	Global.state = GameState::EXCEPTION;
+	Global.exception = make_exception("Unhandled SEH exception '", ex->ExceptionCode, "'\n");
+
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
+#endif
+
 int main(const int argc, char** argv)
 {
-	Container<int> intcont{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	Container<float> floatcont(0.5f);
-
+#ifdef OS_WIN // Handle 'Structured Exception Handle' exceptions on windows (these aren't caught by try-catch blocks, and could cause threads to fail without notice)
+	AddVectoredExceptionHandler(1, SEH_Handler);
+#endif
 	try {
 		// enable ANSI escape sequences
 		std::cout << term::EnableANSI;
@@ -345,7 +363,7 @@ int main(const int argc, char** argv)
 			t_input.wait();
 			t_display.wait();
 			t_game.wait();
-		} while (Global.state != GameState::EXCEPTION && handleGameOver(controls, Global.restartTimeout));
+		} while (handleGameOver(controls, Global.restartTimeout));
 
 		const auto& timeEnd{ std::chrono::high_resolution_clock::now() };
 

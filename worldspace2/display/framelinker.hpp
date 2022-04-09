@@ -25,16 +25,11 @@ struct framelinker {
 	virtual void postFrame() {}
 
 	/**
-	 * @brief		Get an override frame element for a specific position.
-	 *\n			This pure virtual function must be overloaded by all framelinker derivatives
-	 * @param x:	The x-axis position.
-	 * @param y:	The y-axis position.
-	 * @returns		std::optional<frame_elem>
+	 * @brief		Link the specified frame.
+	 * @param e		A reference to the frame element to be linked.
+	 * @param x		The x-axis position of the frame element.
+	 * @param y		The y-axis position of the frame element.
+	 * @returns		frame_elem&
 	 */
-	virtual std::optional<DisplayableBase> get(const position&, const position&) = 0;
-
-	std::optional<DisplayableBase> get(const point& p)
-	{
-		return get(p.x, p.y);
-	}
+	virtual frame_elem& link(frame_elem&, const position&, const position&) = 0;
 };

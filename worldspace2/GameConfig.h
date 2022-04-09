@@ -147,3 +147,11 @@ inline static bounds getPlayableBounds()
 {
 	return{ GameConfig.minPos, GameConfig.maxPos };
 }
+
+inline static bool isValidFaction(const int& factionID)
+{
+	for (const auto& it : GameConfig.factions)
+		if (factionID == it.getID())
+			return true;
+	return false;
+}

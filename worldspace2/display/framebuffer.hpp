@@ -119,18 +119,8 @@ public:
 
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
-				const auto& linked{ linker->get(x, y) };
-				const auto& in{ incoming.get(x, y) };
-				std::cout << term::setCursorPosition(getPointOffset(x, y));
-				if (linked.has_value()) {
-					const auto& lval{ linked.value() };
-					if (lval.display == '\0')
-						std::cout << lval.color << in.over().display;
-					else std::cout << lval;
-				}
-				else
-					std::cout << in;
-				std::cout << color::reset;
+				auto here{ linker->link(incoming.getRef(x, y), x, y) };
+				std::cout << term::setCursorPosition(getPointOffset(x, y)) << here;
 			}
 		}
 
@@ -173,12 +163,11 @@ public:
 
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
-				const auto& out{ current.getRef(x, y) }; // outgoing frame pos
-				auto& in{ incoming.getRef(x, y) }; // incoming frame pos
-				if (const auto& linked{ linker->get(x, y) }; linked.has_value())
-					in.emplace_back(linked.value()); // insert linker output
-				if (in != out) // display:
-					std::cout << term::setCursorPosition(getPointOffset(x, y)) << in << color::reset;
+				const auto& out{ current.getRef(x, y) };
+				auto here{ linker->link(incoming.getRef(x, y), x, y) };
+
+				if (here != out)
+					std::cout << term::setCursorPosition(getPointOffset(x, y)) << here;
 			}
 		}
 

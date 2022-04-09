@@ -22,15 +22,16 @@ struct framelinker_gamespace : framelinker {
 		}
 	}
 
-	std::optional<DisplayableBase> get(const position& x, const position& y) override
+	virtual frame_elem& link(frame_elem& e, const position& x, const position& y) override
 	{
-		if (auto* actor{ g.getActorAt(x, y) }; actor != nullptr && !actor->isDead())
-			return *actor;
-		else if (auto* proj{ g.getProjectileAt(x, y) }; proj != nullptr)
-			return *proj;
-		else if (active != nullptr)
+		if (active != nullptr) // flare
 			if (const auto& color{ active->getFlareAt(x, y) }; color.has_value())
-				return DisplayableBase{ '\0', color.value() };
-		return std::nullopt;
+				e += color.value();
+
+		if (auto* actor{ g.getActorAt(x, y) }; actor != nullptr)
+			e += *actor;
+		else if (auto* proj{ g.getProjectileAt(x, y) }; proj != nullptr)
+			e += *proj;
+		return e;
 	}
 };

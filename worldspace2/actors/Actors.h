@@ -12,7 +12,6 @@ struct Player : ActorBase {
 };
 
 struct NPC : ActorBase {
-	std::optional<point> target{ std::nullopt };
 	StatFloat fear;
 	StatFloat aggression;
 	StatUnsigned aggressionRange;
