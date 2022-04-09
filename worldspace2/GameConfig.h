@@ -13,11 +13,11 @@ static struct {
 	point minPos{ point{ 0, 0 } + static_cast<int>(generatorConfig.wall_always_on_edge) };
 	point maxPos{ gridSize - minPos };
 
-	static void setGridSize(const size& newGridSize)
+	void setGridSize(const size& newGridSize)
 	{
-		GameConfig.gridSize = newGridSize;
-		GameConfig.minPos = point{ 0, 0 } + static_cast<int>(GameConfig.generatorConfig.wall_always_on_edge);
-		GameConfig.maxPos = GameConfig.gridSize - GameConfig.minPos;
+		gridSize = newGridSize;
+		minPos = point{ 0, 0 } + static_cast<int>(generatorConfig.wall_always_on_edge);
+		maxPos = gridSize - minPos;
 	}
 
 	std::array<Faction, 5> factions{

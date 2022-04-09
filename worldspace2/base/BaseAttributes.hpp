@@ -307,31 +307,23 @@ public:
 		return *this;
 	}
 
-	TargetStat operator|(const TargetStat& o) const
+	TargetStat& operator|=(const int& o)
 	{
-		return{ _value | o._value };
+		_value |= o;
+		return *this;
 	}
-	TargetStat operator^(const TargetStat& o) const
+	TargetStat& operator^=(const int& o)
 	{
-		return{ _value ^ o._value };
+		_value ^= o;
+		return *this;
 	}
-	TargetStat operator&(const TargetStat& o) const
+	TargetStat& operator&=(const int& o)
 	{
-		return{ _value & o._value };
+		_value &= o;
+		return *this;
 	}
 
-	TargetStat& operator|=(const TargetStat& o)
-	{
-		return *this = std::move(this->operator|(o));
-	}
-	TargetStat& operator^=(const TargetStat& o)
-	{
-		return *this = std::move(this->operator^(o));
-	}
-	TargetStat& operator&=(const TargetStat& o)
-	{
-		return *this = std::move(this->operator&(o));
-	}
+	operator int() const { return static_cast<int>(_value); }
 
 	template<std::same_as<TargetStat>... Ts>
 	bool contains(Ts&&... stats) const

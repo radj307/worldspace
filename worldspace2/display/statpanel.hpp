@@ -108,7 +108,7 @@ struct statpanel {
 
 		++ln;
 
-		const point& statbar_origin{ centerCol - static_cast<position>(hp.scale + sp.scale + 3) / 2ll, ln++ };
+		const point& statbar_origin{ centerCol - static_cast<position>(hp.scale + sp.scale + 3) / static_cast<position>(2), ln++ };
 		std::cout << term::setCursorPosition(statbar_origin) << hp << "   " << sp;
 	}
 };
