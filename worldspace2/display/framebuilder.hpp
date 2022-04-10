@@ -8,6 +8,7 @@
 struct framebuilder {
 	framebuilder() = default;
 	virtual ~framebuilder() = default;
+
 	/**
 	 * @brief			Pure virtual function that retrieves the next frame, given x and y axis constraints.
 	 * @param SizeX:	Width of the frame (x-axis).

@@ -5,6 +5,7 @@
 #include "../display/frame.hpp"
 
 #include <memory>
+#include <typeinfo>
 
 struct tile : DisplayableBase {
 	/**
@@ -12,7 +13,7 @@ struct tile : DisplayableBase {
 	 *\n					This interface is called from gamespace::moveActor().
 	 * @param ActorBase*	A pointer to the actor who is currently located on this tile.
 	 */
-	virtual void effect(ActorBase*) = 0;
+	virtual void effect(ActorBase*) {}
 
 	tile(const char& display, const color::setcolor& color) : DisplayableBase(display, color) {}
 	tile() : tile('\0', color::setcolor::white) {}
@@ -75,4 +76,3 @@ struct containertile : tile {
 
 	containertile(std::vector<ItemTemplate<float>>&& items) : tile('\xa4', color::setcolor{ color::green, color::Layer::B }), items{ std::move(items) } {}
 };
-

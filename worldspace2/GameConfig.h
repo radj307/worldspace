@@ -116,7 +116,8 @@ static struct {
 		25.0f,
 		15.0f,
 		std::nullopt,
-		std::nullopt
+		std::nullopt,
+		6u
 	};
 
 	size_t generate_npc_count{ 10ull };

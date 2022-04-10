@@ -16,12 +16,14 @@ inline constexpr const char DISPLAY_COLOR_ONLY{ '\0' };
  *\n		while the last element is considered the "winning override" cell.
  */
 struct frame_elem : std::vector<DisplayableBase> {
+	bool enableLinking;
+
 	/**
 	 * @brief			Constructor
 	 * @param display	The character to display for this cell.
 	 * @param color		The color to use when printing the display char.
 	 */
-	frame_elem(const char& display, const color::setcolor& color = color::setcolor::placeholder)
+	frame_elem(const char& display, const color::setcolor& color = color::setcolor::placeholder, const bool& enableLinking = true) : enableLinking{ enableLinking }
 	{
 		this->emplace_back(DisplayableBase{ display, color });
 	}

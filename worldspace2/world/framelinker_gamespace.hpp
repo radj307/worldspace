@@ -1,11 +1,13 @@
 #pragma once
-#include "../display/framelinker.hpp"
+#include "display/framelinker.hpp"
+#include "gamespace.hpp"
+#include "point.h"
 
 struct framelinker_gamespace : framelinker {
 	gamespace& g;
 	flare* active{ nullptr };
 
-	framelinker_gamespace(gamespace& gamespace) : g{ gamespace } {}
+	framelinker_gamespace(gamespace& gamespace) : g { gamespace } {}
 
 	void preFrame() override
 	{
@@ -24,6 +26,9 @@ struct framelinker_gamespace : framelinker {
 
 	virtual frame_elem& link(frame_elem& e, const position& x, const position& y) override
 	{
+		if (!e.enableLinking)
+			return e;
+
 		if (active != nullptr) // flare
 			if (const auto& color{ active->getFlareAt(x, y) }; color.has_value())
 				e += color.value();

@@ -471,6 +471,7 @@ struct gamespace {
 						if (const point& here{ x, y }; here != pos && here.within(boundaries) && here.withinCircle(radius, pos)) {
 							if (auto* atPos{ getActorAt(here) }; atPos != nullptr && pred(atPos))
 								return atPos;
+							else continue;
 						}
 					}
 				} // middle row, check only the first and last column (since all interior cells have already been checked)
@@ -515,7 +516,7 @@ struct gamespace {
 		}
 
 		if (auto* tgt{ findNearbyActor(npc->getPos(), npc->visRange, [&myFaction](ActorBase* actor) -> bool {
-			return myFaction.isHostileTo(actor->factionID);
+				return myFaction.isHostileTo(actor->factionID);
 			}) }; tgt != nullptr) {
 			npc->setTarget(tgt);
 			moveActor(npc, pathFind(npc, tgt->getPos()));

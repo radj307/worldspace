@@ -8,6 +8,7 @@
 #include "actors/Actors.h"
 #include "world/gamespace.hpp"
 #include "world/framebuilder_matrix.hpp"
+#include "world/framebuilder_gamespace.hpp"
 #include "world/framelinker_gamespace.hpp"
 
 #include <INI.hpp>
@@ -50,9 +51,9 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 				int key{ term::getch() };
 				switch (controls.fromKey(key)) {
 				case Control::SEQUENCE: {
-					if (term::kbhit()) {
+					if (term::kbhit()) { //< this checks if there is still data in STDIN, not if a key is actually held down
 						key = term::getch();
-						std::scoped_lock<std::mutex> lock(mtx);
+						std::scoped_lock<std::mutex> lock(mtx); // mutex lock is required when firing projectiles to prevent unexpected projectile additions/removals during display cycles
 						switch (controls.fromKey(key)) {
 						case Control::FIRE_UP:
 							game.playerFireProjectile(UP);
@@ -66,8 +67,7 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 						case Control::FIRE_RIGHT:
 							game.playerFireProjectile(RIGHT);
 							break;
-						default:
-							break;
+						default:break;
 						}
 					}
 					break;
@@ -93,8 +93,7 @@ inline void thread_input(std::mutex& mtx, Controls& controls, gamespace& game) n
 				case Control::QUIT:
 					state = GameState::STOPPING;
 					break;
-				default:
-					break;
+				default:break;
 				}
 			}
 		}
@@ -112,7 +111,7 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
 		const std::string& frametime_str{ "Frametime: " };
-		point frametime_pos{ 5, 0 };
+		point frametime_pos{ GameConfig.gridSize.x / 2 - (12), 0};
 		std::cout << term::setCursorPosition(frametime_pos) << frametime_str;
 		frametime_pos.x += frametime_str.size();
 		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
@@ -349,7 +348,8 @@ int main(const int argc, char** argv)
 			gamespace game{};
 
 			framebuffer framebuf{ gridSize };
-			framebuf.setBuilder<framebuilder_matrix>(game.grid);
+			//framebuf.setBuilder<framebuilder_matrix>(game.grid);
+			framebuf.setBuilder<framebuilder_gamespace>(game, framebuilder_gamespace_config{ false, true });
 			framebuf.setLinker<framelinker_gamespace>(game);
 			framebuf.setPanel<statpanel>(&game.player);
 			framebuf.initDisplay();

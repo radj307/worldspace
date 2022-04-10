@@ -18,7 +18,7 @@ struct framebuilder_matrix : framebuilder {
 		);
 
 		frame f{ sizeX, sizeY };
-		f.reserve(sizeX * sizeY);
+		f.reserve(static_cast<size_t>(sizeX * sizeY));
 
 		for (position y{ 0 }; y < sizeY; ++y) {
 			for (position x{ 0 }; x < sizeX; ++x) {
