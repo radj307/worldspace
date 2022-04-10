@@ -93,7 +93,8 @@ struct statpanel {
 
 		position ln{ originRow };
 		
-		std::cout << term::setCursorPosition(nameCol - actor->name.size() / 2, ln) << actor->name;
+		const auto& name{ actor->name() };
+		std::cout << term::setCursorPosition(nameCol - (name.size() / 2 - 1), ln) << name;
 		const auto& lvlstr{ "Level " + std::to_string(actor->level)};
 		std::cout << term::setCursorPosition(levelCol - lvlstr.size() / 2, ln) << lvlstr;
 

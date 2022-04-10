@@ -13,37 +13,39 @@ using position = int;
  * @brief	A 2-Dimensional point in a matrix.
  */
 struct point : std::pair<position, position> {
-	position& x{ first };
-	position& y{ second };
+	using base = std::pair<position, position>;
+
+	position& x;
+	position& y;
 
 	/**
 	 * @brief		Constructor that accepts two positions.
 	 * @param x		X-Axis (Horizontal/Column Index) Position.
 	 * @param y		Y-Axis (Vertical/Row Index) Position.
 	 */
-	constexpr point(position&& x, position&& y) : std::pair<position, position>(std::forward<position>(x), std::forward<position>(y)) {}
+	constexpr point(position&& x, position&& y) : base(std::forward<position>(x), std::forward<position>(y)), x{ first }, y{ second } {}
 	/**
 	 * @brief		Constructor that accepts two positions.
 	 * @param x		X-Axis (Horizontal/Column Index) Position.
 	 * @param y		Y-Axis (Vertical/Row Index) Position.
 	 */
-	constexpr point(const position& x, const position& y) : std::pair<position, position>(x, y) {}
+	constexpr point(const position& x, const position& y) : base(x, y), x{ first }, y{ second } {}
 
 	/**
 	 * @brief		Constructor that accepts two positions.
 	 * @param p		Another point object.
 	 */
-	constexpr point(point&& p) noexcept : std::pair<position, position>(std::move(p)) {}
+	constexpr point(point&& p) noexcept : base(std::move(p)), x{ first }, y{ second } {}
 	/**
 	 * @brief		Constructor that accepts two positions.
 	 * @param p		Another point object.
 	 */
-	constexpr point(const point& p) : std::pair<position, position>(p) {}
+	constexpr point(const point& p) : base(p), x{ first }, y{ second } {}
 
 	/**
 	 * @brief	Default Constructor.
 	 */
-	constexpr point() : point(0ll, 0ll) {}
+	constexpr point() : point(static_cast<position>(0), static_cast<position>(0)) {}
 
 	/**
 	 * @brief		Constructor that supports
@@ -52,7 +54,7 @@ struct point : std::pair<position, position> {
 	 * @param p		A std::pair rvalue.
 	 */
 	template<std::integral Tx, std::integral Ty> requires (!std::same_as<Tx, position> && !std::same_as<Ty, position>)
-		constexpr point(std::pair<Tx, Ty>&& p) : std::pair<position, position>(static_cast<position>(p.first), static_cast<position>(p.second)) {}
+		constexpr point(std::pair<Tx, Ty>&& p) : base(static_cast<position>(p.first), static_cast<position>(p.second)), x{ first }, y{ second } {}
 
 	point& operator=(point&& o) noexcept
 	{
@@ -321,7 +323,7 @@ struct point : std::pair<position, position> {
 	 * @param max	Maximum point.
 	 * @returns		bool
 	 */
-	bool within(const point& min, const point& max) const
+	bool withinSquare(const point& min, const point& max) const
 	{
 		return x >= min.x && x < max.x&& y >= min.y && y < max.y;
 	}
@@ -330,10 +332,9 @@ struct point : std::pair<position, position> {
 	 * @param bounds	A pair of points where the first element is the minimum boundary and the second is the maximum boundary.
 	 * @returns			bool
 	 */
-	bool within(const std::pair<point, point>& bounds) const
+	bool withinSquare(const std::pair<point, point>& bounds) const
 	{
-		const auto& [min, max] { bounds };
-		return within(min, max);
+		return withinSquare(bounds.first, bounds.second);
 	}
 
 	bool withinCircle(const unsigned& radius, const point& pos) const
@@ -349,35 +350,32 @@ struct point : std::pair<position, position> {
 		return withinCircle(radius, point{ xPos, yPos });
 	}
 
-	/**
-	 * @brief
-	 * @param radius
-	 * @param min
-	 * @param max
-	 * @returns			std::vector<point>
-	 */
 	std::vector<point> getAllPointsWithinCircle(const unsigned& radius, const point& min, const point& max, const bool& include_center = false) const
 	{
 		std::vector<point> vec;
-		const auto& total_sz{ max - min };
-		vec.reserve(total_sz.x & total_sz.y);
+		const point& total_sz{ max - min };
+		vec.reserve(static_cast<size_t>(total_sz.x * total_sz.y));
 
 		const position r{ static_cast<position>(radius) }, r2{ r * r };
 
+		// iterate on the vertical axis' tangential square (square drawn around the circle, with all of its sides touching the outer edges of the circle)
 		for (position yP{ y - r }; yP <= y + r; ++yP) {
 			if (yP < min.y)
-				continue;
+				continue; // we're outside of the boundary, but may re-enter it in subsequent iterations.
 			else if (yP > max.y)
-				break;
+				break; // we've exceeded the boundary, and won't be re-entering it.
+
+			// iterate on the horizontal axis' tangential square
 			for (position xP{ x - r }; xP <= x + r; ++xP) {
 				if (xP < min.x)
-					continue;
+					continue; // we're outside of the boundary, but may re-enter it in subsequent iterations.
 				else if (xP > max.x)
-					break;
-				const point& pos{ xP, yP };
-				if ((include_center || !include_center && pos != *this) && withinCircle(radius, pos)) {
-					vec.emplace_back(pos);
-				}
+					break; // we've exceeded the boundary, and won't be re-entering it.
+				else if (!include_center && xP == x && yP == y)
+					continue;
+
+				if (withinCircle(radius, xP, yP))
+					vec.emplace_back(std::move(point{ xP, yP }));
 			}
 		}
 
@@ -390,38 +388,47 @@ struct point : std::pair<position, position> {
 		return getAllPointsWithinCircle(radius, min, max, include_center);
 	}
 
+	/// @brief	Retrieve the point that is 1 position north of this one. (top-left origin)
 	point north() const
 	{
 		return{ x, y - 1 };
 	}
+	/// @brief	Retrieve the point that is 1 position east of this one. (top-left origin)
 	point east() const
 	{
 		return{ x + 1, y };
 	}
+	/// @brief	Retrieve the point that is 1 position south of this one. (top-left origin)
 	point south() const
 	{
 		return{ x, y + 1 };
 	}
+	/// @brief	Retrieve the point that is 1 position west of this one. (top-left origin)
 	point west() const
 	{
 		return{ x - 1, y };
 	}
+	/// @brief	Retrieve the point that is 1 position north & 1 position east of this one. (top-left origin)
 	point northeast() const
 	{
 		return{ x + 1, y - 1 };
 	}
+	/// @brief	Retrieve the point that is 1 position north & 1 position west of this one. (top-left origin)
 	point northwest() const
 	{
 		return{ x - 1, y - 1 };
 	}
+	/// @brief	Retrieve the point that is 1 position south & 1 position east of this one. (top-left origin)
 	point southeast() const
 	{
 		return{ x + 1, y + 1 };
 	}
+	/// @brief	Retrieve the point that is 1 position south & 1 position west of this one. (top-left origin)
 	point southwest() const
 	{
 		return{ x - 1, y + 1 };
 	}
+	/// @brief	Retrieve an array of the points that are 1 position away in each of the 4 cardinal directions. Ordering is [NESW].
 	std::array<point, 4> cardinal() const
 	{
 		return{ north(), east(), south(), west() };

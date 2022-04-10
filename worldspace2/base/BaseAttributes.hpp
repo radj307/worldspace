@@ -34,6 +34,7 @@ public:
 	Positioned(point&& p) : pos{ std::move(p) } {}
 	Positioned(const point& p) : pos{ p } {}
 	Positioned(const position& x, const position& y) : pos{ x, y } {}
+	virtual ~Positioned() = default;
 
 	point getPos() const
 	{
@@ -50,6 +51,29 @@ public:
 };
 
 /**
+ * @struct	Named
+ * @brief	Indicates that the derived object who inherits from this attribute has a name.
+ */
+struct Named {
+private:
+	std::string _name;
+
+protected:
+	void setName(std::string&& name) { _name = std::move(name); }
+	void setName(const std::string& name) { _name = name; }
+
+public:
+	WINCONSTEXPR Named(std::string&& name) : _name{ std::move(name) } {}
+	WINCONSTEXPR Named(const std::string& name) : _name{ name } {}
+	WINCONSTEXPR Named() = default;
+	virtual ~Named() = default;
+
+	[[nodiscard]] WINCONSTEXPR std::string name() const { return _name; }
+
+	[[nodiscard]] WINCONSTEXPR operator std::string() const { return _name; }
+};
+
+/**
  * @struct	Positionable
  * @brief	Mutable position attribute.
  */
@@ -61,6 +85,7 @@ public:
 	Positionable(point&& p) : pos{ std::move(p) } {}
 	Positionable(const point& p) : pos{ p } {}
 	Positionable(const position& x, const position& y) : pos{ x, y } {}
+	virtual ~Positionable() = default;
 
 	void movePosBy(point&& diff)
 	{

@@ -181,24 +181,13 @@ struct gamespace {
 			return (ActorBase*)&player;
 
 		for (const auto& it : npcs)
-			if (it.get() != nullptr)
-				if (it->getPos() == pos)
-					return (ActorBase*)it.get();
+			if (auto* npc{ it.get() }; npc != nullptr)
+				if (npc->getPos() == pos)
+					return (ActorBase*)npc;
 
 		return nullptr;
 	}
-	ActorBase* getActorAt(const position& x, const position& y) const
-	{
-		if (const auto& playerPos{ player.getPos() }; x == playerPos.x && y == playerPos.y)
-			return (ActorBase*)&player;
-
-		for (const auto& it : npcs)
-			if (it.get() != nullptr)
-				if (const auto& pos{ it->getPos() }; pos.x == x && pos.y == y)
-					return (ActorBase*)it.get();
-
-		return nullptr;
-	}
+	ActorBase* getActorAt(const position& x, const position& y) const { return getActorAt(std::move(point{ x, y })); }
 
 	tile* getTileAt(const point& pos) const
 	{
@@ -230,7 +219,7 @@ struct gamespace {
 		if (actor == nullptr)
 			throw make_exception("gamespace::canMove() failed:  Received nullptr instead of ActorBase*!");
 		const auto& newPos{ actor->getPos() + posDiff };
-		if (!newPos.within(boundaries)) // if the pos is out of bounds, return false early
+		if (!newPos.withinSquare(boundaries)) // if the pos is out of bounds, return false early
 			return false;
 		if (auto* tile{ getTileAt(newPos) }; tile != nullptr && typeid(*tile) != typeid(walltile)) {
 			// check for actors
@@ -246,7 +235,6 @@ struct gamespace {
 		return false;
 	}
 
-#	pragma region Movement
 	/**
 	 * @brief			Move an actor by the specified number of positions.
 	 * @param actor		The actor to move.
@@ -299,7 +287,6 @@ struct gamespace {
 
 	bool movePlayer(const point& posDiff) { return moveActor(&player, posDiff); }
 	bool movePlayer(const position& x, const position& y) { return moveActor(&player, x, y); }
-#	pragma endregion Movement
 
 	/**
 	 * @brief				Make the specified actor fire a projectile in a given direction.
@@ -372,7 +359,7 @@ struct gamespace {
 	point pathFind(const point& start, const point& target)
 	{
 		const auto& movable{ [this](const point& p) {
-			if (p.within(boundaries))
+			if (p.withinSquare(boundaries))
 				return tileAllowsMovement(getTileAt(p));
 			return false;
 		} };
@@ -454,7 +441,7 @@ struct gamespace {
 
 	ActorBase* findNearbyActor(const point& pos, const position& radius, const std::function<bool(ActorBase*)>& pred, const bool& include_pos = false)
 	{
-		const auto& checkPos{ [&pred, this](const point& p) {
+		const auto& checkPos{ [this](const point& p) {
 			auto* atPos{ getActorAt(p) };
 			return (atPos != nullptr && !atPos->isDead()) ? atPos : nullptr;
 		} };
@@ -468,7 +455,7 @@ struct gamespace {
 				const position& startX{ pos.x - i }, endX{ pos.x + i };
 				if (y == startY || y == endY) { // top/bottom row, iterate through all columns
 					for (position x{ startX }; x <= endX; ++x) {
-						if (const point& here{ x, y }; here != pos && here.within(boundaries) && here.withinCircle(radius, pos)) {
+						if (const point& here{ x, y }; here != pos && here.withinSquare(boundaries) && here.withinCircle(radius, pos)) {
 							if (auto* atPos{ getActorAt(here) }; atPos != nullptr && pred(atPos))
 								return atPos;
 							else continue;
@@ -516,7 +503,7 @@ struct gamespace {
 		}
 
 		if (auto* tgt{ findNearbyActor(npc->getPos(), npc->visRange, [&myFaction](ActorBase* actor) -> bool {
-				return myFaction.isHostileTo(actor->factionID);
+			return myFaction.isHostileTo(actor->factionID);
 			}) }; tgt != nullptr) {
 			npc->setTarget(tgt);
 			moveActor(npc, pathFind(npc, tgt->getPos()));

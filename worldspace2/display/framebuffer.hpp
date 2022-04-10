@@ -122,10 +122,9 @@ public:
 
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
-				auto here{ linker->link(incoming.getRef(x, y), x, y) };
-				//auto here{ incoming.getRef(x, y) };
-				//if (here.enableLinking)
-				//	linker->link(here, x, y);
+				auto here{ incoming.getRef(x, y) };
+				if (here.enableLinking)
+					here = linker->link(here, x, y);
 				std::cout << term::setCursorPosition(getPointOffset(x, y)) << here;
 			}
 		}
@@ -170,7 +169,6 @@ public:
 		for (position y{ 0ull }; y < SizeY; ++y) {
 			for (position x{ 0ull }; x < SizeX; ++x) {
 				const auto& out{ current.getRef(x, y) };
-				//auto here{ incoming.getRef(x, y) };
 				auto here{ linker->link(incoming.getRef(x, y), x, y) };
 				if (here.enableLinking)
 					here = linker->link(here, x, y);

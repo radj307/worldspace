@@ -34,13 +34,10 @@ struct framebuilder_gamespace : framebuilder {
 		} };
 
 		if (check_type && typeid(*tile) == typeid(walltile)) {
-			if (cfg.show_all_walls)
+			if (cfg.show_all_walls || (cfg.show_border_walls && ((x == 0 || x == g.grid.SizeX - 1) || (y == 0 || y == g.grid.SizeY - 1))))
 				return true;
-			else if (cfg.show_border_walls && (x == 0 || x == g.grid.SizeX) && (y == 0 || y == g.grid.SizeY))
-				return true;
-			//return cfg.show_all_walls || (cfg.show_border_walls && (x == 0 || x == g.grid.SizeX) && (y == 0 || y == g.grid.SizeY)) || isNearby({ x, y });
 		}
-		else return isNearby({ x, y });
+		return isNearby({ x, y });
 	}
 
 	frame getNext(const position& sizeX, const position& sizeY) override

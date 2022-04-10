@@ -23,7 +23,7 @@ public:
  * @struct	ActorBase
  * @brief	Base actor object that all other actor types inherit from.
  */
-struct ActorBase : DisplayableBase, Positionable {
+struct ActorBase : DisplayableBase, Positionable, Named {
 private:
 	std::vector<ActorBase*> isTargetingMe; // list of all actors who have this actor as a target
 	ActorBase* myTarget{ nullptr }; // the actor who I am targetting
@@ -44,8 +44,6 @@ public:
 	ID factionID;
 	/// @brief	This is my current level.
 	unsigned level;
-	/// @brief	This is my name.
-	std::string name;
 	/// @brief	This determines the amount of health that I have, which determines the amount of damage I can take without dying.
 	StatFloat health;
 	/// @brief	This determines the amount of stamina I have to attack and defend against attacks against me.
@@ -71,7 +69,7 @@ public:
 	 * @param maxDF		My maximum and default defense.
 	 */
 	ActorBase(const ID& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, const unsigned& visRange, std::vector<std::unique_ptr<ItemBase<float>>> items = {})
-		: DisplayableBase(display, color), factionID{ factionID }, level{ level }, name{ name }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) }, visRange{ visRange } {}
+		: DisplayableBase(display, color), Named(name), factionID{ factionID }, level{ level }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) }, visRange{ visRange } {}
 
 	/**
 	 * @brief			Template Constructor.
@@ -81,9 +79,9 @@ public:
 	ActorBase(const point& startPos, const ActorTemplate& t) :
 		DisplayableBase(t.getDisplayableBase()),
 		Positionable(startPos),
+		Named(t.getName()),
 		factionID{ t.getFactionID() },
 		level{ t.getLevel() },
-		name{ t.getName() },
 		health{ t.getHealth() },
 		stamina{ t.getStamina() },
 		damage{ t.getDamage() },

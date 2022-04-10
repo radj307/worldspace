@@ -111,7 +111,7 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
 		const std::string& frametime_str{ "Frametime: " };
-		point frametime_pos{ GameConfig.gridSize.x / 2 - (12), 0};
+		point frametime_pos{ GameConfig.gridSize.x / 2 - (12), 0 };
 		std::cout << term::setCursorPosition(frametime_pos) << frametime_str;
 		frametime_pos.x += frametime_str.size();
 		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
