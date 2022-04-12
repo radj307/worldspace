@@ -213,24 +213,8 @@ struct point : std::pair<position, position> {
 		return *this;
 	}
 
-	// comparison operators:
+	// comparison operators: (note that less/greater than operators are not defined on purpose - the compiler generates better ones using hashing)
 
-	bool operator<(const point& o) const
-	{
-		return ((x < o.x) && (y < o.y));
-	}
-	bool operator<=(const point& o) const
-	{
-		return ((x <= o.x) && (y <= o.y));
-	}
-	bool operator>(const point& o) const
-	{
-		return ((x > o.x) && (y > o.y));
-	}
-	bool operator>=(const point& o) const
-	{
-		return ((x >= o.x) && (y >= o.y));
-	}
 	bool operator==(const point& o) const
 	{
 		return ((x == o.x) && (y == o.y));
@@ -272,15 +256,41 @@ struct point : std::pair<position, position> {
 	{
 		return std::abs(x) == std::abs(y);
 	}
-	point clamp() const
+
+	static position clamp(const position& v)
 	{
-		auto xP{ x }, yP{ y };
-		if (bool xNegative{ x < 0 }; std::abs(x) > 1)
-			xP = xNegative ? -1 : 1;
-		if (bool yNegative{ y < 0 }; std::abs(y) > 1)
-			yP = yNegative ? -1 : 1;
-		return{ xP, yP };
+		if (v == 0)
+			return v;
+		else if (v < 0)
+			return -1;
+		else return 1;
 	}
+
+	point clamp() const { return{ clamp(x), clamp(y) }; }
+
+	/**
+	 * @brief					This variant of the clamp() method will always return at least 1 zeroed axis.
+	 * @param zeroLargerAxis	When the X & Y axis are NOT equal distances from 0, determines whether the larger or smaller axis is returned.
+	 *\n						 true	- Selects the closer axis.
+	 *\n						 false	- Selects the further axis.
+	 * @param ifSameUseX		When true and if (x == y), the Y axis is zeroed and the X axis is returned.
+	 * @returns	point			A point with 1 (or 2 if both are already zero) axis set to zero, and the other clamped between -1 and 1.
+	 */
+	point pathClamp(const bool& zeroLargerAxis = true, const bool& ifSameUseX = true) const
+	{
+		// one axis is already zeroed
+		if (x == 0 || y == 0)
+			return clamp();
+		// x axis and y axis are equal distances from 0
+		else if (const position absX{ std::abs(x) }, absY{ std::abs(y) }; absX == absY)
+			return (ifSameUseX ? point{ clamp(x), 0 } : point{ 0, clamp(y) });
+		// zero the axis that is further from 0
+		else if (zeroLargerAxis)
+			return (absX > absY ? point{ 0, clamp(y) } : point{ clamp(x), 0 });
+		// zero the axis that is closer to 0
+		else return (absX > absY ? point{ clamp(x), 0 } : point{ 0, clamp(y) });
+	}
+
 	point zeroedLargestAxis() const
 	{
 		return (x > y
@@ -433,6 +443,15 @@ struct point : std::pair<position, position> {
 	{
 		return{ north(), east(), south(), west() };
 	}
+
+	point slideX(const int& count, const bool& zeroY = false)
+	{
+		return{ x + count, zeroY ? 0 : y };
+	}
+	point slideY(const int& count, const bool& zeroX = false) const
+	{
+		return{ zeroX ? 0 : x, y + count };
+	}
 };
 
 namespace std {
@@ -463,6 +482,24 @@ inline static point minimize(const point& l, const point& r)
 inline static point maximize(const point& l, const point& r)
 {
 	return{ l.x > r.x ? l.x : r.x, l.y > r.y ? l.y : r.y };
+}
+
+inline static std::vector<point> getRelativeDiff(const point& direction) noexcept(false)
+{
+	if (direction.x != 0 && direction.y != 0)
+		throw make_exception("Invalid cardinal direction point (", direction.x, ", ", direction.y, ") cannot have 2 non-zero axis!");
+	std::vector<point> vec;
+	vec.reserve(2);
+	if (direction.x == 0) {
+		vec.emplace_back(point{ -1, 0 });
+		vec.emplace_back(point{ 1, 0 });
+	}
+	else if (direction.y == 0) {
+		vec.emplace_back(point{ 0, -1 });
+		vec.emplace_back(point{ 0, 1 });
+	}
+	vec.shrink_to_fit();
+	return vec;
 }
 
 using size = point;

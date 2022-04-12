@@ -1,46 +1,47 @@
 #pragma once
-#include <typeinfo>
-#include <vector>
-#include <algorithm>
+#include "../base/BaseAttributes.hpp"
+#include "ActorBAse.hpp"
+#include "UID_Controller.h"
 
-using ID = short;
-
-inline constexpr const ID NULL_FACTION_ID{ -1 };
+enum class Relation : unsigned char {
+	Neutral,
+	Friendly,
+	Hostile,
+};
 
 struct Faction {
+	using RelationMap = std::map<ID, Relation>;
 protected:
 	const ID myID;
-	std::vector<ID> hostile;
-	const bool allowHostileToSelf;
 
-	std::vector<ID>::iterator find(const ID& id)
-	{
-		return std::find(hostile.begin(), hostile.end(), id);
-	}
-
-	bool contains(const ID& id) const
-	{
-		return std::any_of(hostile.begin(), hostile.end(), [&id](auto&& oid) {return id == oid; });
-	}
+	mutable RelationMap relations;
 
 public:
-	Faction(ID&& id, std::vector<ID>&& hostile_ids = {}, const bool& allowHostileToSelf = false) : myID{ std::forward<ID>(id) }, hostile{ std::forward<std::vector<ID>>(hostile_ids) }, allowHostileToSelf{ allowHostileToSelf } {}
-	Faction(const ID& id, const std::vector<ID>& hostile_ids = {}, const bool& allowHostileToSelf = false) : myID{ id }, hostile{ hostile_ids }, allowHostileToSelf{ allowHostileToSelf } {}
+	Faction(ID const& id) : myID{ id } {}
+	Faction(ID const& id, RelationMap&& relationMap) : myID{ id }, relations{ std::move(relationMap) } {}
+	Faction(RelationMap&& relationMap) : myID{ UID_Controller.getID() }, relations{ std::move(relationMap) } {}
 
-	void addHostile(const ID& id)
+	void setRelation(const ID& id, const Relation& relation) const
 	{
-		if ((id != myID || allowHostileToSelf) && !std::any_of(hostile.begin(), hostile.end(), [&id](auto&& oid) {return id == oid; }))
-			hostile.emplace_back(id);
+		relations.insert_or_assign(id, relation);
 	}
-	void removeHostile(const ID& id)
+	Relation getRelation(const ID& id) const
 	{
-		if (const auto& it{ find(id) }; it != hostile.end())
-			hostile.erase(it, it);
+		return relations[id];
+	}
+
+	void setHostile(const ID& id)
+	{
+		relations.insert_or_assign(id, Relation::Hostile);
 	}
 
 	bool isHostileTo(const ID& id) const
 	{
-		return contains(id);
+		return relations[id] == Relation::Hostile;
+	}
+	bool isHostileTo(ActorBase* actor) const
+	{
+		return relations[actor->myID] == Relation::Hostile || relations[actor->factionID] == Relation::Hostile;
 	}
 
 	bool operator==(const ID& id) const
@@ -52,13 +53,13 @@ public:
 		return myID != id;
 	}
 
-	bool isHostileToSelf() const
+	bool operator==(ActorBase* actor) const
 	{
-		return isHostileTo(myID);
+		return myID == actor->myID || myID == actor->factionID;
 	}
-	bool mayBeHostileToSelf() const
+	bool operator!=(ActorBase* actor) const
 	{
-		return allowHostileToSelf;
+		return myID != actor->myID && myID != actor->factionID;
 	}
 
 	ID getID() const
@@ -68,3 +69,4 @@ public:
 
 	operator ID() const { return getID(); }
 };
+

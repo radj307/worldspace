@@ -1,7 +1,6 @@
 #pragma once
 #include "../base/BaseAttributes.hpp"
 #include "../world/point.h"
-#include "../actors/Faction.hpp"
 
 #include <typeinfo>
 #include <optional>
@@ -21,11 +20,11 @@ public:
 	inline static const DisplayableBase
 		default_displayable{ '\0', color::setcolor{ ""s } };
 	inline static const int
-		default_factionID{ NULL_FACTION_ID };
+		default_factionID{ 0 };
 	inline static const unsigned
 		default_level{ 1u };
 	inline static const std::string
-		default_name{ "actor template" };
+		default_name{ "Unnamed Actor" };
 	inline static const StatFloat
 		default_health{ 100.0f },
 		default_stamina{ 100.0f },
@@ -39,18 +38,18 @@ public:
 		default_items{};
 
 	ActorTemplate(
-		const std::optional<DisplayableBase>& displayable,
-		const std::optional<int>& factionID = std::nullopt,
-		const std::optional<unsigned>& level = std::nullopt,
-		const std::optional<std::string>& name = std::nullopt,
-		const std::optional<StatFloat>& health = std::nullopt,
-		const std::optional<StatFloat>& stamina = std::nullopt,
-		const std::optional<StatFloat>& damage = std::nullopt,
-		const std::optional<StatFloat>& defense = std::nullopt,
-		const std::optional<StatFloat>& fear = std::nullopt,
-		const std::optional<StatFloat>& aggression = std::nullopt,
-		const std::optional<StatUnsigned>& visRange = std::nullopt,
-		const std::optional<std::vector<ItemTemplate<float>>>& items = std::nullopt
+		const std::optional<DisplayableBase>&					displayable,
+		const std::optional<int>&								factionID = std::nullopt,
+		const std::optional<unsigned>&							level = std::nullopt,
+		const std::optional<std::string>&						name = std::nullopt,
+		const std::optional<StatFloat>&							health = std::nullopt,
+		const std::optional<StatFloat>&							stamina = std::nullopt,
+		const std::optional<StatFloat>&							damage = std::nullopt,
+		const std::optional<StatFloat>&							defense = std::nullopt,
+		const std::optional<StatFloat>&							fear = std::nullopt,
+		const std::optional<StatFloat>&							aggression = std::nullopt,
+		const std::optional<StatUnsigned>&						visRange = std::nullopt,
+		const std::optional<std::vector<ItemTemplate<float>>>&	items = std::nullopt
 	) : displayable{ displayable },
 		factionID{ factionID },
 		level{ level },

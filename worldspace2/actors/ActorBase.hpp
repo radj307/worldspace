@@ -3,21 +3,11 @@
 #include "../calc.h"
 #include "../items/ItemBase.hpp"
 #include "ActorTemplate.hpp"
-#include "Faction.hpp"
+#include "UID_Controller.h"
 
 #include <var.hpp>
 
 #include <typeinfo>
-
-// Actor ID controller object
-static struct {
-private:
-	const unsigned minID{ 0u }, maxID{ 0u - 1u };
-	unsigned currentID{ minID };
-
-public:
-	unsigned getID() { return ++currentID; }
-} UID_Controller;
 
 /**
  * @struct	ActorBase
@@ -39,7 +29,7 @@ private:
 
 public:
 	/// @brief	This is my personal tracking ID number.
-	unsigned myID{ UID_Controller.getID() };
+	ID myID;
 	/// @brief	This is the ID number of the faction that I belong to.
 	ID factionID;
 	/// @brief	This is my current level.
@@ -69,7 +59,7 @@ public:
 	 * @param maxDF		My maximum and default defense.
 	 */
 	ActorBase(const ID& factionID, const unsigned& level, const std::string& name, const point& position, const char& display, const color::setcolor& color, const float& maxHP, const float& maxSP, const float& maxDM, const float& maxDF, const unsigned& visRange, std::vector<std::unique_ptr<ItemBase<float>>> items = {})
-		: DisplayableBase(display, color), Named(name), factionID{ factionID }, level{ level }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) }, visRange{ visRange } {}
+		: DisplayableBase(display, color), Named(name), myID{ UID_Controller.getID() }, factionID{ factionID }, level{ level }, health{ maxHP }, stamina{ maxSP }, damage{ maxDM }, defense{ maxDF }, items{ std::move(items) }, visRange{ visRange } {}
 
 	/**
 	 * @brief			Template Constructor.
@@ -80,6 +70,7 @@ public:
 		DisplayableBase(t.getDisplayableBase()),
 		Positionable(startPos),
 		Named(t.getName()),
+		myID{ UID_Controller.getID() },
 		factionID{ t.getFactionID() },
 		level{ t.getLevel() },
 		health{ t.getHealth() },
@@ -164,7 +155,7 @@ public:
 		float dmg{ incoming };
 
 		if (!bypassDefense) {
-			dmg -= 2 * (defense / dmg);
+			dmg -= 2 * (defense / (dmg + 1));
 			if (attacker != nullptr)
 				attacker->stamina -= defense / CalculationSettings.REDUCE_ATTACKER_STAMINA_LOSS_DIV;
 		}
@@ -233,3 +224,4 @@ public:
 
 /// @brief	Constraint that only allows types derived from ActorBase.
 template<typename T> concept actor = std::derived_from<T, ActorBase>;
+

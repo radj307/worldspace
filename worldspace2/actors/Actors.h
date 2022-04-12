@@ -1,9 +1,10 @@
 #pragma once
 #include "ActorBase.hpp"
-#include "Faction.hpp"
 
 
 struct Player : ActorBase {
+	// TODO: Add a kill counter, and level-up system
+	// TODO: Add a 'killed by' string & implement that
 
 	Player(const ID& faction, const unsigned& level, const point& position, const char& display, const color::setcolor& color, const float& health, const float& stamina, const float& damage, const float& defense, const unsigned& visRange) : ActorBase(faction, level, "Player", position, display, color, health, stamina, damage, defense, visRange) {}
 

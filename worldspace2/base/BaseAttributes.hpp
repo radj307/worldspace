@@ -6,6 +6,8 @@
 
 #include <optional>
 
+using ID = short;
+
 struct DisplayableBase {
 	char display;
 	color::setcolor color;

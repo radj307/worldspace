@@ -3,6 +3,9 @@
 #include "world/point.h"
 #include "world/matrix.hpp"
 #include "actors/ActorTemplate.hpp"
+#include "actors/ActorBase.hpp"
+#include "actors/Actors.h"
+#include "actors/Faction.hpp"
 
 #include <typeinfo>
 
@@ -20,44 +23,62 @@ static struct {
 		maxPos = gridSize - minPos;
 	}
 
-	std::array<Faction, 5> factions{
-		Faction{ NULL_FACTION_ID },
-		Faction{ 0, { 1 } },
-		Faction{ 1, { 0, 2 } },
-		Faction{ 2 },
-		Faction{ 3 }
+	const ID NullID{ UID_Controller.getID() };
+	const ID PlayerFactionID{ UID_Controller.getID() };
+	const ID EnemyFactionID{ UID_Controller.getID() };
+	const ID IndepFactionID{ UID_Controller.getID() };
+
+	Faction factionNull{ NullID };
+	Faction factionPlayer{
+		PlayerFactionID,
+		Faction::RelationMap{
+			{ EnemyFactionID, Relation::Hostile },
+		{ IndepFactionID, Relation::Neutral },
+	}
+	};
+	Faction factionEnemy{
+		EnemyFactionID,
+		Faction::RelationMap{
+			{ PlayerFactionID, Relation::Hostile },
+		{ IndepFactionID, Relation::Neutral },
+	}
+	};
+	Faction factionIndep{
+		IndepFactionID,
+		Faction::RelationMap{
+			{ PlayerFactionID, Relation::Friendly },
+		{ EnemyFactionID, Relation::Neutral },
+	}
 	};
 
 	Faction& getFactionFromID(const ID& id)
 	{
-		for (int i{ 1 }; i < factions.size(); ++i)
-			if (auto& fac{ factions[i] }; fac == id)
-				return fac;
-		return factions[0];
+		if (factionPlayer == id)
+			return factionPlayer;
+		else if (factionEnemy == id)
+			return factionEnemy;
+		else if (factionIndep == id)
+			return factionIndep;
+		else return factionNull;
 	}
-
-	Faction& playerFaction{ factions[1] };
-	Faction& enemyFaction{ factions[2] };
-	Faction& neutralFaction{ factions[3] };
-	Faction& passiveFaction{ factions[4] };
 
 	std::vector<ActorTemplate> npc_templates{
 		ActorTemplate{
 			DisplayableBase{ '*', color::setcolor::cyan },
-			passiveFaction.operator ID(),
+			factionIndep,
 			1u,
-			"Chicken"s,
+			"Chicken",
 			StatFloat(30.0f),
 			StatFloat(50.0f),
 			StatFloat(15.0f),
 			StatFloat(0.0f),
 			StatFloat{ 10.0f, 0.0f },
 			StatFloat{ 0.0f, 0.0f }
-	},
+		},
 		ActorTemplate{
 			DisplayableBase{ '*', color::setcolor::cyan },
-			neutralFaction,
-			2,
+			factionIndep,
+			2u,
 			"Ram",
 			80.0f,
 			150.0f,
@@ -65,24 +86,25 @@ static struct {
 			5.0f,
 			StatFloat{ 40.0f, 0.0f },
 			StatFloat{ 0.0f, 0.0f }
-	}
+		}
 	};
+
 	std::vector<ActorTemplate> enemy_templates{
 		ActorTemplate{
 			DisplayableBase{ '?', color::setcolor::red },
-			enemyFaction,
+			factionEnemy,
 			1,
-			"Bandit"s,
+			"Bandit",
 			100.0f,
 			80.0f,
 			10.0f,
 			2.5f,
 			StatFloat{ 50.0f, 0.0f },
 			StatFloat{ 100.0f, 0.0f }
-	},
+		},
 		ActorTemplate{
 			DisplayableBase{ '!', color::setcolor::magenta },
-			enemyFaction,
+			factionEnemy,
 			2,
 			"Marauder",
 			110.0f,
@@ -91,10 +113,10 @@ static struct {
 			5.0f,
 			StatFloat{ 100.0f, 0.0f },
 			StatFloat{ 100.0f, 0.0f }
-	},
+		},
 		ActorTemplate{
 			DisplayableBase{ '%', color::setcolor{ color::rgb_to_sgr(1.0f, 0.2f, 0.01f) } },
-			enemyFaction,
+			factionEnemy,
 			3,
 			"Reaver",
 			120.0f,
@@ -103,12 +125,12 @@ static struct {
 			22.2f,
 			StatFloat{ 100.0f, 0.0f },
 			StatFloat{ 100.0f, 0.0f }
-	}
+		}
 	};
 
 	ActorTemplate player_template{
 		DisplayableBase{ '$', color::setcolor::green },
-		playerFaction,
+		factionPlayer,
 		1,
 		"Player",
 		100.0f,
@@ -147,12 +169,4 @@ using bounds = std::pair<size, size>;
 inline static bounds getPlayableBounds()
 {
 	return{ GameConfig.minPos, GameConfig.maxPos };
-}
-
-inline static bool isValidFaction(const int& factionID)
-{
-	for (const auto& it : GameConfig.factions)
-		if (factionID == it.getID())
-			return true;
-	return false;
 }

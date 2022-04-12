@@ -24,6 +24,13 @@ enum class GameState : unsigned char {
 	EXCEPTION,		// [EXIT]: Game crashed because of an exception, and should not be restarted.
 };
 
+enum class WinState : unsigned char {
+	UNDEFINED,
+	PLAYER_WON,
+	PLAYER_LOST,
+	PLAYER_DIED,
+};
+
 /**
  * @brief		Checks if the given GameState is valid, and indicates that the game threads should continue running.
  * @param state	Input GameState
@@ -48,14 +55,25 @@ static struct {
 	const long long DEFAULT_SIZE_X{ 30 }, DEFAULT_SIZE_Y{ 30 };
 
 	GameState state{ GameState::NULL_STATE };
+	WinState winstate{ WinState::UNDEFINED };
+
 	std::optional<std::exception> exception;
 
 	std::chrono::milliseconds frametime{ 13 };
 	std::chrono::milliseconds regentime{ 500 };
 	std::chrono::milliseconds gametime{ 200 };
 
+	std::chrono::milliseconds projectileTime{ 50 };
+
 	std::chrono::milliseconds restartTimeout{ 10000 };
 } Global;
+
+inline static void reset_state()
+{
+	Global.state = GameState::NULL_STATE;
+	Global.winstate = WinState::UNDEFINED;
+	Global.exception = std::nullopt;
+}
 
 /**
  * @brief			Sets the global frametime to the frametime required to meet the given target FPS.

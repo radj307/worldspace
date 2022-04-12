@@ -111,22 +111,25 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 {
 	try {
 		const std::string& frametime_str{ "Frametime: " };
-		point frametime_pos{ GameConfig.gridSize.x / 2 - (12), 0 };
+		point frametime_pos{ framebuf.csbOrigin.x, 0 };
 		std::cout << term::setCursorPosition(frametime_pos) << frametime_str;
 		frametime_pos.x += frametime_str.size();
+
 		std::unique_ptr<PauseMenu> pauseMenu{ nullptr };
+
 		for (auto& state{ Global.state }; valid_state(state); ) {
 			const auto& t_start{ CLK::now() };
+
 			switch (state) {
 			case GameState::INITIALIZING:
 			{ // critical section
-				std::scoped_lock<std::mutex> lock(mtx);
-				framebuf.initDisplay();
-				if (pauseMenu == nullptr) {
+				if (pauseMenu == nullptr) { // create a new pause menu
 					point pos{ static_cast<point>(term::getScreenBufferSize()) / 2 };
 					pos.y /= 1.5;
 					pauseMenu = std::make_unique<PauseMenu>(pos, color::setcolor::cyan);
 				}
+				std::scoped_lock<std::mutex> lock(mtx);
+				framebuf.initDisplay();
 				Global.state = GameState::RUNNING;
 				break;
 			} // critical section
@@ -154,7 +157,7 @@ inline void thread_display(std::mutex& mtx, framebuffer& framebuf) noexcept
 				<< elapsed.count()
 				<< " ms      "
 				;
-			std::this_thread::sleep_until(t_end);
+			std::this_thread::sleep_for(Global.frametime - (t_end - t_start));
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -170,6 +173,9 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 {
 	using CLK = std::chrono::high_resolution_clock;
 	try {
+		TIMEP t_lastRegen{ CLK::now() };
+		TIMEP t_lastProjCycle{ CLK::now() };
+
 		for (auto& state{ Global.state }; valid_state(state); ) {
 			const auto& t_start{ CLK::now() };
 			switch (state) {
@@ -177,15 +183,27 @@ inline void thread_game(std::mutex& mtx, gamespace& game) noexcept
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
 
-				if (game.player.isDead())
-					Global.state = GameState::OVER;
+				if (t_start - t_lastProjCycle > Global.projectileTime) {
+					game.ProcessProjectileActions();
+					t_lastProjCycle = CLK::now();
+				}
 
-				game.PerformPeriodicRegen();
+				if (game.player.isDead()) {
+					Global.state = GameState::OVER;
+				}
+				else if (game.npcs.empty()) {
+					Global.state = GameState::OVER;
+				}
+
+				if (t_start - t_lastRegen > Global.regentime) {
+					game.PerformPeriodicRegen();
+					t_lastRegen = CLK::now();
+				}
 				break;
 			} // critical section
 			default:break;
 			}
-			std::this_thread::sleep_until(t_start + Global.regentime);
+			std::this_thread::sleep_for(Global.frametime - (CLK::now() - t_start));
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -202,20 +220,19 @@ inline void thread_npc(std::mutex& mtx, gamespace& game) noexcept
 	try {
 		using CLK = std::chrono::high_resolution_clock;
 		for (auto& state{ Global.state }; valid_state(state);) {
-			const auto tBeginCycle{ CLK::now() };
+			const auto t_start{ CLK::now() };
 
 			switch (state) {
 			case GameState::RUNNING:
 			{ // critical section
 				std::scoped_lock<std::mutex> lock(mtx);
-				game.ProcessProjectileActions();
 				game.PerformActionAllNPCs();
 				break;
 			} // critical section
 			default:break;
 			}
 
-			std::this_thread::sleep_until(tBeginCycle + Global.gametime);
+			std::this_thread::sleep_for(Global.gametime - (CLK::now() - t_start));
 		}
 	} catch (const std::exception& ex) {
 		Global.state = GameState::EXCEPTION;
@@ -284,24 +301,8 @@ inline bool handleGameOver(Controls& controls, const std::chrono::milliseconds& 
 	return false;
 }
 
-#ifdef OS_WIN
-#include <Windows.h>
-LONG SEH_Handler(_EXCEPTION_POINTERS* exInfo)
-{
-	const auto& ex{ exInfo->ExceptionRecord };
-
-	Global.state = GameState::EXCEPTION;
-	Global.exception = make_exception("Unhandled SEH exception '", ex->ExceptionCode, "'\n");
-
-	return EXCEPTION_CONTINUE_EXECUTION;
-}
-#endif
-
 int main(const int argc, char** argv)
 {
-#ifdef OS_WIN // Handle 'Structured Exception Handle' exceptions on windows (these aren't caught by try-catch blocks, and could cause threads to fail without notice)
-	AddVectoredExceptionHandler(1, SEH_Handler);
-#endif
 	try {
 		// enable ANSI escape sequences
 		std::cout << term::EnableANSI;
@@ -343,6 +344,7 @@ int main(const int argc, char** argv)
 		const auto& timeStart{ std::chrono::high_resolution_clock::now() };
 
 		do {
+			reset_state();
 			Global.state = GameState::INITIALIZING;
 
 			gamespace game{};
@@ -375,7 +377,7 @@ int main(const int argc, char** argv)
 		else std::cout
 			<< "Successfully exited after "
 			<< std::chrono::duration_cast<std::chrono::duration<long double, std::ratio<60L>>>(
-				std::chrono::duration<long double>(timeEnd - timeStart)
+			std::chrono::duration<long double>(timeEnd - timeStart)
 			).count() << " minutes." << std::endl;
 
 		return EXIT_SUCCESS;

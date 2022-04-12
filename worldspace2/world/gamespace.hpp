@@ -11,6 +11,7 @@
 #include <map>
 #include <set>
 #include <queue>
+#include <stack>
 
 struct flare {
 	int framesRemaining;
@@ -91,8 +92,6 @@ struct gamespace {
 	{
 		generate<NPC>(GameConfig.generate_npc_count, GameConfig.npc_templates);
 		generate<Enemy>(GameConfig.generate_enemy_count, GameConfig.enemy_templates);
-
-		addFlare<edgeflare>(6, color::setcolor{ color::green, color::Layer::B }, GameConfig.gridSize);
 	}
 
 	template<std::derived_from<flare> T, typename... Args>
@@ -139,7 +138,7 @@ struct gamespace {
 			const auto& normalized{ std::round(math::normalize(std::fmod(out, max), std::make_pair(min, max), std::make_pair(0.0, sizef))) };
 			const auto& indexf{ static_cast<float>(normalized) };
 			return static_cast<size_t>(indexf);
-		}());
+			}());
 	}
 
 	template<std::derived_from<ActorBase> T>
@@ -225,10 +224,7 @@ struct gamespace {
 			// check for actors
 			if (const auto& other{ getActorAt(newPos) }; other != nullptr) {
 				// check if the actor is hostile towards the target
-				if (typeid(*actor) == typeid(Player) || getFaction(actor->factionID).isHostileTo(other->factionID)) {
-					return other->applyDamageFrom(actor); // return true if other actor died
-				}
-				else return false;
+				return other->applyDamageFrom(actor); // return true if other actor died
 			}
 			return true;
 		}
@@ -311,11 +307,10 @@ struct gamespace {
 
 				// check if there is an actor at the origin tile
 				if (auto* actorAtPos{ getActorAt(origin) }; actorAtPos != nullptr) {
-					auto& myFaction{ getFaction(actor->factionID) };
 
 					// if the unlucky winner of a bullet to the face isn't already hostile, make them hostile
-					if (auto& theirFaction{ getFaction(actorAtPos->factionID) }; !theirFaction.isHostileTo(myFaction))
-						theirFaction.addHostile(myFaction);
+					if (auto& theirFaction{ getFaction(actorAtPos->factionID) }; !theirFaction.isHostileTo(actor))
+						theirFaction.setHostile(actor->myID);
 
 					// apply the projectile's damage directly to the unlucky winner
 					actorAtPos->applyDamage(proj.damage, proj.piercing);
@@ -364,21 +359,38 @@ struct gamespace {
 			return false;
 		} };
 
-		const point& diff{ start.distanceTo(target) }, diffNormal{ diff.clamp() };
+		const auto& diff{ start.distanceTo(target) }, clamped{ diff.x != 0 && diff.y != 0 ? (rng.get(0, 1) == 0 ? diff.zeroedLargestAxis().clamp() : diff.zeroedSmallestAxis().clamp()) : diff.clamp() }, nclamped{ -clamped };
 
-		if (const auto& sml{ diff.getSmallestAxis() }; sml == 0 || rng.get(0, 2) == 0) { // 33% chance of using small axis
-			const auto& lrg{ diff.getLargestAxis() };
-			if (lrg == diff.x)
-				return point{ lrg, 0 }.clamp();
-			else
-				return point{ 0, lrg }.clamp();
+		using uchar = unsigned char;
+		std::map<point, uchar> map{
+			std::make_pair(point{ 0, -1 }, static_cast<uchar>(10)),	// NORTH
+			std::make_pair(point{ 1, 0 }, static_cast<uchar>(10)),	// EAST
+			std::make_pair(point{ 0, 1 }, static_cast<uchar>(10)),	// SOUTH
+			std::make_pair(point{ -1, 0 }, static_cast<uchar>(10)),	// WEST
+		};
+
+		for (auto& [dir, preference] : map) {
+			if (dir == nclamped)
+				preference -= 2;
+			else if (dir == clamped)
+				preference += 2;
+
+			if (!movable(start + dir))
+				preference = 0;
+			else ++preference;
 		}
-		else if (sml == diff.x)
-			return point{ sml, 0 }.clamp();
-		else
-			return point{ 0, sml }.clamp();
 
-		return diffNormal;
+		point p{ 0, 0 };
+		uchar highest{ 0 };
+
+		for (const auto& [dir, pref] : map) {
+			if (pref > highest) {
+				highest = pref;
+				p = dir;
+			}
+		}
+
+		return p;
 	}
 	point pathFind(ActorBase* actor, const point& target)
 	{
@@ -399,7 +411,7 @@ struct gamespace {
 		applyToAll([](ActorBase* actor) {
 			actor->health += GameConfig.regenHealth;
 			actor->stamina += GameConfig.regenStamina;
-		});
+			});
 	}
 
 	/**
@@ -485,7 +497,7 @@ struct gamespace {
 
 		// NPC has a target set:
 		if (auto* tgt{ npc->getTarget() }; tgt != nullptr) {
-			if (isValidFaction(tgt->factionID) && !tgt->isDead()) {
+			if (!tgt->isDead()) {
 				const auto& tgtPos{ tgt->getPos() };
 				if (tgtPos.withinCircle(npc->visRange, npc->getPos()))
 					npc->aggression += 10.0f;
@@ -556,7 +568,7 @@ struct gamespace {
 					if (!actorAtPos->applyDamage(proj->damage, proj->piercing)) {
 						// check if the projectile was fired close enough that we know who fired it
 						if (proj->getDistanceTravelled() <= actorAtPos->visRange) // if the projectile was fired from within sight, make the actor hostile to the person who shot them
-							getFaction(actorAtPos->factionID).addHostile(proj->factionID);
+							getFaction(actorAtPos->factionID).setHostile(proj->factionID);
 					}
 
 					// delete the projectile since we struck an actor
