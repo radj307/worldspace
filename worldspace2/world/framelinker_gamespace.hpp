@@ -5,20 +5,20 @@
 
 struct framelinker_gamespace : framelinker {
 	gamespace& g;
-	flare* active{ nullptr };
+	flare* activeFlare{ nullptr };
 
 	framelinker_gamespace(gamespace& gamespace) : g { gamespace } {}
 
 	void preFrame() override
 	{
-		if (active == nullptr && !g.flares.empty())
-			active = g.flares.back().get();
+		if (activeFlare == nullptr && !g.flares.empty())
+			activeFlare = g.flares.back().get();
 	}
 	void postFrame() override
 	{
-		if (active != nullptr) {
-			if (active->framesRemaining-- <= 0) {
-				active = nullptr;
+		if (activeFlare != nullptr) {
+			if (activeFlare->framesRemaining-- <= 0) {
+				activeFlare = nullptr;
 				g.flares.pop();
 			}
 		}
@@ -29,8 +29,8 @@ struct framelinker_gamespace : framelinker {
 		if (!e.enableLinking)
 			return e;
 
-		if (active != nullptr) // flare
-			if (const auto& color{ active->getFlareAt(x, y) }; color.has_value())
+		if (activeFlare != nullptr) // flare
+			if (const auto& color{ activeFlare->getFlareAt(x, y) }; color.has_value())
 				e += color.value();
 
 		if (auto* actor{ g.getActorAt(x, y) }; actor != nullptr)
